@@ -21,5 +21,4 @@
   (get-value [_] (bit-and @value 0xffffffff))
   (reset [_] (reset! value 1)))
 
-(defn make-adler32 []
-  (map->Adler32 {:value (atom 1)}))
+(defn adler32 [] (Adler32. (atom 1)))

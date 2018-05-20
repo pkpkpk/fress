@@ -1,5 +1,6 @@
 (ns fress.writer
   (:require [fress.codes :as codes]
+            [fress.ranges :as ranges]
             [fress.raw-output :as rawOut]
             [goog.string :as gstring]))
 
@@ -24,9 +25,7 @@
       (let [ ch (.charCodeAt s string-pos)
              encoding-size (utf8-encoding-size ch)]
         (if (< (alength buf) (+ buffer-pos encoding-size))
-          (do
-            (log "break!")
-            [string-pos buffer-pos])
+          [string-pos buffer-pos]
           (do
             (case encoding-size
               1 (aset buf buffer-pos ch)
@@ -59,7 +58,7 @@
   (getStructCache ^InterleavedIndexHopMap [this]"public")
   (writeTag ^FressianWriter [this] "public")
   (writeExt ^FressianWriter [this]"public")
-  (writeCount [this] "public")
+  (writeCount [this n] "public")
   (bitSwitch ^int [this l] "private")
   (internalWriteInt [this i] "private")
   (shouldSkipCache ^boolean [this o] "private")
@@ -91,28 +90,65 @@
 ;         (recur (buffer-string-chunk-utf8 s string-pos string-buffer)))))
 ;   wtr)
 
+
+
+
+
 ; implements StreamingWriter, Writer, Closeable
 ; out = output-stream
 ; raw-out = RawOutput
 (defrecord FressianWriter [out raw-out priorityCache structCache sb handlers]
   IFressianWriter
-  ; (writeString [this s] (write-string this s))
-  (writeCode [this code]
-    (assert (int? code) "write code expects an integer")
-    ;rawOut.writeRawByte(code);
-             )
+
+  (writeCode [this code] (rawOut/writeRawByte raw-out code))
+
   (writeNull [this] (writeCode this codes/NULL))
-  (writeInt [this i]
-    (if (nil? i)
-      (writeNull [this])
-      (do ; jvm makes sure its a long; jvm makes sure its a long
-        (assert (int? i) "writeInt expects an integer value")
-        (internalWriteInt this i)))))
+
+  (writeBytes [this bytes]
+    (if (nil? bytes)
+      (do
+        (writeNull this)
+        this)
+      (writeBytes this bytes 0 (alength b))))
+
+  (writeBytes [this bytes offset length]
+    (assert (instance? js/Uint8Array bytes) "writeRawBytes expects a Int8Array")
+    (if (< length ranges/BYTES_PACKED_LENGTH_END)
+      (do
+        (rawOut/writeRawByte raw-out (+ codes/BYTES_PACKED_LENGTH_START length))
+        (rawOut/writeRawBytes raw-out bytes offset length))
+      (loop [len length
+             off offset]
+        (if (< ranges/BYTE_CHUNK_SIZE len)
+          (do
+            (write-code wtr codes/BYTES_CHUNK)
+            (write-count wtr ranges/BYTE_CHUNK_SIZE)
+            (rawOut/writeRawBytes raw-out bytes off ranges/BYTE_CHUNK_SIZE)
+            (recur
+              (- len ranges/BYTE_CHUNK_SIZE)
+              (+ off ranges/BYTE_CHUNK_SIZE)))
+          (do
+            (writeCode this codes/BYTES)
+            (writeCount this len)
+            (rawOut/writeRawBytes raw-out bytes offset len)))))
+    this)
+
+  ; (writeInt [this i]
+  ;   (if (nil? i)
+  ;     (writeNull [this])
+  ;     (do ; jvm makes sure its a long; jvm makes sure its a long
+  ;       (assert (int? i) "writeInt expects an integer value")
+  ;       (internalWriteInt this i))))
+
+  ; (writeString [this s] (write-string this s))
+  )
 
 
 
 (def default-write-handlers {})
 
-(defn fressian-writer
+(defn Writer
   [out handlers]
-  (let [handlers (merge default-write-handlers handlers)]))
+  (let [handlers (merge default-write-handlers handlers)
+        raw-out (rawOut/raw-output)]
+    (FressianWriter. out raw-out nil nil nil handlers)))

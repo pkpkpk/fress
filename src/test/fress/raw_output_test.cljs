@@ -5,6 +5,7 @@
 ;; need overflow behaviors
 ;; read/write oob
 ;; bad types
+;; adler parity
 
 (deftest rawBytes-test
   (testing "writeRawByte"
@@ -30,5 +31,10 @@
       (is (= 7 (rawOut/?getByte raw 1)))
       (is (= 11 (rawOut/?getByte raw 2)))
       (is (nil? (rawOut/?getByte raw 3)))
-
-      )))
+      (let [offset 3
+            len 2]
+        (rawOut/writeRawBytes raw bytes offset len)
+        (is (= 11 (rawOut/?getByte raw 2)))
+        (is (= 13 (rawOut/?getByte raw 3)))
+        (is (= 17 (rawOut/?getByte raw 4)))
+        (is (nil? (rawOut/?getByte raw 5)))))))

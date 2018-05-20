@@ -1,5 +1,10 @@
 (ns fress.codes)
 
+
+(def ^:const BYTES_PACKED_LENGTH_START 0xD0) ;208
+(def ^:const BYTES_PACKED_LENGTH_END   0xD8) ;216
+(def ^:const BYTES_CHUNK 0xD8) ;216
+(def ^:const BYTES 0xD9) ;217
 (def ^:const STRING_PACKED_LENGTH_START 0xDA) ;218
 (def ^:const STRING_PACKED_LENGTH_END 0xE2) ;226
 (def ^:const STRING_CHUNK 0xE2) ;226
@@ -32,14 +37,8 @@
     :precache 0xCE
     :footer 0xCF
     :footer-magic 0xCFCFCFCF
-    :bytes-packed-length-start 0xD0 ;208
-    :bytes-packed-length-end   0xD8 ;216
-    :bytes-chunk 0xD8 ;216
-    :bytes 0xD9 ; 217
-    :string-packed-length-start 0xDA ;218
-    :string-packed-length-end   0xE2 ;226
-    :string-chunk 0xE2 ;226
-    :string 0xE3 ; 227
+
+
     :list-packed-length-start 0xE4
     :list-packed-length-end   0xEC
     :list 0xEC

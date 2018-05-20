@@ -3,7 +3,7 @@
             [goog.string :as gstring]))
 
 (defn ^boolean valid-byte? [n]
-  (and (int? n) (<= 0 n) (< n 255)))
+  (and (int? n) (<= 0 n 255)))
 
 (defn- >>> [n s] ;=> macro
   (.floor js/Math (/ n (.pow js/Math 2 s))))

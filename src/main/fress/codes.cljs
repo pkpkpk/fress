@@ -11,6 +11,8 @@
 (def ^:const STRING 0xE3) ;227
 (def ^:const NULL 0xF7)
 
+(def ^:const INT 0xF8)
+
 (def codes
   { :priority-cache-packed-start 0x80
     :priority-cache-packed-end 0xA0

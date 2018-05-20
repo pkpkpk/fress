@@ -48,7 +48,9 @@
   (writeString ^FressianWriter [this s])
   (writeIterator [this length it])
   (writeList ^FressianWriter [this o])
-  (writeBytes ^FressianWriter [this bs] [this bs offset length])
+  (writeBytes ^FressianWriter
+              [this bs]
+              [this bs offset length])
   (writeFooterFor [this byteBuffer])
   (writeFooter ^FressianWriter [this])
   (internalWriteFooter [this length])
@@ -60,11 +62,15 @@
   (writeExt ^FressianWriter [this]"public")
   (writeCount [this n] "public")
   (bitSwitch ^int [this l] "private")
-  (internalWriteInt [this i] "private")
+  ; (internalWriteInt [this i] "private")
   (shouldSkipCache ^boolean [this o] "private")
   (doWrite [this tag o w cache?] "private")
-  (writeAs ^FressianWriter [this tag o] [this tag o cache?] "public")
-  (writeObject ^FressianWriter [this o] [this o cache?] "public")
+  (writeAs ^FressianWriter
+           [this tag o]
+           [this tag o cache?] "public")
+  (writeObject ^FressianWriter
+               [this o]
+               [this o cache?] "public")
   (writeCode [this code] "public")
   (close [this] "public")
   (beginOpenList ^FressianWriter [this] "public")
@@ -90,7 +96,56 @@
 ;         (recur (buffer-string-chunk-utf8 s string-pos string-buffer)))))
 ;   wtr)
 
+(defn bit-switch [l]
+  (- 64 (.-length (.toString (.abs js/Math l) 2))))
 
+(defn internalWriteInt [wtr n]
+  (let [s (bit-switch n)
+        raw (.-raw-out wtr)]
+    (cond
+      (<=  1 s 14)
+      (do
+        (writeCode wtr codes/INT)
+        (rawOut/writeRawInt64 raw n))
+
+      (<= 15 s 22)
+      (do
+        (rawOut/writeRawByte raw (+ codes/INT_PACKED_7_ZERO (>>> n 48)))
+        (rawOut/writeRawInt48 raw n))
+
+      (<= 23 s 30)
+      (do
+        (rawOut/writeRawByte raw (+ codes/INT_PACKED_6_ZERO (>>> n 40)))
+        (rawOut/writeRawInt40 raw n))
+
+      (<= 31 s 38)
+      (do
+        (rawOut/writeRawByte raw (+ codes/INT_PACKED_5_ZERO (>>> n 32)))
+        (rawOut/writeRawInt32 raw n))
+
+      (<= 39 s 44)
+      (do
+        (rawOut/writeRawByte raw (+ codes/INT_PACKED_4_ZERO (>>> n 24)))
+        (rawOut/writeRawInt24 raw n))
+
+      (<= 45 s 51)
+      (do
+        (rawOut/writeRawByte raw (+ codes/INT_PACKED_3_ZERO (>>> n 16)))
+        (rawOut/writeRawInt16 raw n))
+
+      (<= 52 s 57)
+      (do
+        (rawOut/writeRawByte raw (+ codesINT_PACKED_2_ZERO (>>> n 8)))
+        (rawOut/writeRawByte raw  n))
+
+      (<= 58 s 64)
+      (do
+        (when (< n -1)
+          (rawOut/writeRawByte raw (+ codes/INT_PACKED_2_ZERO (>>> n 8))))
+        (rawOut/writeRawByte raw n))
+
+      :default
+      (throw (js/Error. "more than 64 bits in a long!")))))
 
 
 
@@ -99,17 +154,28 @@
 ; raw-out = RawOutput
 (defrecord FressianWriter [out raw-out priorityCache structCache sb handlers]
   IFressianWriter
-
   (writeCode [this code] (rawOut/writeRawByte raw-out code))
 
+  (writeCount [this n] (writeInt this n))
+
   (writeNull [this] (writeCode this codes/NULL))
+
+  (writeInt [this i]
+    (if (nil? i)
+      (do
+        (writeNull this)
+        this)
+      (do
+        (assert (int? i))
+        (internalWriteInt this i)
+        this)))
 
   (writeBytes [this bytes]
     (if (nil? bytes)
       (do
         (writeNull this)
         this)
-      (writeBytes this bytes 0 (alength b))))
+      (writeBytes this bytes 0 (alength bytes))))
 
   (writeBytes [this bytes offset length]
     (assert (instance? js/Uint8Array bytes) "writeRawBytes expects a Int8Array")
@@ -121,8 +187,8 @@
              off offset]
         (if (< ranges/BYTE_CHUNK_SIZE len)
           (do
-            (write-code wtr codes/BYTES_CHUNK)
-            (write-count wtr ranges/BYTE_CHUNK_SIZE)
+            (writeCode wtr codes/BYTES_CHUNK)
+            (writeCount wtr ranges/BYTE_CHUNK_SIZE)
             (rawOut/writeRawBytes raw-out bytes off ranges/BYTE_CHUNK_SIZE)
             (recur
               (- len ranges/BYTE_CHUNK_SIZE)

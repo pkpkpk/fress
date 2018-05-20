@@ -1,4 +1,5 @@
 (ns fress.writer
+  (:require-macros [fress.macros :refer [>>>]])
   (:require [fress.codes :as codes]
             [fress.ranges :as ranges]
             [fress.raw-output :as rawOut]
@@ -187,8 +188,8 @@
              off offset]
         (if (< ranges/BYTE_CHUNK_SIZE len)
           (do
-            (writeCode wtr codes/BYTES_CHUNK)
-            (writeCount wtr ranges/BYTE_CHUNK_SIZE)
+            (writeCode this codes/BYTES_CHUNK)
+            (writeCount this ranges/BYTE_CHUNK_SIZE)
             (rawOut/writeRawBytes raw-out bytes off ranges/BYTE_CHUNK_SIZE)
             (recur
               (- len ranges/BYTE_CHUNK_SIZE)

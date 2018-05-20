@@ -1,12 +1,10 @@
 (ns fress.raw-output
+  (:require-macros [fress.macros :refer [>>>]])
   (:require [fress.adler32 :as adler]
             [goog.string :as gstring]))
 
 (defn ^boolean valid-byte? [n]
   (and (int? n) (<= 0 n 255)))
-
-(defn- >>> [n s] ;=> macro
-  (.floor js/Math (/ n (.pow js/Math 2 s))))
 
 (defprotocol IRawOutput
   (?getByte [this index] "returns nil on oob")

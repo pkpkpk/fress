@@ -9,101 +9,72 @@
 (def ^:const STRING_PACKED_LENGTH_END 0xE2) ;226
 (def ^:const STRING_CHUNK 0xE2) ;226
 (def ^:const STRING 0xE3) ;227
-(def ^:const NULL 0xF7)
 
-(def ^:const INT 0xF8)
+(def ^:const PRIORITY_CACHE_PACKED_START 0x80)
+(def ^:const PRIORITY_CACHE_PACKED_END 0xA0)
+(def ^:const STRUCT_CACHE_PACKED_START 0xA0)
+(def ^:const STRUCT_CACHE_PACKED_END 0xB0)
+(def ^:const LONG_ARRAY 0xB0)
+(def ^:const DOUBLE_ARRAY 0xB1)
+(def ^:const BOOLEAN_ARRAY 0xB2)
+(def ^:const INT_ARRAY 0xB3)
+(def ^:const FLOAT_ARRAY 0xB4)
+(def ^:const OBJECT_ARRAY 0xB5)
+(def ^:const MAP 0xC0)
+(def ^:const SET 0xC1)
+; (def ^:const UUID 0xC3);;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def ^:const REGEX 0xC4)
+(def ^:const URI 0xC5)
+(def ^:const BIGINT 0xC6)
+(def ^:const BIGDEC 0xC7)
+(def ^:const INST 0xC8)
+(def ^:const SYM 0xC9)
+(def ^:const KEY 0xCA)
+(def ^:const GET_PRIORITY_CACHE 0xCC)
+(def ^:const PUT_PRIORITY_CACHE 0xCD)
+(def ^:const PRECACHE 0xCE)
+(def ^:const FOOTER 0xCF)
+(def ^:const FOOTER_MAGIC 0xCFCFCFCF)
+(def ^:const LIST_PACKED_LENGTH_START 0xE4)
+(def ^:const LIST_PACKED_LENGTH_END 0xEC)
+(def ^:const LIST 0xEC)
+(def ^:const BEGIN_CLOSED_LIST 0xED)
+(def ^:const BEGIN_OPEN_LIST 0xEE)
+(def ^:const STRUCTTYPE 0xEF)
+(def ^:const STRUCT 0xF0 );240
+(def ^:const META 0xF1)
+(def ^:const ANY 0xF4)
+(def ^:const TRUE 0xF5)
+(def ^:const FALSE 0xF6)
+(def ^:const NULL 0xF7 );247
+(def ^:const INT 0xF8 );248
+(def ^:const FLOAT 0xF9 );249
+(def ^:const DOUBLE 0xFA ); 250
+(def ^:const DOUBLE_0 0xFB );251
+(def ^:const DOUBLE_1 0xFC );252
+(def ^:const END_COLLECTION 0xFD ); 253
+(def ^:const RESET_CACHES 0xFE ); 254
+(def ^:const INT_PACKED_1_START 0xFF );255
+(def ^:const INT_PACKED_1_END 0x40 ); 64
+(def ^:const INT_PACKED_2_START 0x40)
+(def ^:const INT_PACKED_2_ZERO 0x50 ); 80
+(def ^:const INT_PACKED_2_END 0x60)
+(def ^:const INT_PACKED_3_START 0x60)
+(def ^:const INT_PACKED_3_ZERO 0x68)
+(def ^:const INT_PACKED_3_END 0x70)
+(def ^:const INT_PACKED_4_START 0x70)
+(def ^:const INT_PACKED_4_ZERO 0x72)
+(def ^:const INT_PACKED_4_END 0x74)
+(def ^:const INT_PACKED_5_START 0x74)
+(def ^:const INT_PACKED_5_ZERO 0x76)
+(def ^:const INT_PACKED_5_END 0x78)
+(def ^:const INT_PACKED_6_START 0x78)
+(def ^:const INT_PACKED_6_ZERO 0x7A)
+(def ^:const INT_PACKED_6_END 0x7C)
+(def ^:const INT_PACKED_7_START 0x7C)
+(def ^:const INT_PACKED_7_ZERO 0x7E)
+(def ^:const INT_PACKED_7_END 0x80)
 
-(def codes
-  { :priority-cache-packed-start 0x80
-    :priority-cache-packed-end 0xA0
-    :struct-cache-packed-start 0xA0
-    :struct-cache-packed-end 0xB0
-    :long-array    0xB0
-    :double-array  0xB1
-    :boolean-array 0xB2
-    :int-array     0xB3
-    :float-array   0xB4
-    :object-array  0xB5
-    :map    0xC0
-    :set    0xC1
-    :uuid   0xC3
-    :regex  0xC4
-    :uri    0xC5
-    :bigint 0xC6
-    :bigdec 0xC7
-    :inst   0xC8
-    :sym    0xC9
-    :key    0xCA
-    :get-priority-cache 0xCC
-    :put-priority-cache 0xCD
-    :precache 0xCE
-    :footer 0xCF
-    :footer-magic 0xCFCFCFCF
-
-
-    :list-packed-length-start 0xE4
-    :list-packed-length-end   0xEC
-    :list 0xEC
-    :begin-closed-list 0xED
-    :begin-open-list   0xEE
-    :structtype 0xEF
-    :struct 0xF0 ;240
-    :meta   0xF1
-    :any    0xF4
-    :true   0xF5
-    :false  0xF6
-    :null   0xF7 ;247
-    :int    0xF8 ;248
-    :float  0xF9 ;249
-    :double 0xFA ; 250
-    :double-0 0xFB ;251
-    :double-1 0xFC ;252
-    :end-collection 0xFD ; 253
-    :reset-caches   0xFE ; 254
-    :int-packed-1-start 0xFF ;255
-    :int-packed-1-end   0x40 ; 64
-    :int-packed-2-start 0x40
-    :int-packed-2-zero  0x50 ; 80
-    :int-packed-2-end   0x60
-    :int-packed-3-start 0x60
-    :int-packed-3-zero  0x68
-    :int-packed-3-end   0x70
-    :int-packed-4-start 0x70
-    :int-packed-4-zero  0x72
-    :int-packed-4-end   0x74
-    :int-packed-5-start 0x74
-    :int-packed-5-zero  0x76
-    :int-packed-5-end   0x78
-    :int-packed-6-start 0x78
-    :int-packed-6-zero  0x7A
-    :int-packed-6-end   0x7C
-    :int-packed-7-start 0x7C
-    :int-packed-7-zero  0x7E
-    :int-packed-7-end   0x80})
-
-(def ranges
-  { :packed-1-start     1
-    :packed-1-end       64
-    :packed-2-start     (js/parseInt "0xFFFFFFFFFFFFF000")
-    :packed-2-end       (js/parseInt "0x0000000000001000")
-    :packed-3-start     (js/parseInt "0xFFFFFFFFFFF80000")
-    :packed-3-end       (js/parseInt "0x0000000000080000")
-    :packed-4-start     (js/parseInt "0xFFFFFFFFFE000000")
-    :packed-4-end       (js/parseInt "0x0000000002000000")
-    :packed-5-start     (js/parseInt "0xFFFFFFFE00000000")
-    :packed-5-end       (js/parseInt "0x0000000200000000")
-    :packed-6-start     (js/parseInt "0xFFFFFE0000000000")
-    :packed-6-end       (js/parseInt "0x0000020000000000")
-    :packed-7-start     (js/parseInt "0xFFFE000000000000")
-    :packed-7-end       (js/parseInt "0x0002000000000000")
-
-    :priority-cache-packed-end 32
-    :struct-cache-packed-end   16
-    :bytes-packed-length-end    8
-    :string-packed-length-end   8
-    :list-packed-length-end     8
-
-    :byte-chunk-size    65535})
 
 (def tag->code
   { "map"      (codes :map)

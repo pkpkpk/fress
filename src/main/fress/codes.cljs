@@ -60,8 +60,8 @@
 (def ^:const INT_PACKED_2_ZERO 0x50 ); 80
 (def ^:const INT_PACKED_2_END 0x60)
 (def ^:const INT_PACKED_3_START 0x60)
-(def ^:const INT_PACKED_3_ZERO 0x68)
-(def ^:const INT_PACKED_3_END 0x70)
+(def ^:const INT_PACKED_3_ZERO 0x68) ;104
+(def ^:const INT_PACKED_3_END 0x70) ;112
 (def ^:const INT_PACKED_4_START 0x70)
 (def ^:const INT_PACKED_4_ZERO 0x72)
 (def ^:const INT_PACKED_4_END 0x74)

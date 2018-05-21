@@ -149,11 +149,6 @@
       :default
       (throw (js/Error. "more than 64 bits in a long!")))))
 
-
-
-; implements StreamingWriter, Writer, Closeable
-; out = output-stream
-; raw-out = RawOutput
 (defrecord FressianWriter [out raw-out priorityCache structCache sb handlers]
   IFressianWriter
   (getByte [this index] (rawOut/getByte raw-out index))
@@ -191,7 +186,6 @@
              off offset]
         (if (< ranges/BYTE_CHUNK_SIZE len)
           (do
-            (js/console.log  "writing codes/BYTES_CHUNK")
             (writeCode this codes/BYTES_CHUNK)
             (writeCount this ranges/BYTE_CHUNK_SIZE)
             (rawOut/writeRawBytes raw-out bytes off ranges/BYTE_CHUNK_SIZE)
@@ -203,13 +197,6 @@
             (writeCount this len)
             (rawOut/writeRawBytes raw-out bytes offset len)))))
     this)
-
-  ; (writeInt [this i]
-  ;   (if (nil? i)
-  ;     (writeNull [this])
-  ;     (do ; jvm makes sure its a long; jvm makes sure its a long
-  ;       (assert (int? i) "writeInt expects an integer value")
-  ;       (internalWriteInt this i))))
 
   ; (writeString [this s] (write-string this s))
   )

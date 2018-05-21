@@ -147,14 +147,14 @@
 
   (writeNull [this] (writeCode this codes/NULL))
 
-  (writeNumber [this n]
+  (writeNumber [this ^number n]
     (if (int? n)
       (writeInt this n)
       (if (< (.pow js/Math 2 -126) n (.pow js/Math 2 128))
         (writeFloat this n)
         (writeDouble this n))))
 
-  (writeInt [this i]
+  (writeInt [this ^number i]
     (if (nil? i)
       (do
         (writeNull this)
@@ -165,12 +165,27 @@
         (internalWriteInt this i)
         this)))
 
+  (writeFloat [this ^number f]
+    (do
+      (writeCode this codes/FLOAT)
+      (rawOut/writeRawFloat raw-out f)
+      this))
+
+  (writeDouble [this ^number d]
+    (if (== d 0.0)
+      (writeCode this codes/DOUBLE_0)
+      (if (== d 1.0)
+        (writeCode this codes/DOUBLE_1)
+        (do
+          (writeCode this codes/DOUBLE)
+          (rawOut/writeRawDouble raw-out d))))
+    this)
+
   (writeBytes [this bytes]
     (if (nil? bytes)
-      (do
-        (writeNull this)
-        this)
-      (writeBytes this bytes 0 (.-byteLength bytes))))
+      (writeNull this)
+      (writeBytes this bytes 0 (.-byteLength bytes)))
+    this)
 
   (writeBytes [this bytes offset length]
     (assert (instance? js/Int8Array bytes) "writeRawBytes expects a Int8Array")
@@ -215,9 +230,10 @@
   (writeString [this ^string s]
     (assert (string? s))
     ; breaking from fressian because  we can use TextEncoder to remove some dirty work
-    ; and 8 byte chunking trigger is inefficient
+    ; and 8 byte chunking trigger is pointless for WASM
     ; Instead, just replicating byte behavior... if string is >64kB, it will be chunked.
-    ; Otherwise if < 64kb writing string bytes in one shot
+    ; Otherwise if < 64kb writing string bytes in one shot. Prob better if own fn,
+    ; + cutoff at char boundaries rather than arbitrary bytes
     (let [bytes (.encode TextEncoder s)
           length (.-byteLength bytes)]
       (if-not (< BYTE_CHUNK_SIZE length)

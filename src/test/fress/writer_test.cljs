@@ -16,6 +16,23 @@
     (aset arr 0 n)
     (aget arr 0)))
 
+
+(extend-type js/Int8Array
+  IIndexed
+  (-nth
+   ([arr n]
+    (if (and (<= 0 n) (< n (.-length arr)))
+      (aget arr n)
+      (throw  (js/Error. "Index out of bounds"))))
+   ([arr n not-found]
+    (if (and (<= 0 n) (< n (.-length arr)))
+      (aget arr n)
+      not-found))))
+
+(defn byteseq [wrt]
+  (-> (js/Int8Array. (.. wrt -raw-out -memory -buffer) 0 (.. wrt -raw-out -bytesWritten))
+    array-seq))
+
 (deftest writeBytes-test
   (testing "(< length ranges/BYTES_PACKED_LENGTH_END)"
     (let [nums (range 0 6)
@@ -80,7 +97,18 @@
         n -300]
     (w/writeInt wrt n)
     (is= 78 (w/getByte wrt 0))
-    (is= -44 (w/getByte wrt 1))))
+    (is= -44 (w/getByte wrt 1)))
+  (let [wrt (w/Writer nil {})
+        n -3000]
+    (w/writeInt wrt n)
+    (is= 68 (w/getByte wrt 0))
+    (is= 72 (w/getByte wrt 1)))
+  (let [wrt (w/Writer nil {})
+        n -300000]
+    (w/writeInt wrt n)
+    (is= 99  (w/getByte wrt 0))
+    (is= 108 (w/getByte wrt 1))
+    (is= 32  (w/getByte wrt 2))))
 
 (def TextDecoder (js/TextDecoder.))
 (def TextEncoder (js/TextEncoder.))
@@ -108,3 +136,17 @@
       (is= 44 (w/getByte wrt 2) (overflow n))
       (let [tail (js/Uint8Array. (getBuf wrt) 3 (alength bytes))]
         (is= s (.decode TextDecoder tail))))))
+
+(deftest float-test
+  (testing "writeFloat"
+    (let [wrt (w/Writer nil {})
+          f -99]
+      (w/writeFloat wrt f)
+      (is= -7 (w/getByte wrt 0) (overflow codes/FLOAT))
+      (is= (byteseq wrt) [-7 -62 -58 0 0])))
+  (testing "writeDouble"
+    (let [wrt (w/Writer nil {})
+          f -99]
+      (w/writeDouble wrt f)
+      (is= -6 (w/getByte wrt 0) (overflow codes/DOUBLE))
+      (is= (byteseq wrt) [-6 -64 88 -64 0 0 0 0 0]))))

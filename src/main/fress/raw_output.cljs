@@ -3,8 +3,11 @@
   (:require [fress.adler32 :as adler]
             [goog.string :as gstring]))
 
-(defn ^boolean valid-byte? [n]
-  (and (int? n) (<= 0 n 255)))
+(def isBigEndian
+  (-> (.-buffer (js/Uint32Array. #js[0x12345678]))
+    (js/Uint8Array. )
+    (aget 0)
+    (== 0x12)))
 
 (defprotocol IRawOutput
   (getByte [this index] "returns nil on oob")
@@ -109,16 +112,18 @@
   (writeRawFloat [this f]
     (let [f32array (js/Float32Array. 1)]
       (aset f32array 0 f)
-      (let [bytes (js/Int8Array. (. f32array -buffer))]
-        (dotimes [i 4]
-          (writeRawByte this (aget bytes i))))))
+      (let [bytes (js/Int8Array. (.-buffer f32array))]
+        (if ^boolean isBigEndian
+          (writeRawBytes this bytes 0 (alength bytes))
+          (writeRawBytes this (.reverse bytes) 0 (alength bytes))))))
 
   (writeRawDouble [this f]
     (let [f64array (js/Float64Array. 1)]
       (aset f64array 0 f)
       (let [bytes (js/Int8Array. (. f64array -buffer))]
-        (dotimes [i 8]
-          (writeRawByte this (aget bytes i)))))))
+        (if ^boolean isBigEndian
+          (writeRawBytes this bytes 0 (alength bytes))
+          (writeRawBytes this (.reverse bytes) 0 (alength bytes)))))))
 
 (defn raw-output []
   (let [memory (js/WebAssembly.Memory. #js{:initial 1})

@@ -35,7 +35,9 @@
   (getByte [this ^number index] ;?int
     (assert (and (int? index) (<= 0 index)))
     (when (< index bytesWritten)
-      (aget (js/Uint8Array. (.. memory -buffer)) index)))
+      ; (let [view (js/DataView. (.. memory -buffer))]
+      ;   (.getInt8 view index))
+      (aget (js/Int8Array. (.. memory -buffer)) index)))
 
   (getBytesWritten ^number [this] bytesWritten)
 
@@ -43,11 +45,10 @@
     (assert (int? n) "written byte count must be an int")
     (set! (.-bytesWritten this) (+ n bytesWritten)))
 
-  (writeRawByte [this ^number byte]
-    (assert (valid-byte? byte) "writeRawByte expects a valid byte")
+  (writeRawByte [this ^number byte]; packing ints requires letting some bytes roll
     (when (< (.. memory -buffer -byteLength) (+ bytesWritten len))
       (.grow memory 1))
-    (aset (js/Uint8Array. (.. memory -buffer)) bytesWritten byte)
+    (aset (js/Int8Array. (.. memory -buffer)) bytesWritten byte)
     (adler/update! checksum byte)
     (notifyBytesWritten this 1))
 
@@ -56,7 +57,7 @@
       (let [byte-diff (- (+ bytesWritten len) (.. memory -buffer -byteLength))
             pages-needed (js/Math.ceil (/ byte-diff 65535))]
         (.grow memory pages-needed)))
-    (let [i8array (js/Uint8Array. (.. memory  -buffer))]
+    (let [i8array (js/Int8Array. (.. memory  -buffer))]
       (.set i8array (.subarray bytes offset (+ offset len)) bytesWritten)
       (adler/update! checksum bytes offset len)
       (notifyBytesWritten this len)))
@@ -108,14 +109,14 @@
   (writeRawFloat [this f]
     (let [f32array (js/Float32Array. 1)]
       (aset f32array 0 f)
-      (let [bytes (js/Uint8Array. (. f32array -buffer))]
+      (let [bytes (js/Int8Array. (. f32array -buffer))]
         (dotimes [i 4]
           (writeRawByte this (aget bytes i))))))
 
   (writeRawDouble [this f]
     (let [f64array (js/Float64Array. 1)]
       (aset f64array 0 f)
-      (let [bytes (js/Uint8Array. (. f64array -buffer))]
+      (let [bytes (js/Int8Array. (. f64array -buffer))]
         (dotimes [i 8]
           (writeRawByte this (aget bytes i)))))))
 

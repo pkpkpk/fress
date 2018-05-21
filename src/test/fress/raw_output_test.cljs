@@ -11,19 +11,19 @@
   (testing "writeRawByte"
     (let [raw (rawOut/raw-output)]
       (is (zero? (rawOut/getBytesWritten raw)))
-      (is (zero? (aget (js/Uint8Array. (.. raw -memory -buffer)) 0)))
+      (is (zero? (aget (js/Int8Array. (.. raw -memory -buffer)) 0)))
       (is (nil? (rawOut/getByte raw 0)))
-      (rawOut/writeRawByte raw 254)
+      (rawOut/writeRawByte raw 127)
       (is (= 1 (rawOut/getBytesWritten raw)))
-      (is (= 254 (rawOut/getByte raw 0)))
-      (is (= 254 (aget (js/Uint8Array. (.. raw -memory -buffer)) 0)))))
+      (is (= 127 (rawOut/getByte raw 0)))
+      (is (= 127 (aget (js/Int8Array. (.. raw -memory -buffer)) 0)))))
   (testing "writeRawBytes"
     (let [raw (rawOut/raw-output)
-          bytes (js/Uint8Array. #js [5 7 11 13 17])
+          bytes (js/Int8Array. #js [5 7 11 13 17])
           offset 0
           len 3]
       (is (zero? (rawOut/getBytesWritten raw)))
-      (is (zero? (aget (js/Uint8Array. (.. raw -memory -buffer)) 0)))
+      (is (zero? (aget (js/Int8Array. (.. raw -memory -buffer)) 0)))
       (is (nil? (rawOut/getByte raw 0)))
       (rawOut/writeRawBytes raw bytes offset len)
       (is (= len (rawOut/getBytesWritten raw)))

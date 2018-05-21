@@ -1,15 +1,5 @@
 (ns fress.codes)
 
-
-(def ^:const BYTES_PACKED_LENGTH_START 0xD0) ;208
-(def ^:const BYTES_PACKED_LENGTH_END   0xD8) ;216
-(def ^:const BYTES_CHUNK 0xD8) ;216
-(def ^:const BYTES 0xD9) ;217
-(def ^:const STRING_PACKED_LENGTH_START 0xDA) ;218
-(def ^:const STRING_PACKED_LENGTH_END 0xE2) ;226
-(def ^:const STRING_CHUNK 0xE2) ;226
-(def ^:const STRING 0xE3) ;227
-
 (def ^:const PRIORITY_CACHE_PACKED_START 0x80)
 (def ^:const PRIORITY_CACHE_PACKED_END 0xA0)
 (def ^:const STRUCT_CACHE_PACKED_START 0xA0)
@@ -33,11 +23,19 @@
 (def ^:const GET_PRIORITY_CACHE 0xCC)
 (def ^:const PUT_PRIORITY_CACHE 0xCD)
 (def ^:const PRECACHE 0xCE)
-(def ^:const FOOTER 0xCF)
-(def ^:const FOOTER_MAGIC 0xCFCFCFCF)
-(def ^:const LIST_PACKED_LENGTH_START 0xE4)
-(def ^:const LIST_PACKED_LENGTH_END 0xEC)
-(def ^:const LIST 0xEC)
+(def ^:const FOOTER 0xCF) ;207
+(def ^:const FOOTER_MAGIC 0xCFCFCFCF) ;3486502863
+(def ^:const BYTES_PACKED_LENGTH_START 0xD0) ;208
+(def ^:const BYTES_PACKED_LENGTH_END   0xD8) ;216
+(def ^:const BYTES_CHUNK 0xD8) ;216
+(def ^:const BYTES 0xD9) ;217
+(def ^:const STRING_PACKED_LENGTH_START 0xDA) ;218
+(def ^:const STRING_PACKED_LENGTH_END 0xE2) ;226
+(def ^:const STRING_CHUNK 0xE2) ;226
+(def ^:const STRING 0xE3) ;227
+(def ^:const LIST_PACKED_LENGTH_START 0xE4) ; 228
+(def ^:const LIST_PACKED_LENGTH_END 0xEC) ; 236
+(def ^:const LIST 0xEC) ;236
 (def ^:const BEGIN_CLOSED_LIST 0xED)
 (def ^:const BEGIN_OPEN_LIST 0xEE)
 (def ^:const STRUCTTYPE 0xEF)

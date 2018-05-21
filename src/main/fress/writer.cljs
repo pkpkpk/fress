@@ -5,43 +5,46 @@
             [fress.raw-output :as rawOut]
             [goog.string :as gstring]))
 
-(defn utf8-encoding-size
-  "src/org/fressian/impl/Fns.java:117:4"
-  [ch]
-  (assert (int? ch) "ch should be charCode taken from string index")
-  (if (<= ch 0x007f)
-    1
-    (if (< 0x07ff ch)
-      3
-      2)))
+(comment
+ (defn utf8-encoding-size
+   "src/org/fressian/impl/Fns.java:117:4"
+   [ch]
+   (assert (int? ch) "ch should be charCode taken from string index")
+   (if (<= ch 0x007f)
+     1
+     (if (< 0x07ff ch)
+       3
+       2))))
 
-(defn buffer-string-chunk-utf8
-  "starting with position start in s, write as much of s as possible into byteBuffer
+(comment
+ (defn buffer-string-chunk-utf8
+   "starting with position start in s, write as much of s as possible into byteBuffer
    using UTF-8.
    returns {stringpos, bufpos}"
-  [s start buf]
-  (loop [string-pos start
-         buffer-pos 0]
-    (if (< string-pos (alength s))
-      (let [ ch (.charCodeAt s string-pos)
+   [s start buf]
+   (loop [string-pos start
+          buffer-pos 0]
+     (if (< string-pos (alength s))
+       (let [ ch (.charCodeAt s string-pos)
              encoding-size (utf8-encoding-size ch)]
-        (if (< (alength buf) (+ buffer-pos encoding-size))
-          [string-pos buffer-pos]
-          (do
-            (case encoding-size
-              1 (aset buf buffer-pos ch)
-              2 (do
-                  (aset buf buffer-pos       (bit-or 0xc0 (bit-and (bit-shift-right ch 6) 0x1f)))
-                  (aset buf (inc buffer-pos) (bit-or 0x80 (bit-and (bit-shift-right ch 0) 0x3f))))
-              3 (do
-                  (aset buf buffer-pos       (bit-or 0xe0 (bit-and (bit-shift-right ch 12) 0x0f)))
-                  (aset buf (inc buffer-pos) (bit-or 0x80 (bit-and (bit-shift-right ch 6)  0x3f)))
-                  (aset buf (+ buffer-pos 2) (bit-or 0x80 (bit-and (bit-shift-right ch 0)  0x3f)))))
-            (recur (inc string-pos) (+ buffer-pos encoding-size)))))
-      [string-pos buffer-pos])))
+         (if (< (alength buf) (+ buffer-pos encoding-size))
+           [string-pos buffer-pos]
+           (do
+             (case encoding-size
+               1 (aset buf buffer-pos ch)
+               2 (do
+                   (aset buf buffer-pos       (bit-or 0xc0 (bit-and (bit-shift-right ch 6) 0x1f)))
+                   (aset buf (inc buffer-pos) (bit-or 0x80 (bit-and (bit-shift-right ch 0) 0x3f))))
+               3 (do
+                   (aset buf buffer-pos       (bit-or 0xe0 (bit-and (bit-shift-right ch 12) 0x0f)))
+                   (aset buf (inc buffer-pos) (bit-or 0x80 (bit-and (bit-shift-right ch 6)  0x3f)))
+                   (aset buf (+ buffer-pos 2) (bit-or 0x80 (bit-and (bit-shift-right ch 0)  0x3f)))))
+             (recur (inc string-pos) (+ buffer-pos encoding-size)))))
+       [string-pos buffer-pos]))))
 
 (defprotocol IFressianWriter
   (writeNull ^FressianWriter [this])
+  (writeNumber ^FressianWriter [this n]) ;<=unique
   (writeBoolean ^FressianWriter [this b])
   (writeInt ^FressianWriter [this i])
   (writeDouble ^FressianWriter [this d])
@@ -79,29 +82,12 @@
   (endList ^FressianWriter [this] "public")
   (getByte [this index]))
 
-
-; (defn write-string [wtr s]
-;   (let [max-buf-needed (min (* (count s) 3) 65536)
-;         string-buffer (js/Int8Array. (js/ArrayBuffer. max-buf-needed))]
-;     (loop [[string-pos buf-pos] (buffer-string-chunk-utf8 s 0 string-buffer)]
-;       (if (< buf-pos (codes/ranges :string-packed-length-end)) ;8
-;         (write-code wtr (+ codes/STRING_PACKED_LENGTH_START buf-pos))
-;         (if (= string-pos (count s))
-;           (do
-;             (write-code wtr codes/STRING)
-;             (write-count wtr buf-pos))
-;           (do
-;             (write-code wtr codes/STRING_CHUNK)
-;             (write-int wtr buf-pos))))
-;       (write-raw-bytes wtr string-buffer 0 buf-pos)
-;       (when (< string-pos (count s))
-;         (recur (buffer-string-chunk-utf8 s string-pos string-buffer)))))
-;   wtr)
-
-(defn bit-switch [l]
+(defn ^number bit-switch
+  "@return {number}(bits not needed to represent this number) + 1"
+  [l]
   (- 64 (.-length (.toString (.abs js/Math l) 2))))
 
-(defn internalWriteInt [wtr n]
+(defn internalWriteInt [wtr ^number n]
   (let [s (bit-switch n)
         raw (.-raw-out wtr)]
     (cond
@@ -137,8 +123,8 @@
 
       (<= 52 s 57)
       (do
-        (rawOut/writeRawByte raw (+ codesINT_PACKED_2_ZERO (>>> n 8)))
-        (rawOut/writeRawByte raw  n))
+        (rawOut/writeRawByte raw (+ codes/INT_PACKED_2_ZERO (>>> n 8)))
+        (rawOut/writeRawByte raw n))
 
       (<= 58 s 64)
       (do
@@ -148,6 +134,8 @@
 
       :default
       (throw (js/Error. "more than 64 bits in a long!")))))
+
+(def TextEncoder (js/TextEncoder.))
 
 (defrecord FressianWriter [out raw-out priorityCache structCache sb handlers]
   IFressianWriter
@@ -159,6 +147,13 @@
 
   (writeNull [this] (writeCode this codes/NULL))
 
+  (writeNumber [this n]
+    (if (int? n)
+      (writeInt this n)
+      (if (< (.pow js/Math 2 -126) n (.pow js/Math 2 128))
+        (writeFloat this n)
+        (writeDouble this n))))
+
   (writeInt [this i]
     (if (nil? i)
       (do
@@ -166,6 +161,7 @@
         this)
       (do
         (assert (int? i))
+        ;; in java this is coerced to a long
         (internalWriteInt this i)
         this)))
 
@@ -174,10 +170,10 @@
       (do
         (writeNull this)
         this)
-      (writeBytes this bytes 0 (alength bytes))))
+      (writeBytes this bytes 0 (.-byteLength bytes))))
 
   (writeBytes [this bytes offset length]
-    (assert (instance? js/Uint8Array bytes) "writeRawBytes expects a Int8Array")
+    (assert (instance? js/Int8Array bytes) "writeRawBytes expects a Int8Array")
     (if (< length ranges/BYTES_PACKED_LENGTH_END)
       (do
         (rawOut/writeRawByte raw-out (+ codes/BYTES_PACKED_LENGTH_START length))
@@ -195,11 +191,54 @@
           (do
             (writeCode this codes/BYTES)
             (writeCount this len)
-            (rawOut/writeRawBytes raw-out bytes offset len)))))
+            (rawOut/writeRawBytes raw-out bytes off len))))) ;;<== test this line
     this)
 
-  ; (writeString [this s] (write-string this s))
-  )
+
+#_(writeString [this s] ;string packing needs to be relaxed for wasm, no necesary
+   (let [max-buf-needed (min (* (count s) 3) 65536)
+         string-buffer (js/Int8Array. (js/ArrayBuffer. max-buf-needed))]
+     (loop [[string-pos buf-pos] (buffer-string-chunk-utf8 s 0 string-buffer)]
+       (if (< buf-pos ranges/STRING_PACKED_LENGTH_END)
+         (writeCode this (+ codes/STRING_PACKED_LENGTH_START buf-pos))
+         (if (= string-pos (count s))
+           (do
+             (writeCode this codes/STRING)
+             (writeCount this buf-pos))
+           (do
+             (writeCode this codes/STRING_CHUNK)
+             (writeInt this buf-pos))))
+       (rawOut/writeRawBytes raw-out string-buffer 0 buf-pos)
+       (when (< string-pos (count s))
+         (recur (buffer-string-chunk-utf8 s string-pos string-buffer))))))
+
+  (writeString [this ^string s]
+    (assert (string? s))
+    ; breaking from fressian because  we can use TextEncoder to remove some dirty work
+    ; and 8 byte chunking trigger is inefficient
+    ; Instead, just replicating byte behavior... if string is >64kB, it will be chunked.
+    ; Otherwise if < 64kb writing string bytes in one shot
+    (let [bytes (.encode TextEncoder s)
+          length (.-byteLength bytes)]
+      (if-not (< BYTE_CHUNK_SIZE length)
+        (do
+          (writeCode this codes/STRING) ; may need unique code here, breaking std fressian behavior
+          (writeCount this length)
+          (rawOut/writeRawBytes raw-out bytes 0 length))
+        (loop [len length
+               off offset]
+          (if (< ranges/BYTE_CHUNK_SIZE len)
+            (do
+              (writeCode this codes/STRING_CHUNK) ; may need unique code here, breaking std fressian behavior
+              (writeCount this ranges/BYTE_CHUNK_SIZE) ; may need unique code here, breaking std fressian behavior*
+              (rawOut/writeRawBytes raw-out bytes off ranges/BYTE_CHUNK_SIZE)
+              (recur
+                (- len ranges/BYTE_CHUNK_SIZE)
+                (+ off ranges/BYTE_CHUNK_SIZE)))
+            (do
+              (writeCode this codes/STRING)
+              (writeCount this len)
+              (rawOut/writeRawBytes raw-out bytes off len))))))))
 
 
 

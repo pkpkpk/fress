@@ -7,7 +7,7 @@
   (and (int? n) (<= 0 n 255)))
 
 (defprotocol IRawOutput
-  (?getByte [this index] "returns nil on oob")
+  (getByte [this index] "returns nil on oob")
   (notifyBytesWritten [this ^int count])
   (getBytesWritten [this])
   (writeRawByte [this b] "pub")
@@ -24,7 +24,7 @@
   (getChecksum [this])
   (reset [this]))
 
-(deftype RawOutput [buffer ^number bytesWritten checksum]
+(deftype RawOutput [memory ^number bytesWritten checksum]
   IRawOutput
   (getChecksum [this] (adler/get-value checksum))
 
@@ -32,10 +32,10 @@
     (set! (.-bytesWritten this) 0)
     (adler/reset checksum))
 
-  (?getByte [this ^number index] ;?int
+  (getByte [this ^number index] ;?int
     (assert (and (int? index) (<= 0 index)))
     (when (< index bytesWritten)
-      (aget (js/Uint8Array. buffer) index)))
+      (aget (js/Uint8Array. (.. memory -buffer)) index)))
 
   (getBytesWritten ^number [this] bytesWritten)
 
@@ -45,12 +45,18 @@
 
   (writeRawByte [this ^number byte]
     (assert (valid-byte? byte) "writeRawByte expects a valid byte")
-    (aset (js/Uint8Array. buffer) bytesWritten byte)
+    (when (< (.. memory -buffer -byteLength) (+ bytesWritten len))
+      (.grow memory 1))
+    (aset (js/Uint8Array. (.. memory -buffer)) bytesWritten byte)
     (adler/update! checksum byte)
     (notifyBytesWritten this 1))
 
   (writeRawBytes [this bytes offset len]
-    (let [i8array (js/Uint8Array. buffer)]
+    (when (< (.. memory -buffer -byteLength) (+ bytesWritten len))
+      (let [byte-diff (- (+ bytesWritten len) (.. memory -buffer -byteLength))
+            pages-needed (js/Math.ceil (/ byte-diff 65535))]
+        (.grow memory pages-needed)))
+    (let [i8array (js/Uint8Array. (.. memory  -buffer))]
       (.set i8array (.subarray bytes offset (+ offset len)) bytesWritten)
       (adler/update! checksum bytes offset len)
       (notifyBytesWritten this len)))
@@ -114,7 +120,7 @@
           (writeRawByte this (aget bytes i)))))))
 
 (defn raw-output []
-  (let [buffer (js/ArrayBuffer. 65536)
+  (let [memory (js/WebAssembly.Memory. #js{:initial 1})
         bytesWritten 0]
-    (RawOutput. buffer bytesWritten (adler/adler32))))
+    (RawOutput. memory bytesWritten (adler/adler32))))
 

@@ -76,7 +76,8 @@
   (close [this] "public")
   (beginOpenList ^FressianWriter [this] "public")
   (beginClosedList ^FressianWriter [this] "public")
-  (endList ^FressianWriter [this] "public"))
+  (endList ^FressianWriter [this] "public")
+  (getByte [this index]))
 
 
 ; (defn write-string [wtr s]
@@ -155,6 +156,8 @@
 ; raw-out = RawOutput
 (defrecord FressianWriter [out raw-out priorityCache structCache sb handlers]
   IFressianWriter
+  (getByte [this index] (rawOut/getByte raw-out index))
+
   (writeCode [this code] (rawOut/writeRawByte raw-out code))
 
   (writeCount [this n] (writeInt this n))
@@ -188,6 +191,7 @@
              off offset]
         (if (< ranges/BYTE_CHUNK_SIZE len)
           (do
+            (js/console.log  "writing codes/BYTES_CHUNK")
             (writeCode this codes/BYTES_CHUNK)
             (writeCount this ranges/BYTE_CHUNK_SIZE)
             (rawOut/writeRawBytes raw-out bytes off ranges/BYTE_CHUNK_SIZE)

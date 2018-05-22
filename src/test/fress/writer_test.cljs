@@ -155,7 +155,30 @@
   (let [wrt (w/Writer nil {})
         lst '(1 2 3)]
     (w/writeList wrt lst)
-    (is= (w/getByte wrt 0) (overflow codes/LIST_PACKED_LENGTH_START))
-
-
-    ))
+    (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
+    (is= (byteseq wrt) [-25 1 2 3]))
+  (let [wrt (w/Writer nil {})
+        lst [true]]
+    (w/writeList wrt lst)
+    (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
+    (is= (byteseq wrt) [-27 -11 ]))
+  (let [wrt (w/Writer nil {})
+        lst [nil]]
+    (w/writeList wrt lst)
+    (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
+    (is= (byteseq wrt) [-27 -9 ]))
+  (let [wrt (w/Writer nil {})
+        lst [true nil]]
+    (w/writeList wrt lst)
+    (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
+    (is= (byteseq wrt) [-26 -11 -9]))
+  (let [wrt (w/Writer nil {})
+        lst '("a")]
+    (w/writeList wrt lst)
+    (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
+    (is= (byteseq wrt) [-27 -37 97]))
+  (let [wrt (w/Writer nil {})
+        lst ["hello" "world"]]
+    (w/writeList wrt lst)
+    (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
+    (is= (byteseq wrt) '(-26 -33 104 101 108 108 111 -33 119 111 114 108 100))))

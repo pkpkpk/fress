@@ -150,3 +150,12 @@
       (w/writeDouble wrt f)
       (is= -6 (w/getByte wrt 0) (overflow codes/DOUBLE))
       (is= (byteseq wrt) [-6 -64 88 -64 0 0 0 0 0]))))
+
+(deftest writeList-test
+  (let [wrt (w/Writer nil {})
+        lst '(1 2 3)]
+    (w/writeList wrt lst)
+    (is= (w/getByte wrt 0) (overflow codes/LIST_PACKED_LENGTH_START))
+
+
+    ))

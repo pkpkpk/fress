@@ -36,8 +36,8 @@
 (def ^:const LIST_PACKED_LENGTH_START 0xE4) ; 228
 (def ^:const LIST_PACKED_LENGTH_END 0xEC) ; 236
 (def ^:const LIST 0xEC) ;236
-(def ^:const BEGIN_CLOSED_LIST 0xED)
-(def ^:const BEGIN_OPEN_LIST 0xEE)
+(def ^:const BEGIN_CLOSED_LIST 0xED) ; 237
+(def ^:const BEGIN_OPEN_LIST 0xEE) ; 238
 (def ^:const STRUCTTYPE 0xEF)
 (def ^:const STRUCT 0xF0 );240
 (def ^:const META 0xF1)

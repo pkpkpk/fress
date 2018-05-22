@@ -3,7 +3,10 @@
   (:require [fress.codes :as codes]
             [fress.ranges :as ranges]
             [fress.raw-output :as rawOut]
-            [goog.string :as gstring]))
+            [fress.hopmap :as hop]))
+
+(defn log [& args]
+  (.apply js/console.log js/console (into-array args)))
 
 (comment
  (defn utf8-encoding-size
@@ -44,17 +47,15 @@
 
 (defprotocol IFressianWriter
   (writeNull ^FressianWriter [this])
-  (writeNumber ^FressianWriter [this n]) ;<=unique
+  (writeNumber ^FressianWriter [this n])
   (writeBoolean ^FressianWriter [this b])
   (writeInt ^FressianWriter [this i])
   (writeDouble ^FressianWriter [this d])
   (writeFloat ^FressianWriter  [this f])
   (writeString ^FressianWriter [this s])
-  (writeIterator [this length it])
+  ; (writeIterator [this length it])
   (writeList ^FressianWriter [this o])
-  (writeBytes ^FressianWriter
-              [this bs]
-              [this bs offset length])
+  (writeBytes ^FressianWriter [this bs] [this bs offset length])
   (writeFooterFor [this byteBuffer])
   (writeFooter ^FressianWriter [this])
   (internalWriteFooter [this length])
@@ -65,16 +66,10 @@
   (writeTag ^FressianWriter [this] "public")
   (writeExt ^FressianWriter [this]"public")
   (writeCount [this n] "public")
-  (bitSwitch ^int [this l] "private")
-  ; (internalWriteInt [this i] "private")
-  (shouldSkipCache ^boolean [this o] "private")
-  (doWrite [this tag o w cache?] "private")
-  (writeAs ^FressianWriter
-           [this tag o]
-           [this tag o cache?] "public")
-  (writeObject ^FressianWriter
-               [this o]
-               [this o cache?] "public")
+  (shouldSkipCache- ^boolean [this o] "private")
+  (doWrite- [this tag o w cache?] "private")
+  (writeAs ^FressianWriter [this tag o] [this tag o cache?] "public")
+  (writeObject ^FressianWriter [this o] [this o cache?] "public")
   (writeCode [this code] "public")
   (close [this] "public")
   (beginOpenList ^FressianWriter [this] "public")
@@ -137,7 +132,7 @@
 
 (def TextEncoder (js/TextEncoder.))
 
-(defrecord FressianWriter [out raw-out priorityCache structCache sb handlers]
+(defrecord FressianWriter [out raw-out priorityCache structCache sb ^fn lookup]
   IFressianWriter
   (getByte [this index] (rawOut/getByte raw-out index))
 
@@ -147,23 +142,30 @@
 
   (writeNull [this] (writeCode this codes/NULL))
 
+  (writeBoolean [this b]
+    (if (nil? b)
+      (writeNull this)
+      (let [b (boolean b)]
+        (if (true? b)
+          (writeCode this codes/TRUE)
+          (writeCode this codes/FALSE))))
+    this)
+
   (writeNumber [this ^number n]
     (if (int? n)
       (writeInt this n)
       (if (< (.pow js/Math 2 -126) n (.pow js/Math 2 128))
         (writeFloat this n)
-        (writeDouble this n))))
+        (writeDouble this n)))
+    this)
 
   (writeInt [this ^number i]
     (if (nil? i)
-      (do
-        (writeNull this)
-        this)
+      (writeNull this)
       (do
         (assert (int? i))
-        ;; in java this is coerced to a long
-        (internalWriteInt this i)
-        this)))
+        (internalWriteInt this i)))
+    this)
 
   (writeFloat [this ^number f]
     (do
@@ -229,11 +231,12 @@
 
   (writeString [this ^string s]
     (assert (string? s))
-    ; breaking from fressian because  we can use TextEncoder to remove some dirty work
+    ; breaking from fressian because we can use native TextEncoder to remove some dirty work
     ; and 8 byte chunking trigger is pointless for WASM
     ; Instead, just replicating byte behavior... if string is >64kB, it will be chunked.
     ; Otherwise if < 64kb writing string bytes in one shot. Prob better if own fn,
     ; + cutoff at char boundaries rather than arbitrary bytes
+    ; add arity with chunk skip option>?
     (let [bytes (.encode TextEncoder s)
           length (.-byteLength bytes)]
       (if-not (< BYTE_CHUNK_SIZE length)
@@ -254,14 +257,68 @@
             (do
               (writeCode this codes/STRING)
               (writeCount this len)
-              (rawOut/writeRawBytes raw-out bytes off len))))))))
+              (rawOut/writeRawBytes raw-out bytes off len))))))
+    this)
 
+  (writeObject [this o] (writeAs this nil o))
+  (writeObject [this o cache?] (writeAs this nil o cache?))
+
+  (writeAs [this tag o] (writeAs this nil o false))
+  (writeAs [this tag o cache?]
+    (if-let [handler (lookup tag o)]
+      (doWrite- this tag o handler cache?)
+      (throw (js/Error. (str "no handler for tag :" (pr-str tag))))))
+
+  (getPriorityCache [this]
+    (or priorityCache (let [c (hop/hopmap 16)] (set! (.-priorityCache this) c) c)))
+
+  (shouldSkipCache- ^boolean [this o])
+
+  (doWrite- [this tag o handler cache?]
+    (if ^boolean cache?
+      (if ^boolean (shouldSkipCache- this o)
+        (doWrite this tag o handler false)
+        (let [index (hop/old-index (getPriorityCache this) o)]
+          (if (= index -1)
+            (do
+              (writeCode this codes/PUT_PRIORITY_CACHE)
+              (doWrite this tag o handler false))
+            (if (< index ranges/PRIORITY_CACHE_PACKED_END)
+              (writeCode this (+ codes/PRIORITY_CACHE_PACKED_START index))
+              (do
+                (writeCode this codes/GET_PRIORITY_CACHE)
+                (writeInt this index))))))
+      (handler this o)))
+
+  (writeList [this lst]
+    (if (nil? lst)
+      (writeNull this)
+      (let [length (count lst)]
+        (if (< length ranges/LIST_PACKED_LENGTH_END)
+          ;;;packed means when just skip count, rely on reader to read up to packed-length
+          (rawOut/writeRawByte raw-out (+ length codes/LIST_PACKED_LENGTH_START))
+          (do
+            (writeCode this codes/LIST)
+            (writeCount this length)))
+        (doseq [item lst]
+          (writeObject this item))))
+    this)
+)
 
 
 (def default-write-handlers {})
 
+(defn build-lookup-handler
+  [user-handlers]
+  (let [handlers (merge default-write-handlers user-handlers)]
+    (fn [tag obj]
+      )))
+
 (defn Writer
   [out handlers]
-  (let [handlers (merge default-write-handlers handlers)
-        raw-out (rawOut/raw-output)]
-    (FressianWriter. out raw-out nil nil nil handlers)))
+  (let [lookup-fn (build-lookup-handler handlers)
+        raw-out (rawOut/raw-output)
+        priorityCache (hop/hopmap)
+        structCache nil
+        stringBuffer nil]
+    (FressianWriter. out raw-out priorityCache structCache stringBuffer lookup-fn)))

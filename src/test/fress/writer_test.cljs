@@ -79,7 +79,7 @@
         (is= (w/getByte wrtr (+ 5 ranges/BYTE_CHUNK_SIZE)) 2)
         (is= (w/getByte wrtr (+ 6 ranges/BYTE_CHUNK_SIZE)) 99)
         (is= (w/getByte wrtr (+ 7 ranges/BYTE_CHUNK_SIZE)) 99)))))
-;
+
 (deftest writeInt-test
   ;; hard coded nums taken from jvm
   ;; (fressian.api/byte-buffer-seq (fressian.api/byte-buf <OBJECT>))
@@ -153,6 +153,10 @@
 
 (deftest writeList-test
   (let [wrt (w/Writer nil {})
+        lst []]
+    (w/writeList wrt lst)
+    (is= (byteseq wrt) [-28]))
+  (let [wrt (w/Writer nil {})
         lst '(1 2 3)]
     (w/writeList wrt lst)
     (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
@@ -182,3 +186,32 @@
     (w/writeList wrt lst)
     (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
     (is= (byteseq wrt) '(-26 -33 104 101 108 108 111 -33 119 111 114 108 100))))
+
+(deftest writeMap-test
+  (testing "map count bug"
+    (let [wrt (w/Writer)
+          tag "map"
+          code (codes/tag->code tag)
+          m {"a" []}
+          cnt (count (mapcat identity (seq m)))
+          control '(-64 -26 -37 97 -28)]
+      (w/writeObject wrt m)
+      (is= -64 (w/getByte wrt 0) (overflow code))
+      (is= -26 (w/getByte wrt 1) (overflow (+ cnt codes/LIST_PACKED_LENGTH_START)))
+      (is= (byteseq wrt) control)))
+  (testing "writeMap"
+    (let [samples [[{} [-64 -28]]
+                   [{"a" nil} '(-64 -26 -37 97 -9)]
+                   [["a" []] '(-26 -37 97 -28)]
+                   [{"a" []} '(-64 -26 -37 97 -28)]
+                   [{"a" [1]} '(-64 -26 -37 97 -27 1)]
+                   [{"a" [1 2 3]} '(-64 -26 -37 97 -25 1 2 3)]
+                   [{"a" "b"} '(-64 -26 -37 97 -37 98)]
+                   [{"a" #{}} '(-64 -26 -37 97 -63 -28)]]]
+      (doseq [[m control] samples]
+        (let [wrt (w/Writer)]
+          (w/writeObject wrt m)
+          (is= (byteseq wrt) control))))))
+
+; [m control] [{:a nil} '(-64 -26 -37 97 -9)]
+; (deftest named-test)

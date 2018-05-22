@@ -336,7 +336,7 @@
 
 (defn writeMap [wrt m]
   (writeTag wrt "map" 1)
-  (writeList wrt (flatten (seq m))))
+  (writeList wrt (mapcat identity (seq m))))
 
 (defn- writeNamed [tag wtr s]
   (writeTag wtr tag 2)
@@ -347,7 +347,7 @@
 
 (defn writeSet [wtr s]
   (writeTag wtr "set" 1)
-  (writeList wtr (seq s)))
+  (writeList wtr (into [] s)))
 
 ;;may be nice to have protocol dispatch ie IVector
 (def default-write-handlers

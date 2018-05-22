@@ -75,19 +75,19 @@
 
 
 (def tag->code
-  { "map"      (codes :map)
-    "set"      (codes :set)
-    "uuid"     (codes :uuid)
-    "regex"    (codes :regex)
-    "uri"      (codes :uri)
-    "bigint"   (codes :bigint)
-    "bigdec"   (codes :bigdec)
-    "inst"     (codes :inst)
-    "sym"      (codes :sym)
-    "key"      (codes :key)
-    "int[]"    (codes :int-array)
-    "float[]"  (codes :float-array)
-    "double[]" (codes :double-array)
-    "long[]"   (codes :long-array)
-    "boolean[]" (codes :boolean-array)
-    "Object[]" (codes :object-array)})
+  { "map"      MAP
+    "set"      SET
+    ; "uuid"     (codes :uuid)
+    "regex"    REGEX
+    "uri"      URI
+    "bigint"   BIGINT
+    "bigdec"   BIGDEC
+    "inst"     INST
+    "sym"      SYM
+    "key"      KEY
+    "int[]"    INT_ARRAY
+    "float[]"  FLOAT_ARRAY
+    "double[]" DOUBLE_ARRAY
+    "long[]"   LONG_ARRAY
+    "boolean[]" BOOLEAN_ARRAY
+    "Object[]" OBJECT_ARRAY})

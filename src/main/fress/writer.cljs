@@ -63,7 +63,7 @@
   (resetCaches ^FressianWriter [this]"public")
   (getPriorityCache ^InterleavedIndexHopMap [this]"public")
   (getStructCache ^InterleavedIndexHopMap [this]"public")
-  (writeTag ^FressianWriter [this] "public")
+  (writeTag ^FressianWriter [this tag componentCount] "public")
   (writeExt ^FressianWriter [this]"public")
   (writeCount [this n] "public")
   (shouldSkipCache- ^boolean [this o] "private")
@@ -253,6 +253,9 @@
   (getPriorityCache [this]
     (or priorityCache (let [c (hop/hopmap 16)] (set! (.-priorityCache this) c) c)))
 
+  (getStructCache [this]
+    (or structCache (let [c (hop/hopmap 16)] (set! (.-structCache this) c) c)))
+
   (shouldSkipCache- ^boolean [this o])
 
   (doWrite- [this tag o handler cache?]
@@ -283,7 +286,45 @@
             (writeCount this length)))
         (doseq [item lst]
           (writeObject this item))))
-    this))
+    this)
+
+  (beginOpenList [this]
+    (if-not (zero? (rawOut/getBytesWritten raw-out))
+      (throw
+        (js/Error. "openList must be called from the top level, outside any footer context."))
+      (writeCode this codes/BEGIN_OPEN_LIST))
+    this)
+
+  (beginClosedList [this]
+    (writeCode this codes/BEGIN_CLOSED_LIST)
+    this)
+
+  (endList [this]
+    (writeCode this codes/END_COLLECTION)
+    this)
+
+  (writeTag [this tag ^number component-count]
+    (if-let [shortcut-code (codes/tag->code tag)]
+      (writeCode this shortcut-code)
+      (let [index (hop/old-index (getStructCache this) tag)]
+        (cond
+          (== index -1)
+          (do
+            (writeCode this codes/STRUCTTYPE)
+            (writeObject this tag)
+            (writeInt this component-count))
+
+          (< index ranges/STRUCT_CACHE_PACKED_END)
+          (writeCode this (+ codes/STRUCT_CACHE_PACKED_START index))
+
+          :default
+          (do
+            (writeCode this codes/STRUCT)
+            (write-int this index)))))
+    this)
+
+
+  )
 
 (defn writeNumber [this ^number n]
   (if (int? n)
@@ -293,11 +334,39 @@
       (writeDouble this n)))
   this)
 
+(defn writeMap [wrt m]
+  (writeTag wrt "map" 1)
+  (writeList wrt (flatten (seq m))))
+
+(defn- writeNamed [tag wtr s]
+  (writeTag wtr tag 2)
+  ; (writeObject wtr (namespace s) true)
+  (writeObject wtr (namespace s))
+  ; (writeObject wtr (name s) true)
+  (writeObject wtr (name s)))
+
+(defn writeSet [wtr s]
+  (writeTag wtr "set" 1)
+  (writeList wtr (seq s)))
+
+;;may be nice to have protocol dispatch ie IVector
 (def default-write-handlers
   {js/Number writeNumber
    js/String writeString
    js/Boolean writeBoolean
-   nil writeNull})
+   js/Object #(writeMap %1 (js->clj %2))
+   js/Array writeList
+   nil writeNull
+   cljs.core/PersistentHashMap writeMap
+   cljs.core/PersistentArrayMap writeMap
+   cljs.core/ObjMap writeMap
+   cljs.core/PersistentVector writeList
+   cljs.core/ChunkedSeq writeList
+   cljs.core/PersistentHashSet writeSet
+   cljs.core/Keyword #(writeNamed "key" %1 %2)
+   cljs.core/Symbol #(writeNamed "sym" %1 %2)})
+
+;inst, uuid, regex, uri ,int[], float[], string[], etc
 
 (defn build-lookup-handler
   [user-handlers]
@@ -308,10 +377,13 @@
         (get handlers (type obj))))))
 
 (defn Writer
-  [out handlers]
-  (let [lookup-fn (build-lookup-handler handlers)
-        raw-out (rawOut/raw-output)
-        priorityCache (hop/hopmap)
-        structCache nil
-        stringBuffer nil]
-    (FressianWriter. out raw-out priorityCache structCache stringBuffer lookup-fn)))
+  ([](Writer nil nil))
+  ([handlers](Writer nil handlers))
+  ([out handlers]
+   (let [lookup-fn (build-lookup-handler handlers)
+         raw-out (rawOut/raw-output)
+         priorityCache (hop/hopmap)
+         out nil
+         structCache nil
+         stringBuffer nil]
+     (FressianWriter. out raw-out priorityCache structCache stringBuffer lookup-fn))))

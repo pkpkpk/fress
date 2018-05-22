@@ -17,11 +17,6 @@
             (swap! hash-indexes assoc h (dec (count @ks)))
             -1)))))
 
-; (defn create-interleaved-index-hop-map
-;   ([] (create-interleaved-index-hop-map 1024))
-;   ([capacity]
-;     (InterleavedIndexHopMap. (atom []) (atom {}))))
-
 (defn hopmap
   ([](InterleavedIndexHopMap. (atom []) (atom {})))
   ([capacity] (InterleavedIndexHopMap. (atom []) (atom {}))))

@@ -1,37 +1,43 @@
 (ns fress.writer-test
-  (:require-macros [fress.macros :refer [>>>]])
-  (:require [cljs.test :refer-macros [deftest is testing]]
+  (:require-macros [fress.macros :refer [>>>]]
+                   [cljs.core.async.macros :refer [go-loop]])
+  (:require [cljs.core.async :as casync
+             :refer [close! put! take! alts! <! >! chan promise-chan timeout]]
+            [cljs.test :refer-macros [deftest is testing async]]
             [fress.raw-output :as rawOut]
             [fress.codes :as codes]
             [fress.ranges :as ranges]
-            [fress.writer :as w]))
+            [fress.writer :as w]
+            [fress.test-helpers :as helpers
+             :refer [log jvm-byteseq is= byteseq overflow]]))
 
-(defn is=
-  ([a b] (is (= a b)))
-  ([a b c] (is (= a b c)))
-  ([a b c d] (is (= a b c d))))
+(def samples
+  [{}
+   {"a" ""}
+   {"a" "foo"}
+   {"a" []}
+   {"a" {}}
+   ; {3 #{"a" []}}
+   ])
 
-(let [arr (js/Int8Array. 1)]
-  (defn overflow [n]
-    (aset arr 0 n)
-    (aget arr 0)))
+;; pure socket streaming messages come over the wire in unreliable chunks.
+;; need to use prepl or some messaging protocol
+#_(deftest byte-parity-test
+    (helpers/cycle-tap)
+    (async done
+           (go-loop [samples samples]
+             (when (seq samples)
+               (let [o (first samples)
+                     [err jvmbytes] (<! (jvm-byteseq o))]
+                 (if-not err
+                   (let [wrt (w/Writer)]
+                     (w/writeObject wrt o)
+                     (is= jvmbytes (byteseq wrt)))
+                   (js/console.error "fail on sample:" (pr-str o)))
+                 ; (<! (timeout 50))
+                 (recur (rest samples))))
+             (done))))
 
-
-(extend-type js/Int8Array
-  IIndexed
-  (-nth
-   ([arr n]
-    (if (and (<= 0 n) (< n (.-length arr)))
-      (aget arr n)
-      (throw  (js/Error. "Index out of bounds"))))
-   ([arr n not-found]
-    (if (and (<= 0 n) (< n (.-length arr)))
-      (aget arr n)
-      not-found))))
-
-(defn byteseq [wrt]
-  (-> (js/Int8Array. (.. wrt -raw-out -memory -buffer) 0 (.. wrt -raw-out -bytesWritten))
-    array-seq))
 
 (deftest writeBytes-test
   (testing "(< length ranges/BYTES_PACKED_LENGTH_END)"
@@ -215,3 +221,4 @@
 
 ; [m control] [{:a nil} '(-64 -26 -37 97 -9)]
 ; (deftest named-test)
+; struct stuff needs testing

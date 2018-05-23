@@ -284,7 +284,7 @@
     (if ^boolean cache?
       (if ^boolean (shouldSkipCache- this o)
         (doWrite this tag o handler false)
-        (let [index (hop/old-index (getPriorityCache this) o)]
+        (let [index (hop/oldIndex (getPriorityCache this) o)]
           (if (= index -1)
             (do
               (writeCode this codes/PUT_PRIORITY_CACHE)
@@ -328,7 +328,7 @@
   (writeTag [this tag ^number component-count]
     (if-let [shortcut-code (codes/tag->code tag)]
       (writeCode this shortcut-code)
-      (let [index (hop/old-index (getStructCache this) tag)]
+      (let [index (hop/oldIndex (getStructCache this) tag)]
         (cond
           (== index -1)
           (do

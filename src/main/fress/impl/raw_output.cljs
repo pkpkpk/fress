@@ -1,4 +1,4 @@
-(ns fress.raw-output
+(ns fress.impl.raw-output
   (:require-macros [fress.macros :refer [>>>]])
   (:require [fress.adler32 :as adler]
             [goog.string :as gstring]))
@@ -11,6 +11,7 @@
 
 (defprotocol IRawOutput
   (getByte [this index] "returns nil on oob")
+  (getMemory [this])
   (notifyBytesWritten [this ^int count])
   (getBytesWritten [this])
   (writeRawByte [this b] "pub")
@@ -41,6 +42,8 @@
       ; (let [view (js/DataView. (.. memory -buffer))]
       ;   (.getInt8 view index))
       (aget (js/Int8Array. (.. memory -buffer)) index)))
+
+  (getMemory [this] memory)
 
   (getBytesWritten ^number [this] bytesWritten)
 

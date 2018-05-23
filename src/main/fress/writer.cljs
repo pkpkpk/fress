@@ -2,7 +2,7 @@
   (:require-macros [fress.macros :refer [>>>]])
   (:require [fress.codes :as codes]
             [fress.ranges :as ranges]
-            [fress.raw-output :as rawOut]
+            [fress.impl.raw-output :as rawOut]
             [fress.hopmap :as hop]
             [fress.uuid :as uuid]))
 

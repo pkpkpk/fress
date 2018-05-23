@@ -250,7 +250,7 @@
   (writeObject [this o] (writeAs this nil o))
   (writeObject [this o cache?] (writeAs this nil o cache?))
 
-  (writeAs [this tag o] (writeAs this nil o false))
+  (writeAs [this tag o] (writeAs this tag o false))
   (writeAs [this tag o cache?]
     (if-let [handler (lookup tag o)]
       (doWrite- this tag o handler cache?)
@@ -420,10 +420,34 @@
         (writeDouble wtr (aget a i))
         (recur (inc i))))))
 
-; "boolean[]" BOOLEAN_ARRAY
-; "Object[]" OBJECT_ARRAY
+(defn writeBooleanArray [wtr a]
+  (let [length (count a)]
+    (writeTag wtr "boolean[]" 2)
+    (writeInt wtr length)
+    (doseq [b a]
+      (writeBoolean wtr b))))
 
-;;may be nice to have protocol dispatch ie IVector
+#_(defn switch-long [l] (- 64 (.getNumBitsAbs l)))
+
+#_(defn writeRawInt64 [this l]
+  (dotimes [x 8]
+     (writeRawByte this (.shiftRight l (* (- 7 x) 8)))))
+
+#_(defn writeLong [wtr l]
+  (let [s (switch-long l)]
+    wtr))
+
+#_(defn writeLongArray [wtr a]
+  (let [length (count a)]
+    (writeTag wtr "long[]" 2)
+    (writeInt wtr length)
+    (doseq [l a]
+      (writeLong wtr l))))
+
+; goog.math.Long writeLong
+; "long[]" writeLongArray
+; object[]
+
 (def default-write-handlers
   {js/Number writeNumber
    js/String writeString
@@ -445,7 +469,8 @@
    cljs.core/ChunkedSeq writeList
    cljs.core/PersistentHashSet writeSet
    cljs.core/Keyword #(writeNamed "key" %1 %2)
-   cljs.core/Symbol #(writeNamed "sym" %1 %2)})
+   cljs.core/Symbol #(writeNamed "sym" %1 %2)
+   "boolean[]" writeBooleanArray})
 
 (defn build-handler-lookup
   [user-handlers]

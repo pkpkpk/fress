@@ -271,7 +271,34 @@
           a (js/Float64Array. #js[0 1 2 3 4 5])
           control '(-79 6 -5 -4 -6 64 0 0 0 0 0 0 0 -6 64 8 0 0 0 0 0 0 -6 64 16 0 0 0 0 0 0 -6 64 20 0 0 0 0 0 0)]
       (w/writeObject wrt a)
+      (is= (byteseq wrt) control)))
+  (testing "boolean[]"
+    (let [wrt (w/Writer)
+          a [true false true false]
+          control '(-78 4 -11 -10 -11 -10)]
+      (w/writeAs wrt "boolean[]" a)
       (is= (byteseq wrt) control))))
 
+(comment
+ (testing "goog.math.Long"
+   (let [wrt (w/Writer)
+         l (goog.math.Long. 99)
+         control '(80 99)]
+     (w/writeObject wrt l)
+     (is= (byteseq wrt) control))
+   (let [wrt (w/Writer)
+         l (goog.math.Long. 99999999999999999)
+         control '(-8 1 99 69 120 93 -119 -1 -1)]
+     (w/writeObject wrt l)
+     (is= (byteseq wrt) control)))
+ (testing "long[]"
+   (let [wrt (w/Writer)
+         a (mapv #(goog.math.Long. %) [0 1 2 3 4 5])
+         control '(-80 6 0 1 2 3 4 5)]
+     (w/writeObject wrt a)
+     (is= (byteseq wrt) control))))
+
+
+
 ; all num types (see rawOutput)
-; uuid, chars?, struct, caching, userHandlers + custom tags
+; chars?, struct, caching, userHandlers + custom tags

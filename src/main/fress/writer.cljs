@@ -3,7 +3,8 @@
   (:require [fress.codes :as codes]
             [fress.ranges :as ranges]
             [fress.raw-output :as rawOut]
-            [fress.hopmap :as hop]))
+            [fress.hopmap :as hop]
+            [fress.uuid :as uuid]))
 
 (defn log [& args]
   (.apply js/console.log js/console (into-array args)))
@@ -188,7 +189,7 @@
     this)
 
   (writeBytes [this bytes offset length]
-    (assert (instance? js/Int8Array bytes) "writeRawBytes expects a Int8Array")
+    (assert (or (instance? js/Int8Array bytes) (instance? js/Uint8Array bytes)) "writeRawBytes expects a Int8 Array")
     (if (< length ranges/BYTES_PACKED_LENGTH_END)
       (do
         (rawOut/writeRawByte raw-out (+ codes/BYTES_PACKED_LENGTH_START length))
@@ -206,10 +207,10 @@
           (do
             (writeCode this codes/BYTES)
             (writeCount this len)
-            (rawOut/writeRawBytes raw-out bytes off len))))) ;;<== test this line
+            (rawOut/writeRawBytes raw-out bytes off len)))))
     this)
 
-  (writeString- [this ^string s] ;string packing needs to be relaxed for wasm, no necesary
+  (writeString- [this ^string s]
    (let [max-buf-needed (min (* (count s) 3) 65536)
          string-buffer (js/Int8Array. (js/ArrayBuffer. max-buf-needed))]
      (loop [[string-pos buf-pos] (buffer-string-chunk-utf8 s 0 string-buffer)]
@@ -229,7 +230,7 @@
   (writeStringNoChunk- [this ^string s]
     (assert (string? s))
     ; breaking from fressian because we can use native TextEncoder to remove some dirty work
-    ; and chunking trigger is pointless for WASM, especially just at (8 byte)
+    ; and chunking trigger is pointless for WASM, especially just at just 8 byte chunks
     ; see writeBytes if need to impl larger chunking ie 64kB
     (let [bytes (.encode TextEncoder s)
           length (.-byteLength bytes)]
@@ -388,10 +389,16 @@
   (writeTag wtr "regex" 1)
   (writeString wtr (.-source re)))
 
-#_(defn writeUUID [wtr uuid]
-    (writeTag wtr "uuid" 1)
-    (writeBytes wtr (js/Uint8Array. (uuid/parse (.-uuid uuid)))))
+(defn writeUUID [wtr u]
+  (writeTag wtr "uuid" 1)
+  (writeBytes wtr (uuid/uuid->bytes u)))
 
+; "int[]"    INT_ARRAY
+; "float[]"  FLOAT_ARRAY
+; "double[]" DOUBLE_ARRAY
+; "long[]"   LONG_ARRAY
+; "boolean[]" BOOLEAN_ARRAY
+; "Object[]" OBJECT_ARRAY
 
 ;;may be nice to have protocol dispatch ie IVector
 (def default-write-handlers
@@ -404,6 +411,7 @@
    js/RegExp writeRegex
    goog.Uri writeUri
    nil writeNull
+   cljs.core/UUID writeUUID
    cljs.core/PersistentHashMap writeMap
    cljs.core/PersistentArrayMap writeMap
    cljs.core/ObjMap writeMap
@@ -412,8 +420,6 @@
    cljs.core/PersistentHashSet writeSet
    cljs.core/Keyword #(writeNamed "key" %1 %2)
    cljs.core/Symbol #(writeNamed "sym" %1 %2)})
-
-; uuid, regex, int[], float[], string[], etc
 
 (defn build-handler-lookup
   [user-handlers]

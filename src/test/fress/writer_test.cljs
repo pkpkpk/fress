@@ -247,6 +247,13 @@
           re #"\n"
           control '(-60 -36 92 110)]
       (w/writeObject wrt re)
+      (is= (byteseq wrt) control)))
+  (testing "uuid"
+    (let [wrt (w/Writer)
+          u #uuid "0d6a32ef-1012-470b-92d2-45e25db8d09d"
+          control '(-61 -39 16 13 106 50 -17 16 18 71 11 -110 -46 69 -30 93 -72 -48 -99)]
+      (w/writeObject wrt u)
       (is= (byteseq wrt) control))))
 
+; all num types (see rawOutput)
 ; uuid, chars?, struct, caching, userHandlers + custom tags

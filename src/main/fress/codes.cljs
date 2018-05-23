@@ -12,7 +12,7 @@
 (def ^:const OBJECT_ARRAY 0xB5)
 (def ^:const MAP 0xC0)
 (def ^:const SET 0xC1)
-; (def ^:const UUID 0xC3);;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def ^:const _UUID 0xC3)
 (def ^:const REGEX 0xC4)
 (def ^:const URI 0xC5)
 (def ^:const BIGINT 0xC6)
@@ -77,7 +77,7 @@
 (def tag->code
   { "map"      MAP
     "set"      SET
-    ; "uuid"     (codes :uuid)
+    "uuid"     _UUID
     "regex"    REGEX
     "uri"      URI
     "bigint"   BIGINT

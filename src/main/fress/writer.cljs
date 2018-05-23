@@ -393,10 +393,33 @@
   (writeTag wtr "uuid" 1)
   (writeBytes wtr (uuid/uuid->bytes u)))
 
-; "int[]"    INT_ARRAY
-; "float[]"  FLOAT_ARRAY
-; "double[]" DOUBLE_ARRAY
-; "long[]"   LONG_ARRAY
+(defn writeIntArray [wtr a]
+  (writeTag wtr "int[]" 1)
+  (let [length (alength a)]
+    (writeInt wtr length)
+    (loop [i 0]
+      (when (< i length)
+        (writeInt wtr (aget a i))
+        (recur (inc i))))))
+
+(defn writeFloatArray [wtr a]
+  (writeTag wtr "float[]" 1)
+  (let [length (alength a)]
+    (writeInt wtr length)
+    (loop [i 0]
+      (when (< i length)
+        (writeFloat wtr (aget a i))
+        (recur (inc i))))))
+
+(defn writeDoubleArray [wtr a]
+  (writeTag wtr "double[]" 1)
+  (let [length (alength a)]
+    (writeInt wtr length)
+    (loop [i 0]
+      (when (< i length)
+        (writeDouble wtr (aget a i))
+        (recur (inc i))))))
+
 ; "boolean[]" BOOLEAN_ARRAY
 ; "Object[]" OBJECT_ARRAY
 
@@ -409,6 +432,9 @@
    js/Array writeList
    js/Date writeInst
    js/RegExp writeRegex
+   js/Int32Array writeIntArray
+   js/Float32Array writeFloatArray
+   js/Float64Array writeDoubleArray
    goog.Uri writeUri
    nil writeNull
    cljs.core/UUID writeUUID

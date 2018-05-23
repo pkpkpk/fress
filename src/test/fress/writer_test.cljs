@@ -253,6 +253,24 @@
           u #uuid "0d6a32ef-1012-470b-92d2-45e25db8d09d"
           control '(-61 -39 16 13 106 50 -17 16 18 71 11 -110 -46 69 -30 93 -72 -48 -99)]
       (w/writeObject wrt u)
+      (is= (byteseq wrt) control)))
+  (testing "int[]"
+    (let [wrt (w/Writer)
+          a (js/Int32Array. #js[0 1 2 3 4 5])
+          control '(-77 6 0 1 2 3 4 5)]
+      (w/writeObject wrt a)
+      (is= (byteseq wrt) control)))
+  (testing "float[]"
+    (let [wrt (w/Writer)
+          a (js/Float32Array. #js[0 1 2 3 4 5])
+          control '(-76 6 -7 0 0 0 0 -7 63 -128 0 0 -7 64 0 0 0 -7 64 64 0 0 -7 64 -128 0 0 -7 64 -96 0 0)]
+      (w/writeObject wrt a)
+      (is= (byteseq wrt) control)))
+  (testing "double[]"
+    (let [wrt (w/Writer)
+          a (js/Float64Array. #js[0 1 2 3 4 5])
+          control '(-79 6 -5 -4 -6 64 0 0 0 0 0 0 0 -6 64 8 0 0 0 0 0 0 -6 64 16 0 0 0 0 0 0 -6 64 20 0 0 0 0 0 0)]
+      (w/writeObject wrt a)
       (is= (byteseq wrt) control))))
 
 ; all num types (see rawOutput)

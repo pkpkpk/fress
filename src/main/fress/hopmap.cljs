@@ -5,7 +5,9 @@
 ; (defrecord StructType [tag fields])
 
 (defprotocol InterleavedIndexHoppable
-  (old-index [this k]))
+  (old-index [this k])
+  (isEmpty [this])
+  (clear [this]))
 
 (defrecord InterleavedIndexHopMap [ks hash-indexes]
   InterleavedIndexHoppable

@@ -17,11 +17,8 @@
    {"a" "foo"}
    {"a" []}
    {"a" {}}
-   ; {3 #{"a" []}}
-   ])
+   {3 #{"a" :a}}])
 
-;; pure socket streaming messages come over the wire in unreliable chunks.
-;; need to use prepl or some messaging protocol
 #_(deftest byte-parity-test
     (helpers/cycle-tap)
     (async done
@@ -219,6 +216,37 @@
           (w/writeObject wrt m)
           (is= (byteseq wrt) control))))))
 
-; [m control] [{:a nil} '(-64 -26 -37 97 -9)]
-; (deftest named-test)
-; struct stuff needs testing
+
+(deftest named-test
+  (let [wrt (w/Writer)
+        o :keyword]
+    (w/writeObject wrt o)
+    (is= (byteseq wrt) '(-54 -9 -31 107 101 121 119 111 114 100)))
+  (let [wrt (w/Writer)
+        o :named/keyword]
+    (w/writeObject wrt o)
+    (is= (byteseq wrt) '(-54 -33 110 97 109 101 100 -31 107 101 121 119 111 114 100))))
+
+
+(deftest misc-types-test
+  (testing "inst"
+    (let [wrt (w/Writer)
+          t 1527080360072
+          date (js/Date. t)
+          control '(-56 123 99 -115 21 24 -120)]
+      (w/writeObject wrt date)
+      (is= (byteseq wrt) control)))
+  (testing "uri"
+    (let [wrt (w/Writer)
+          uri (goog.Uri. "https://clojurescript.org")
+          control '(-59 -29 25 104 116 116 112 115 58 47 47 99 108 111 106 117 114 101 115 99 114 105 112 116 46 111 114 103)]
+      (w/writeObject wrt uri)
+      (is= (byteseq wrt) control)))
+  (testing "regex"
+    (let [wrt (w/Writer)
+          re #"\n"
+          control '(-60 -36 92 110)]
+      (w/writeObject wrt re)
+      (is= (byteseq wrt) control))))
+
+; uuid, chars?, struct, caching, userHandlers + custom tags

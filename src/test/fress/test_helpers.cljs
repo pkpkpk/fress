@@ -101,7 +101,6 @@
     out))
 
 (defn jvm-byteseq [form] ;=> chan<[?err ?res]>
-  ; (cycle-tap)
   (let [out (promise-chan)]
     (take! (write-form form)
      (fn [[write-err]]

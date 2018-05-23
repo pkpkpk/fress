@@ -45,7 +45,6 @@
 
 (defprotocol IFressianWriter
   (writeNull ^FressianWriter [this])
-  ; (writeNumber ^FressianWriter [this n])
   (writeBoolean ^FressianWriter [this b])
   (writeInt ^FressianWriter [this i])
   (writeDouble ^FressianWriter [this d])
@@ -56,15 +55,14 @@
   ; (writeIterator [this length it])
   (writeList ^FressianWriter [this o])
   (writeBytes ^FressianWriter [this bs] [this bs offset length])
-  (writeFooterFor [this byteBuffer])
+  ; (writeFooterFor [this byteBuffer])
   (writeFooter ^FressianWriter [this])
-  (internalWriteFooter [this length])
   (clearCaches [this])
   (resetCaches ^FressianWriter [this]"public")
   (getPriorityCache ^InterleavedIndexHopMap [this]"public")
   (getStructCache ^InterleavedIndexHopMap [this]"public")
   (writeTag ^FressianWriter [this tag componentCount] "public")
-  (writeExt ^FressianWriter [this]"public")
+  ; (writeExt ^FressianWriter [this]"public")
   (writeCount [this n] "public")
   (shouldSkipCache- ^boolean [this o] "private")
   (doWrite- [this tag o w cache?] "private")
@@ -129,6 +127,13 @@
 
       :default
       (throw (js/Error. "more than 64 bits in a long!")))))
+
+(defn internalWriteFooter [wrt ^number length]
+  (let [raw-out (.-raw-out wrt)]
+    (rawOut/writeRawInt32 raw-out codes/FOOTER_MAGIC)
+    (rawOut/writeRawInt32 raw-out length)
+    (rawOut/writeRawInt32 raw-out (rawOut/getChecksum raw-out))
+    (rawOut/reset raw-out)))
 
 (def TextEncoder (js/TextEncoder.))
 (def ^:dynamic *chunk-strings?* true)
@@ -256,7 +261,23 @@
   (getStructCache [this]
     (or structCache (let [c (hop/hopmap 16)] (set! (.-structCache this) c) c)))
 
-  (shouldSkipCache- ^boolean [this o])
+  (clearCaches [this]
+    (when (and priorityCache (not (hop/isEmpty priorityCache)))
+      (hop/clear priorityCache))
+    (when (and structCache (not (hop/isEmpty structCache)))
+      (hop/clear structCache)))
+
+  (resetCaches [this]
+    (writeCode this codes/RESET_CACHES)
+    (clearCaches this)
+    this)
+
+  (shouldSkipCache- ^boolean [this o]
+    (cond
+      (or (nil? o) (= (type o) js/Boolean)) true
+      (= (type o) js/String) (= (count o) 0)
+      (number? o) (or (== 0.0 o) (== 1.0 o))
+      :default false))
 
   (doWrite- [this tag o handler cache?]
     (if ^boolean cache?
@@ -320,11 +341,16 @@
           :default
           (do
             (writeCode this codes/STRUCT)
-            (write-int this index)))))
+            (writeInt this index)))))
     this)
 
+  ; (writeFooterFor [this bytes])
+  ; (writeExt [this ...])
 
-  )
+  (writeFooter [this]
+    (internalWriteFooter this (rawOut/getBytesWritten raw-out))
+    (clearCaches this)
+    this))
 
 (defn writeNumber [this ^number n]
   (if (int? n)
@@ -343,11 +369,29 @@
   ; (writeObject wtr (namespace s) true)
   (writeObject wtr (namespace s))
   ; (writeObject wtr (name s) true)
-  (writeObject wtr (name s)))
+  (writeObject wtr (name s))
+  )
 
 (defn writeSet [wtr s]
   (writeTag wtr "set" 1)
   (writeList wtr (into [] s)))
+
+(defn writeInst [wtr date]
+  (writeTag wtr "inst" 1)
+  (writeInt wtr (.getTime date)))
+
+(defn writeUri [wtr u]
+  (writeTag wtr "uri" 1)
+  (writeString wtr (.toString u)))
+
+(defn writeRegex [wtr re]
+  (writeTag wtr "regex" 1)
+  (writeString wtr (.-source re)))
+
+#_(defn writeUUID [wtr uuid]
+    (writeTag wtr "uuid" 1)
+    (writeBytes wtr (js/Uint8Array. (uuid/parse (.-uuid uuid)))))
+
 
 ;;may be nice to have protocol dispatch ie IVector
 (def default-write-handlers
@@ -356,6 +400,9 @@
    js/Boolean writeBoolean
    js/Object #(writeMap %1 (js->clj %2))
    js/Array writeList
+   js/Date writeInst
+   js/RegExp writeRegex
+   goog.Uri writeUri
    nil writeNull
    cljs.core/PersistentHashMap writeMap
    cljs.core/PersistentArrayMap writeMap
@@ -366,9 +413,9 @@
    cljs.core/Keyword #(writeNamed "key" %1 %2)
    cljs.core/Symbol #(writeNamed "sym" %1 %2)})
 
-;inst, uuid, regex, uri ,int[], float[], string[], etc
+; uuid, regex, int[], float[], string[], etc
 
-(defn build-lookup-handler
+(defn build-handler-lookup
   [user-handlers]
   (let [handlers (merge default-write-handlers user-handlers)]
     (fn [tag obj]
@@ -377,10 +424,12 @@
         (get handlers (type obj))))))
 
 (defn Writer
+  "Create a writer that combines userHandlers with the normal type handlers
+   built into Fressian."
   ([](Writer nil nil))
   ([handlers](Writer nil handlers))
   ([out handlers]
-   (let [lookup-fn (build-lookup-handler handlers)
+   (let [lookup-fn (build-handler-lookup handlers)
          raw-out (rawOut/raw-output)
          priorityCache (hop/hopmap)
          out nil

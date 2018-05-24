@@ -33,7 +33,7 @@
     (let [; val (.getInt8 (js/DataView. (.. memory -buffer)) bytesRead)
           ; val (aget (js/Int8Array. (.. memory -buffer)) bytesRead)
           val (aget (js/Uint8Array. (.. memory -buffer)) bytesRead)]
-      ; (if (< val 0) (throw (js/Error. "EOF")))
+      (if (< val 0) (throw (js/Error. "EOF"))) ;nil?
       (set! (.-bytesRead this) (inc bytesRead))
       val))
   (readRawInt8 ^number [this] (readRawByte this))
@@ -47,7 +47,7 @@
     (+ (bit-shift-left (readRawByte this) 16)
        (bit-shift-left (readRawByte this) 8)
        (readRawByte this)))
-  (readRawInt32 ^number [this] ;=> reads 4 bytes
+  (readRawInt32 ^number [this]
     (+ (bit-shift-left (readRawByte this) 24)
        (bit-shift-left (readRawByte this) 16)
        (bit-shift-left (readRawByte this) 8)
@@ -56,20 +56,20 @@
     (+ (<< (read-raw-byte this) 32)
        (readRawInt32 this)))
   (readRawInt48 ^number [this]
-    (+ (<< (read-raw-byte this) 40)
+    (+ (<< (readRawByte this) 40)
        (readRawInt40 this)))
-  (readRawInt64 ^number [this] ;=> goog.math.Long???
+  (readRawInt64 ^number [this]
     (+ (<< (read-raw-byte this) 56)
        (<< (read-raw-byte this) 48)
        (readRawInt48 this)))
-  (readRawFloat ^number [this] ;=> reads 4 bytes
+  (readRawFloat ^number [this]
     (let [f32buf (js/Float32Array. 1)
           u8buf  (js/Uint8Array. (. f32buf -buffer))]
       (dotimes [i 4]
         (let [b (readRawByte this)]
           (aset u8buf i b)))
       (aget f32buf 0)))
-  (readRawDouble ^number [this] ;=> reads 8 bytes
+  (readRawDouble ^number [this]
     (let [buf (js/ArrayBuffer. 8)
           h (readRawInt32 this)
           l (readRawInt32 this)]

@@ -56,7 +56,9 @@
       (bit-or (<< (- code codes/INT_PACKED_4_ZERO) 24) (rawIn/readRawInt24 (.-raw-in rdr)))
 
       (<= 0x74 code 0x77)
-      (bit-or (<< (- code codes/INT_PACKED_5_ZERO ) 32) (rawIn/readRawInt32 (.-raw-in rdr)))
+      (let [packing (goog.math.Long. (- code codes/INT_PACKED_5_ZERO))
+            i32 (goog.math.Long. (rawIn/readRawInt32 (.-raw-in rdr)))]
+        (.toNumber (.or (.shiftLeft packing 32) i32)))
 
       (<= 0x78 code 0x7B)
       (bit-or (<< (- code codes/INT_PACKED_6_ZERO ) 40) (rawIn/readRawInt40 (.-raw-in rdr)))

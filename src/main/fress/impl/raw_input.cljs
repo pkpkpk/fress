@@ -1,4 +1,5 @@
 (ns fress.impl.raw-input
+  (:require-macros [fress.macros :refer [<< >>>]])
   (:require [fress.adler32 :as adler]))
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
@@ -53,14 +54,14 @@
        (bit-shift-left (readRawByte this) 8)
        (readRawByte this)))
   (readRawInt40 ^number [this]
-    (+ (<< (read-raw-byte this) 32)
+    (+ (<< (readRawByte this) 32)
        (readRawInt32 this)))
   (readRawInt48 ^number [this]
     (+ (<< (readRawByte this) 40)
        (readRawInt40 this)))
   (readRawInt64 ^number [this]
-    (+ (<< (read-raw-byte this) 56)
-       (<< (read-raw-byte this) 48)
+    (+ (<< (readRawByte this) 56)
+       (<< (readRawByte this) 48)
        (readRawInt48 this)))
   (readRawFloat ^number [this]
     (let [f32buf (js/Float32Array. 1)

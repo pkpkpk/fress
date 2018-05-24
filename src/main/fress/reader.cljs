@@ -7,6 +7,8 @@
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
 
+(def ^:const MAX_SAFE_INT (.-MAX_SAFE_INTEGER js/Number))
+(def ^:const MIN_SAFE_INT (.-MIN_SAFE_INTEGER js/Number))
 
 (defn ^int internalReadInt32 [this])
 (defn ^bytes internalReadString [this])

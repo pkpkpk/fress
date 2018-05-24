@@ -27,35 +27,24 @@
 
 (def int-samples
   [
-   ["(short 55)" [55] 55]
-   ["(short -55)" [79 -55] -55]
-   ["(short 32700)" [104 127 -68] 32700]
-   ["(short -32700)" [103 128 68] -32700]
-   ["(int (- 2147483000))" [117 -128 0 2 -120] -2147483000 [117 128 0 2 136]]
+   {:form "(short 55)", :value 55, :bytes [55], :rawbytes [55]}
+   {:form "(short -55)", :value -55, :bytes [79 -55], :rawbytes [79 201]}
+   {:form "(short -32700)", :value -32700, :bytes [103 -128 68], :rawbytes [103 128 68]}
+   {:form "(short 32700)", :value 32700, :bytes [104 127 -68], :rawbytes [104 127 188]}
+   {:form "(int (- 2147483000))", :value -2147483000, :bytes [117 -128 0 2 -120], :rawbytes [117 128 0 2 136]}
+   {:form "(int 2147483000)", :value 2147483000, :bytes [118 127 -1 -3 120], :rawbytes [118 127 255 253 120]}
+
 
    ])
 
-
-
 (deftest readInt-test
-  ; (let [[desc control-bytes control-val control-raw-bytes]
-  ;       ["(int (- 2147483000))" [117 -128 0 2 -120] -2147483000 [117 128 0 2 136]]
-  ;       rdr (r/reader (into-bytes control-bytes))]
-  ;   (is= control-raw-bytes (rawbyteseq rdr))
-  ;   (rawIn/reset (:raw-in rdr))
-  ;   (= 117 (r/readNextCode rdr))
-  ;   (= 2147484296 (rawIn/readRawInt32 (:raw-in rdr)))
-  ;   (rawIn/reset (:raw-in rdr))
-  ;   (is= control-val (r/readInt rdr))
-  ;   )
-
-  (doseq [[desc control-bytes control-val raw-bytes] int-samples]
-    (testing desc
-      (let [rdr (r/reader (into-bytes control-bytes))]
-        (when raw-bytes
-          (is= raw-bytes (rawbyteseq rdr))
+  (doseq [{:keys [form bytes value rawbytes]} int-samples]
+    (testing form
+      (let [rdr (r/reader (into-bytes bytes))]
+        (when rawbytes
+          (is= rawbytes (rawbyteseq rdr))
           (rawIn/reset (:raw-in rdr)))
-        (is= control-val (r/readInt rdr)))))
+        (is= value (r/readInt rdr)))))
   )
 
 ; (= -4294967296 (bit-shift-left (- 117 118) 32))

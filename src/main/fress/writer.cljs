@@ -102,7 +102,7 @@
 
       (<= 31 s 38)
       (do
-        (rawOut/writeRawByte raw (+ codes/INT_PACKED_5_ZERO (>>> n 32)))
+        (rawOut/writeRawByte raw (+ codes/INT_PACKED_5_ZERO (>>> n 32))) ;;;; revisit
         (rawOut/writeRawInt32 raw n))
 
       (<= 39 s 44)

@@ -1,6 +1,7 @@
 (ns fress.impl.raw-input
   (:require [fress.adler32 :as adler]))
 
+(defn log [& args] (.apply js/console.log js/console (into-array args)))
 
 (defprotocol IRawInput
   (readRawByte [this])
@@ -19,20 +20,29 @@
   (reset [this])
   (validateChecksum [this]))
 
+;; need to clamp somehow so we dont read past end of written
+;; need to clamp somehow so we dont read past end of written
+;; need to clamp somehow so we dont read past end of written
+;; need to clamp somehow so we dont read past end of written
+
 (defrecord RawInput [memory bytesRead checksum]
   IRawInput
   (getBytesRead ^number [this] bytesRead)
   (readRawByte ^number [this]
     (assert (and (int? bytesRead) (<= 0 bytesRead)))
     (let [; val (.getInt8 (js/DataView. (.. memory -buffer)) bytesRead)
-          val (aget (js/Int8Array. (.. memory -buffer)) bytesRead)]
+          ; val (aget (js/Int8Array. (.. memory -buffer)) bytesRead)
+          val (aget (js/Uint8Array. (.. memory -buffer)) bytesRead)]
       ; (if (< val 0) (throw (js/Error. "EOF")))
       (set! (.-bytesRead this) (inc bytesRead))
       val))
   (readRawInt8 ^number [this] (readRawByte this))
+
   (readRawInt16 ^number [this]
-    (+ (bit-shift-left (readRawByte this) 8)
-       (readRawByte this)))
+    (let [high (readRawByte this)
+          low  (readRawByte this)]
+      (+ (bit-shift-left high 8) low)))
+
   (readRawInt24 ^number [this]
     (+ (bit-shift-left (readRawByte this) 16)
        (bit-shift-left (readRawByte this) 8)

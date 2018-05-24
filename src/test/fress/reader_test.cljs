@@ -12,16 +12,15 @@
             [fress.test-helpers :as helpers
              :refer [log jvm-byteseq is= byteseq overflow into-bytes]]))
 
-(deftest readInt-test
-  (testing "short"
-    (let [[control-val control-bytes] [55 [55]]
-          in (into-bytes control-bytes)
-          rdr (r/reader in)]
-      (is= control-val (r/readInt rdr)))
-    ; (let [[control-val control-bytes] [32700 [104 127 -68]]
-    ;       in (into-bytes control-bytes)
-    ;       rdr (r/reader in)]
-    ;   (is= control-val (r/readInt rdr)))
-    )
+(def int-samples
+  [
+   ["(short 55)" [55] 55]
+   ["(short 32700)" [104 127 -68] 32700]
+   ["(short -32700)" [103 128 68] -32700]
+   ])
 
-  )
+(deftest readInt-test
+  (doseq [[desc control-bytes control-val] int-samples]
+    (testing desc
+      (let [rdr (r/reader (into-bytes control-bytes))]
+        (is= control-val (r/readInt rdr))))))

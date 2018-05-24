@@ -13,11 +13,11 @@
   (readRawInt64 [this])
   (readRawFloat [this])
   (readRawDouble [this])
-  (readFully [this bytes offset length])
+  (readFully [this length]
+             #_[this bytes offset length])
   (getBytesRead [this])
   (reset [this])
-  (validateChecksum [this])
-  )
+  (validateChecksum [this]))
 
 (defrecord RawInput [memory bytesRead checksum]
   IRawInput
@@ -26,7 +26,7 @@
     (assert (and (int? bytesRead) (<= 0 bytesRead)))
     (let [; val (.getInt8 (js/DataView. (.. memory -buffer)) bytesRead)
           val (aget (js/Int8Array. (.. memory -buffer)) bytesRead)]
-      (if (< val 0) (throw (js/Error. "EOF")))
+      ; (if (< val 0) (throw (js/Error. "EOF")))
       (set! (.-bytesRead this) (inc bytesRead))
       val))
   (readRawInt8 ^number [this] (readRawByte this))
@@ -66,8 +66,22 @@
       (aset (js/Int32Array. buf) 0 h)
       (aset (js/Int32Array. buf) 1 l)
       (aget (js/Float64Array. buf) 0)))
-
-  )
+  (readFully [this length] ;; need to clamp somehow so we dont read past end of written
+    (let [bytes (js/Int8Array. memory bytesRead length)]
+      (set! (.-bytesRead this) (+ bytesRead length))
+      bytes))
+  (reset [this]
+    (set! (.-bytesRead this) 0)
+    (when checksum
+      (adler/reset checksum)))
+  (validateChecksum [this]
+    (if (nil? checksum)
+      (readRawInt32 this)
+      (let [calculatedChecksum (adler/get-value checksum)
+            receivedChecksum (readRawInt32 this)]
+        (if (not= calculatedChecksum receivedChecksum)
+          (throw
+            (js/Error. "Invalid footer checksum, expected " calculatedChecksum" got " receivedChecksum)))))))
 
 
 (defn raw-input

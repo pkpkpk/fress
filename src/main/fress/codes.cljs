@@ -63,12 +63,12 @@
 (def ^:const INT_PACKED_4_START 0x70)
 (def ^:const INT_PACKED_4_ZERO 0x72)
 (def ^:const INT_PACKED_4_END 0x74)
-(def ^:const INT_PACKED_5_START 0x74)
-(def ^:const INT_PACKED_5_ZERO 0x76)
-(def ^:const INT_PACKED_5_END 0x78)
-(def ^:const INT_PACKED_6_START 0x78)
-(def ^:const INT_PACKED_6_ZERO 0x7A)
-(def ^:const INT_PACKED_6_END 0x7C)
+(def ^:const INT_PACKED_5_START 0x74) ; 116
+(def ^:const INT_PACKED_5_ZERO 0x76) ; 118
+(def ^:const INT_PACKED_5_END 0x78) ; 120
+(def ^:const INT_PACKED_6_START 0x78) ;120
+(def ^:const INT_PACKED_6_ZERO 0x7A) ; 122
+(def ^:const INT_PACKED_6_END 0x7C) ; 124
 (def ^:const INT_PACKED_7_START 0x7C)
 (def ^:const INT_PACKED_7_ZERO 0x7E)
 (def ^:const INT_PACKED_7_END 0x80)

@@ -3,12 +3,10 @@
   (:require [fress.impl.raw-input :as rawIn]
             [fress.codes :as codes]
             [fress.ranges :as ranges]
-            [goog.string :as gstring]))
+            [goog.string :as gstring])
+  (:import [goog.math Long]))
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
-
-(def ^:const MAX_SAFE_INT (.-MAX_SAFE_INTEGER js/Number))
-(def ^:const MIN_SAFE_INT (.-MIN_SAFE_INTEGER js/Number))
 
 (defn ^int internalReadInt32 [this])
 (defn ^bytes internalReadString [this])
@@ -63,10 +61,14 @@
         (.toNumber (.or (.shiftLeft packing 32) i32)))
 
       (<= 0x78 code 0x7B)
-      (bit-or (<< (- code codes/INT_PACKED_6_ZERO ) 40) (rawIn/readRawInt40 (.-raw-in rdr)))
+      (let [packing (Long.fromNumber (- code codes/INT_PACKED_6_ZERO))
+            i40 (Long.fromNumber (rawIn/readRawInt40 (.-raw-in rdr)))]
+        (.toNumber (.or (.shiftLeft packing 40) i40)))
 
       (<= 0x7C code 0x7F)
-      (bit-or (<< (- code codes/INT_PACKED_7_ZERO) 48) (rawIn/readRawInt48 (.-raw-in rdr)))
+      (let [packing (Long.fromNumber (- code codes/INT_PACKED_7_ZERO))
+            i48 (Long.fromNumber (rawIn/readRawInt48 (.-raw-in rdr)))]
+        (.toNumber (.or (.shiftLeft packing 48) i48)))
 
       (= code codes/INT)
       (rawIn/readRawInt64 (.-raw-in rdr))
@@ -74,7 +76,7 @@
       :default
       (let [o (read rdr code)]
         (if (number? o) o
-          (throw (js/Error. (str "expected int64" code o))))))))
+          (throw (js/Error. (str "unexpected int64" code o))))))))
 
 (defrecord FressianReader [in raw-in lookup]
   IFressianReader

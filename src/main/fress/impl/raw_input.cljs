@@ -1,6 +1,7 @@
 (ns fress.impl.raw-input
   (:require-macros [fress.macros :refer [<< >>>]])
-  (:require [fress.adler32 :as adler]))
+  (:require [fress.adler32 :as adler])
+  (:import [goog.math Long]))
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
 
@@ -26,6 +27,8 @@
 ;; need to clamp somehow so we dont read past end of written
 ;; need to clamp somehow so we dont read past end of written
 
+(def ^:dynamic *throw-on-unsafe?* false)
+
 (defrecord RawInput [memory bytesRead checksum]
   IRawInput
   (getBytesRead ^number [this] bytesRead)
@@ -48,21 +51,47 @@
     (+ (bit-shift-left (readRawByte this) 16)
        (bit-shift-left (readRawByte this) 8)
        (readRawByte this)))
+
   (readRawInt32 ^number [this]
     (+ (bit-shift-left (readRawByte this) 24)
        (bit-shift-left (readRawByte this) 16)
        (bit-shift-left (readRawByte this) 8)
        (readRawByte this)))
+
   (readRawInt40 ^number [this]
-    (+ (<< (readRawByte this) 32)
-       (readRawInt32 this)))
+    (let [high (Long.fromNumber (readRawByte this))
+          low (Long.fromNumber (readRawInt32 this))]
+      (.toNumber (.add (.shiftLeft high 32) low))))
+
   (readRawInt48 ^number [this]
-    (+ (<< (readRawByte this) 40)
-       (readRawInt40 this)))
+    (let [high (Long.fromNumber (readRawByte this))
+          low (Long.fromNumber (readRawInt40 this))]
+      (.toNumber (.add (.shiftLeft high 40) low))))
+
   (readRawInt64 ^number [this]
-    (+ (<< (readRawByte this) 56)
-       (<< (readRawByte this) 48)
-       (readRawInt48 this)))
+    (let [x (Long.fromNumber 0xff)
+          a (readRawByte this)
+          b (readRawByte this)]
+      (if (and *throw-on-unsafe?* (or (not (zero? a)) (<= 32 b)))
+        (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds javascript's safe integer semantics")))
+        (let [a  (.and (Long.fromNumber a) x)
+              b  (.and (Long.fromNumber b) x)
+              c  (.and (Long.fromNumber (readRawByte this)) x)
+              d  (.and (Long.fromNumber (readRawByte this)) x)
+              e  (.and (Long.fromNumber (readRawByte this)) x)
+              f  (.and (Long.fromNumber (readRawByte this)) x)
+              g  (.and (Long.fromNumber (readRawByte this)) x)
+              h  (.and (Long.fromNumber (readRawByte this)) x)]
+          (-> (.shiftLeft a 56)
+              (.or (.shiftLeft b 48))
+              (.or (.shiftLeft c 40))
+              (.or (.shiftLeft d 32))
+              (.or (.shiftLeft e 24))
+              (.or (.shiftLeft f 16))
+              (.or (.shiftLeft g 8))
+              (.or h)
+              (.toNumber))))))
+
   (readRawFloat ^number [this]
     (let [f32buf (js/Float32Array. 1)
           u8buf  (js/Uint8Array. (. f32buf -buffer))]

@@ -1,6 +1,6 @@
 (ns fress.raw-test
   (:require [cljs.test :refer-macros [deftest is testing]]
-            [fress.raw-output :as rawOut]
+            [fress.impl.raw-output :as rawOut]
             [fress.impl.raw-input :as rawIn]))
 
 ;; need overflow behaviors

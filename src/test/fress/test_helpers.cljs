@@ -39,6 +39,8 @@
   (-> (js/Int8Array. (.. wrt -raw-out -memory -buffer) 0 (.. wrt -raw-out -bytesWritten))
     array-seq))
 
+(defn into-bytes [byte-seq]
+  (js/Int8Array. (into-array byte-seq)))
 
 
 (def ^:dynamic *conn*)

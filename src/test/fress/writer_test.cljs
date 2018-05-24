@@ -4,7 +4,7 @@
   (:require [cljs.core.async :as casync
              :refer [close! put! take! alts! <! >! chan promise-chan timeout]]
             [cljs.test :refer-macros [deftest is testing async]]
-            [fress.raw-output :as rawOut]
+            [fress.impl.raw-output :as rawOut]
             [fress.codes :as codes]
             [fress.ranges :as ranges]
             [fress.writer :as w]

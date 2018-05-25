@@ -10,7 +10,8 @@
             [fress.ranges :as ranges]
             [fress.reader :as r]
             [fress.test-helpers :as helpers
-             :refer [log jvm-byteseq is= byteseq overflow into-bytes]]))
+             :refer [log jvm-byteseq is= byteseq overflow into-bytes
+                     precision= kinda=]]))
 
 (defn rawbyteseq [rdr]
   (let [raw (.-raw-in rdr)
@@ -54,7 +55,7 @@
                                                :bytes [121 -128 0 0 0 1]
                                                :rawbytes [121 128 0 0 0 1]}
           rdr (r/reader (into-bytes bytes))
-          raw (:raw-in rdr)]
+           raw (:raw-in rdr)]
       (is= 121 (rawIn/readRawByte raw))
       (let [i40 (rawIn/readRawInt40 raw)]
         (is= 549755813889 i40)
@@ -107,28 +108,57 @@
             (is (thrown? js/Error (r/readInt rdr)))
             (is= value (r/readInt rdr))))))))
 
-
-
 (def float-samples
-  [{:form "Float/MAX_VALUE", :value 3.4028235E38, :bytes [-7 127 127 -1 -1], :rawbytes [249 127 127 255 255]}
-   {:form "Float/MIN_VALUE", :value 1.4E-45, :bytes [-7 0 0 0 1], :rawbytes [249 0 0 0 1]}])
+  [{:form "Float/MIN_VALUE", :value 1.4E-45, :bytes [-7 0 0 0 1], :rawbytes [249 0 0 0 1]}
+   {:form "Float/MAX_VALUE", :value 3.4028235E38, :bytes [-7 127 127 -1 -1], :rawbytes [249 127 127 255 255]}])
 
-(deftest double-samples
+(deftest read-floats-test
+  (testing "Float/MAX_VALUE"
+    (let [{:keys [form bytes value rawbytes throw?]} {:form "Float/MAX_VALUE",
+                                                      :value 3.4028235E38,
+                                                      :bytes [-7 127 127 -1 -1],
+                                                      :rawbytes [249 127 127 255 255]}
+          rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= 249 (rawIn/readRawByte raw))
+      (is (precision= value (rawIn/readRawFloat raw) 8))
+      (rawIn/reset raw)
+      (is (precision= value (r/readFloat rdr) 8))))
+  (testing "readFloat"
+    (doseq [{:keys [form bytes value rawbytes throw?]} float-samples]
+      (testing form
+        (let [rdr (r/reader (into-bytes bytes))
+              raw (:raw-in rdr)]
+          (is= rawbytes (rawbyteseq rdr))
+          (rawIn/reset raw)
+          (is (kinda= value (r/readFloat rdr))))))))
+
+
+(def double-samples
   [{:form "Double/MIN_VALUE", :value 4.9E-324, :bytes [-6 0 0 0 0 0 0 0 1], :rawbytes [250 0 0 0 0 0 0 0 1]}
    {:form "Double/MAX_VALUE", :value 1.7976931348623157E308, :bytes [-6 127 -17 -1 -1 -1 -1 -1 -1], :rawbytes [250 127 239 255 255 255 255 255 255]}])
 
-#_(deftest read-floats-test
-  (testing "readFloat"
-    (doseq [{:keys [form bytes value rawbytes throw?]} int-samples]
-      (testing form
-        (let [rdr (r/reader (into-bytes bytes))]
-          (is= rawbytes (rawbyteseq rdr))
-          (rawIn/reset (:raw-in rdr))
-          (if throw?
-            (is (thrown? js/Error (r/readInt rdr)))
-            (is= value (r/readInt rdr))))))
-    )
 
-  )
+(deftest read-double-test
+  (testing "Double/MAX_VALUE"
+    (let [{:keys [form bytes value rawbytes throw?]} {:form "Double/MAX_VALUE",
+                                                      :value 1.7976931348623157E308
+                                                      :bytes [-6 127 -17 -1 -1 -1 -1 -1 -1]
+                                                      :rawbytes [250 127 239 255 255 255 255 255 255]}
+          rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is (precision= value (r/readDouble rdr) 16))))
+  (testing "double-samples"
+    (doseq [{:keys [form bytes value rawbytes throw?]} double-samples]
+      (testing form
+        (let [rdr (r/reader (into-bytes bytes))
+              raw (:raw-in rdr)]
+          (is= rawbytes (rawbyteseq rdr))
+          (rawIn/reset raw)
+          (is (kinda= value (r/readDouble rdr))))))))
 
 ;;int[] , long [], float[], double[], boolean[]

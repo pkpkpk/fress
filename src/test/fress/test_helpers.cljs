@@ -116,3 +116,41 @@
                    (put! out [nil v]))
                  (put! out [val]))))))))
     out))
+
+(def ^:dynamic *eps* 0.00001)
+
+(defn roughly=
+  ([a b](roughly= a b *eps*))
+  ([a b tolerance]
+   (assert (and (number? a) (number? b)) "roughly= takes numbers")
+   (assert (number? tolerance) "roughly= tolerance is NaN")
+   (< (js/Math.abs (- a b)) tolerance)))
+
+
+(def FLOAT_MIN_NORMAL 1.17549435E-38)
+(def FLOAT_MAX_VALUE 3.4028235E38)
+
+(defn nearly=
+  ([a b](nearly= a b *eps*))
+  ([a b eps]
+   (let [absA (js/Math.abs a)
+         absB (js/Math.abs b)
+         d (js/Math.abs (- a b))]
+     (if (== a b)
+       true
+       (if (or (zero? a) (zero? b) (< d FLOAT_MIN_NORMAL))
+         ;;;extremely close, relative error less meaningful
+         (< d (* eps FLOAT_MIN_NORMAL))
+         (< (/ diff (js/Math.min (+ absA absB) FLOAT_MAX_VALUE)) eps))))))
+
+(defn precision=
+  ([a b](precision= a b 8))
+  ([a b sig]
+   (= (.toPrecision a sig) (.toPrecision b sig))))
+
+(defn kinda=
+  "lol"
+  [a b]
+  (or (roughly= a b)
+      (nearly= a b)
+      (precision= a b)))

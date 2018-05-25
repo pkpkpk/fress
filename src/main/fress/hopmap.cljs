@@ -1,9 +1,5 @@
 (ns fress.hopmap)
 
-; (defrecord TaggedObject [tag value meta])
-
-; (defrecord StructType [tag fields])
-
 #_(defprotocol InterleavedIndexHoppable
   (old-index [this k])
   (isEmpty [this])
@@ -53,6 +49,7 @@
   ([](hopmap 16))
   ([capacity]
    (let [cap (atom 1)
-         _ (while (< @cap capacity)
-             (swap! cap ))]
+         ; _ (while (< @cap capacity)
+         ;     (swap! cap ))
+         ]
      (HopMap. nil nil nil nil))))

@@ -1,13 +1,8 @@
 (ns fress.impl.raw-output
   (:require-macros [fress.macros :refer [>>>]])
   (:require [fress.adler32 :as adler]
+            [fress.util :refer [isBigEndian]]
             [goog.string :as gstring]))
-
-(def isBigEndian
-  (-> (.-buffer (js/Uint32Array. #js[0x12345678]))
-    (js/Uint8Array. )
-    (aget 0)
-    (== 0x12)))
 
 (defprotocol IRawOutput
   (getByte [this index] "returns nil on oob")

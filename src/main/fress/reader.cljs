@@ -8,13 +8,18 @@
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
 
+(def ^:const I32_MAX_VALUE 2147483647)
+(def ^:const I32_MIN_VALUE -2147483648)
+
+(defrecord StructType [tag fields])
+; (defrecord TaggedObject [tag value meta])
+
 (defn ^int internalReadInt32 [this])
 (defn ^bytes internalReadString [this count])
 (defn ^bytes internalReadStringBuffer [this])
 (defn ^string internalReadChunkedString [this count])
 (defn ^bytes internalReadBytes [this length])
 (defn ^bytes internalReadChunkedBytes [this length])
-(defn ^number internalReadDouble [rdr code])
 
 (defprotocol IFressianReader
   (read [this code])
@@ -37,6 +42,20 @@
   (getPriorityCache [this])
   (getStructCache [this])
   (resetCaches [this]))
+
+(defn ^number internalReadDouble [rdr code]
+  (cond
+    (== code codes/DOUBLE)
+    (rawIn/readRawDouble (.-raw-in rdr))
+    (== code codes/DOUBLE_0)
+    0.0
+    (== code codes/DOUBLE_1)
+    1.0
+    :else
+    (let [o (read rdr code)]
+      (if (number? o)
+        o
+        (throw (js/Error. (str "expected double: " code " " o) ))))))
 
 (defn ^number internalReadInt
   ([rdr](internalReadInt rdr (readNextCode rdr) ))
@@ -275,24 +294,51 @@
         (handler (readRawFloat (.-raw-in rdr))))
 
       (== code codes/FOOTER)
-      (let [])
+      (let [calculatedLength (dec (rawIn/getBytesRead (.-raw-in rdr)))
+            magic (+ (bit-shift-left code 24) (rawIn/readRawInt24 (.-raw-in rdr)))]
+        (validateFooter rdr calculatedLength magic)
+        (readObject rdr))
 
+      (== code codes/STRUCTTYPE)
+      (let [tag (readObject rdr)
+            n-fields (rawIn/readInt32 (.-raw-in rdr))]
+        (.add (getStructCache rdr) (StructType. tag fields))
+        (handleStruct rdr tag fields))
 
-      )))
+      (== code codes/STRUCT)
+      (let [struct-type (lookupCache rdr (getStructCache rdr) (readInt32 rdr))]
+        (handleStruct rdr (.-tag struct-type) (.-fields struct-type)))
+
+      (== code codes/RESET_CACHES)
+      (do
+        (resetCaches rdr)
+        (readObject rdr))
+
+      :else
+      (throw (js/Error. (str "unmatched code: " code))))))
 
 (defrecord FressianReader [in raw-in lookup]
   IFressianReader
   (readNextCode [this] (rawIn/readRawByte raw-in))
-  (readInt [this] (internalReadInt this))
+  (readInt ^number [this] (internalReadInt this))
+  (readInt32 ^number [this]
+    (let [i (readInt this)]
+      (if (or (< i I32_MIN_VALUE)  (< I32_MAX_VALUE i))
+        (throw (js/Error. (str  "value " i " out of range for i32"))))
+      i))
   (read [this code] (internalRead this code))
-  (readFloat [this]
+  (readFloat ^number [this]
     (let [code (readNextCode this)]
       (if (== code codes/FLOAT)
         (rawIn/readRawFloat raw-in)
         (let [o (read this code)]
           (if (number? o)
             o
-            (throw (js/Error. (str "Expected float " code o)))))))))
+            (throw (js/Error. (str "Expected float " code o))))))))
+  (readDouble ^number [this]
+    (let [code (readNextCode this)]
+      (log "code:" code)
+      (internalReadDouble this code))))
 
 
 (def default-read-handlers

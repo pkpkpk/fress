@@ -1,6 +1,7 @@
 (ns fress.impl.raw-input
   (:require-macros [fress.macros :refer [<< >>>]])
-  (:require [fress.adler32 :as adler])
+  (:require [fress.adler32 :as adler]
+            [fress.util :refer [isBigEndian]])
   (:import [goog.math Long]))
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
@@ -32,6 +33,7 @@
 (defrecord RawInput [memory bytesRead checksum]
   IRawInput
   (getBytesRead ^number [this] bytesRead)
+
   (readRawByte ^number [this]
     (assert (and (int? bytesRead) (<= 0 bytesRead)))
     (let [; val (.getInt8 (js/DataView. (.. memory -buffer)) bytesRead)
@@ -103,19 +105,20 @@
             (.toNumber)))))
 
   (readRawFloat ^number [this]
-    (let [f32buf (js/Float32Array. 1)
-          u8buf  (js/Uint8Array. (. f32buf -buffer))]
+    (let [bytes (js/Int8Array. 4)]
       (dotimes [i 4]
-        (let [b (readRawByte this)]
-          (aset u8buf i b)))
-      (aget f32buf 0)))
+        (let [i (if isBigEndian i (- 3 i))]
+          (aset bytes i (readRawByte this))))
+      (aget (js/Float32Array. (.-buffer bytes)) 0)))
+
   (readRawDouble ^number [this]
-    (let [buf (js/ArrayBuffer. 8)
-          h (readRawInt32 this)
-          l (readRawInt32 this)]
-      (aset (js/Int32Array. buf) 0 h)
-      (aset (js/Int32Array. buf) 1 l)
-      (aget (js/Float64Array. buf) 0)))
+    (let [bytes (js/Int8Array. 8)]
+      (dotimes [i 8]
+        (let [i (if isBigEndian i (- 7 i))
+              byte (readRawByte this)]
+          (aset bytes i byte)))
+      (aget (js/Float64Array. (.-buffer bytes)) 0)))
+
   (readFully [this length] ;; need to clamp somehow so we dont read past end of written
     (let [bytes (js/Int8Array. memory bytesRead length)]
       (set! (.-bytesRead this) (+ bytesRead length))

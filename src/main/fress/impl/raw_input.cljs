@@ -27,7 +27,7 @@
 ;; need to clamp somehow so we dont read past end of written
 ;; need to clamp somehow so we dont read past end of written
 
-(def ^:dynamic *throw-on-unsafe?* false)
+(def ^:dynamic *throw-on-unsafe?* true)
 
 (defrecord RawInput [memory bytesRead checksum]
   IRawInput
@@ -69,28 +69,38 @@
       (.toNumber (.add (.shiftLeft high 40) low))))
 
   (readRawInt64 ^number [this]
-    (let [x (Long.fromNumber 0xff)
-          a (readRawByte this)
-          b (readRawByte this)]
-      (if (and *throw-on-unsafe?* (or (not (zero? a)) (<= 32 b)))
-        (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds javascript's safe integer semantics")))
-        (let [a  (.and (Long.fromNumber a) x)
-              b  (.and (Long.fromNumber b) x)
-              c  (.and (Long.fromNumber (readRawByte this)) x)
-              d  (.and (Long.fromNumber (readRawByte this)) x)
-              e  (.and (Long.fromNumber (readRawByte this)) x)
-              f  (.and (Long.fromNumber (readRawByte this)) x)
-              g  (.and (Long.fromNumber (readRawByte this)) x)
-              h  (.and (Long.fromNumber (readRawByte this)) x)]
-          (-> (.shiftLeft a 56)
-              (.or (.shiftLeft b 48))
-              (.or (.shiftLeft c 40))
-              (.or (.shiftLeft d 32))
-              (.or (.shiftLeft e 24))
-              (.or (.shiftLeft f 16))
-              (.or (.shiftLeft g 8))
-              (.or h)
-              (.toNumber))))))
+    (let [a (readRawByte this)
+          b (readRawByte this)
+          c (readRawByte this)
+          d (readRawByte this)
+          e (readRawByte this)
+          f (readRawByte this)
+          g (readRawByte this)
+          h (readRawByte this)]
+      (when *throw-on-unsafe?*
+        (if (<= a 127)
+          (when (or (<= 32 b) (< 1561 (+ b c d e f g h)))
+            (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds javascript's Number.MAX_SAFE_INTEGER"))))
+          (when (or (< a 255) (< b 224) (zero? h) )
+            (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds javascript's Number.MIN_SAFE_INTEGER"))))))
+      (let [x (Long.fromNumber 0xff)
+            a  (.and (Long.fromNumber a) x)
+            b  (.and (Long.fromNumber b) x)
+            c  (.and (Long.fromNumber c) x)
+            d  (.and (Long.fromNumber d) x)
+            e  (.and (Long.fromNumber e) x)
+            f  (.and (Long.fromNumber f) x)
+            g  (.and (Long.fromNumber g) x)
+            h  (.and (Long.fromNumber h) x)]
+        (-> (.shiftLeft a 56)
+            (.or (.shiftLeft b 48))
+            (.or (.shiftLeft c 40))
+            (.or (.shiftLeft d 32))
+            (.or (.shiftLeft e 24))
+            (.or (.shiftLeft f 16))
+            (.or (.shiftLeft g 8))
+            (.or h)
+            (.toNumber)))))
 
   (readRawFloat ^number [this]
     (let [f32buf (js/Float32Array. 1)

@@ -23,8 +23,6 @@
             (.push acc byte)
             (recur)))))))
 
-
-
 (def int-samples
   [{:form "(short 55)", :value 55, :bytes [55], :rawbytes [55]}
    {:form "(short -55)", :value -55, :bytes [79 -55], :rawbytes [79 201]}
@@ -44,10 +42,20 @@
    {:form "(long 549755813888)", :value 549755813888, :bytes [122 -128 0 0 0 0], :rawbytes [122 128 0 0 0 0]}
    ;;;; max int48
    {:form "(long 1.4073749E14)", :value 140737490000000, :bytes [126 -128 0 0 25 24 -128], :rawbytes [126 128 0 0 25 24 128]}
-   ;MAX_SAFE_INT
-   {:form "(long 9007199254740991)", :value 9007199254740991, :bytes [-8 0 31 -1 -1 -1 -1 -1 -1], :rawbytes [248 0 31 255 255 255 255 255 255]}
-   ;;MIN_SAFE_INTEGER
-   {:form "(long -9007199254740991)", :value -9007199254740991, :bytes [-8 -1 -32 0 0 0 0 0 1], :rawbytes [248 255 224 0 0 0 0 0 1]}])
+   ; ;MAX_SAFE_INT                                                                                                         a    b  c   d   e   f   g   h
+   {:form "(long  9007199254740991)", :value  9007199254740991, :bytes [-8  0  31 -1 -1 -1 -1 -1 -1],      :rawbytes [248   0  31 255 255 255 255 255 255]}
+   ; MAX_SAFE_INT++
+   {:form "(long 9007199254740992)", :value 9007199254740992, :bytes [-8 0 32 0 0 0 0 0 0], :rawbytes [248  0  32 0 0 0 0 0 0] :throw? true}
+   ; ; ;;max-long
+   {:form "(long  9223372036854775807)", :value 9223372036854775807, :bytes [-8 127 -1 -1 -1 -1 -1 -1 -1], :rawbytes [248 127 255 255 255 255 255 255 255] :throw? true}
+   ; ; ;;MIN_SAFE_INTEGER
+   {:form "(long -9007199254740991)", :value -9007199254740991,       :bytes [-8 -1 -32 0 0 0 0 0 1],  :rawbytes [248 255 224 0 0 0 0 0 1] :throw? false}
+   ; ;;; MIN_SAFE_INTEGER--
+   {:form "(long -9007199254740992)", :value -9007199254740992,       :bytes [-8 -1 -32 0 0 0 0 0 0],  :rawbytes [248 255 224 0 0 0 0 0 0] :throw? true}
+   ; ;;; MIN_SAFE_INTEGER - 2
+   {:form "(long -9007199254740993)", :value -9007199254740993, :bytes [-8 -1 -33 -1 -1 -1 -1 -1 -1],  :rawbytes [248 255 223 255 255 255 255 255 255] :throw? true}
+   ; ;;; min long
+   {:form "(long -9223372036854775808)", :value -9223372036854775808, :bytes [-8 -128 0 0 0 0 0 0 0],  :rawbytes [248 128   0 0 0 0 0 0 0] :throw? true}])
 
 (deftest readInt-test
   (testing "readRawInt40"
@@ -100,11 +108,13 @@
       (binding [rawIn/*throw-on-unsafe?* true]
         (is (thrown? js/Error (rawIn/readRawInt64 (:raw-in rdr)))))))
   (testing "int-samples"
-    (doseq [{:keys [form bytes value rawbytes]} int-samples]
+    (doseq [{:keys [form bytes value rawbytes throw?]} int-samples]
       (testing form
         (let [rdr (r/reader (into-bytes bytes))]
           (when rawbytes
             (is= rawbytes (rawbyteseq rdr))
             (rawIn/reset (:raw-in rdr)))
-          (is= value (r/readInt rdr)))))))
+          (if throw?
+            (is (thrown? js/Error (r/readInt rdr)))
+            (is= value (r/readInt rdr))))))))
 

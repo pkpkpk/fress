@@ -24,18 +24,10 @@
             (recur)))))))
 
 (def int-samples
-  [{:form "(short 55)", :value 55, :bytes [55], :rawbytes [55]}
-   {:form "(short -55)", :value -55, :bytes [79 -55], :rawbytes [79 201]}
-   {:form "(short -32700)", :value -32700, :bytes [103 -128 68], :rawbytes [103 128 68]}
-   {:form "(short 32700)", :value 32700, :bytes [104 127 -68], :rawbytes [104 127 188]}
-   ; min i16
-   {:form "(short -32768)", :value -32768, :bytes [103 -128 0], :rawbytes [103 128 0]}
-   ; max i16
-   {:form "(short 32767)", :value 32767, :bytes [104 127 -1], :rawbytes [104 127 255]}
-   ;min i32
-   {:form "(int -2147483648)", :value -2147483648, :bytes [117 -128 0 0 0], :rawbytes [117 128 0 0 0]}
-   ;max i32
-   {:form "(int  2147483647)", :value 2147483647, :bytes [118 127 -1 -1 -1], :rawbytes [118 127 255 255 255]}
+  [{:form "Short/MIN_VALUE", :value -32768, :bytes [103 -128 0], :rawbytes [103 128 0]}
+   {:form "Short/MAX_VALUE", :value 32767, :bytes [104 127 -1], :rawbytes [104 127 255]}
+   {:form "Integer/MIN_VALUE", :value -2147483648, :bytes [117 -128 0 0 0], :rawbytes [117 128 0 0 0]}
+   {:form "Integer/MAX_VALUE", :value 2147483647, :bytes [118 127 -1 -1 -1], :rawbytes [118 127 255 255 255]}
    ;;;;min int40
    {:form "(long -549755813887)", :value -549755813887, :bytes [121 -128 0 0 0 1], :rawbytes [121 128 0 0 0 1]}
    ;;; max int40
@@ -46,18 +38,16 @@
    {:form "(long  9007199254740991)", :value  9007199254740991, :bytes [-8  0  31 -1 -1 -1 -1 -1 -1],      :rawbytes [248   0  31 255 255 255 255 255 255]}
    ; MAX_SAFE_INT++
    {:form "(long 9007199254740992)", :value 9007199254740992, :bytes [-8 0 32 0 0 0 0 0 0], :rawbytes [248  0  32 0 0 0 0 0 0] :throw? true}
-   ; ; ;;max-long
-   {:form "(long  9223372036854775807)", :value 9223372036854775807, :bytes [-8 127 -1 -1 -1 -1 -1 -1 -1], :rawbytes [248 127 255 255 255 255 255 255 255] :throw? true}
-   ; ; ;;MIN_SAFE_INTEGER
+   ;;;;MIN_SAFE_INTEGER
    {:form "(long -9007199254740991)", :value -9007199254740991,       :bytes [-8 -1 -32 0 0 0 0 0 1],  :rawbytes [248 255 224 0 0 0 0 0 1] :throw? false}
-   ; ;;; MIN_SAFE_INTEGER--
+   ;;;; MIN_SAFE_INTEGER--
    {:form "(long -9007199254740992)", :value -9007199254740992,       :bytes [-8 -1 -32 0 0 0 0 0 0],  :rawbytes [248 255 224 0 0 0 0 0 0] :throw? true}
-   ; ;;; MIN_SAFE_INTEGER - 2
+   ;;;; MIN_SAFE_INTEGER - 2
    {:form "(long -9007199254740993)", :value -9007199254740993, :bytes [-8 -1 -33 -1 -1 -1 -1 -1 -1],  :rawbytes [248 255 223 255 255 255 255 255 255] :throw? true}
-   ; ;;; min long
-   {:form "(long -9223372036854775808)", :value -9223372036854775808, :bytes [-8 -128 0 0 0 0 0 0 0],  :rawbytes [248 128   0 0 0 0 0 0 0] :throw? true}])
+   {:form "Long/MAX_VALUE", :value 9223372036854775807,  :bytes [-8 127 -1 -1 -1 -1 -1 -1 -1], :rawbytes [248 127 255 255 255 255 255 255 255] :throw? true}
+   {:form "Long/MIN_VALUE", :value -9223372036854775808, :bytes [-8 -128 0 0 0 0 0 0 0],  :rawbytes [248 128   0 0 0 0 0 0 0] :throw? true}])
 
-(deftest readInt-test
+#_(deftest readInt-test
   (testing "readRawInt40"
     (let [{:keys [form bytes value rawbytes]} {:form "(long -549755813887)"
                                                :value -549755813887
@@ -111,10 +101,34 @@
     (doseq [{:keys [form bytes value rawbytes throw?]} int-samples]
       (testing form
         (let [rdr (r/reader (into-bytes bytes))]
-          (when rawbytes
-            (is= rawbytes (rawbyteseq rdr))
-            (rawIn/reset (:raw-in rdr)))
+          (is= rawbytes (rawbyteseq rdr))
+          (rawIn/reset (:raw-in rdr))
           (if throw?
             (is (thrown? js/Error (r/readInt rdr)))
             (is= value (r/readInt rdr))))))))
 
+
+
+(def float-samples
+  [{:form "Float/MAX_VALUE", :value 3.4028235E38, :bytes [-7 127 127 -1 -1], :rawbytes [249 127 127 255 255]}
+   {:form "Float/MIN_VALUE", :value 1.4E-45, :bytes [-7 0 0 0 1], :rawbytes [249 0 0 0 1]}])
+
+(deftest double-samples
+  [{:form "Double/MIN_VALUE", :value 4.9E-324, :bytes [-6 0 0 0 0 0 0 0 1], :rawbytes [250 0 0 0 0 0 0 0 1]}
+   {:form "Double/MAX_VALUE", :value 1.7976931348623157E308, :bytes [-6 127 -17 -1 -1 -1 -1 -1 -1], :rawbytes [250 127 239 255 255 255 255 255 255]}])
+
+#_(deftest read-floats-test
+  (testing "readFloat"
+    (doseq [{:keys [form bytes value rawbytes throw?]} int-samples]
+      (testing form
+        (let [rdr (r/reader (into-bytes bytes))]
+          (is= rawbytes (rawbyteseq rdr))
+          (rawIn/reset (:raw-in rdr))
+          (if throw?
+            (is (thrown? js/Error (r/readInt rdr)))
+            (is= value (r/readInt rdr))))))
+    )
+
+  )
+
+;;int[] , long [], float[], double[], boolean[]

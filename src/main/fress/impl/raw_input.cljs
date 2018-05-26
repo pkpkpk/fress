@@ -23,11 +23,6 @@
   (reset [this])
   (validateChecksum [this]))
 
-;; need to clamp somehow so we dont read past end of written
-;; need to clamp somehow so we dont read past end of written
-;; need to clamp somehow so we dont read past end of written
-;; need to clamp somehow so we dont read past end of written
-
 (def ^:dynamic *throw-on-unsafe?* true)
 
 (defrecord RawInput [memory bytesRead checksum]
@@ -38,6 +33,10 @@
     (assert (and (int? bytesRead) (<= 0 bytesRead)))
     (let [; val (.getInt8 (js/DataView. (.. memory -buffer)) bytesRead)
           ; val (aget (js/Int8Array. (.. memory -buffer)) bytesRead)
+          ;; need to clamp somehow so we dont read past end of written
+          ;; need to clamp somehow so we dont read past end of written
+          ;; need to clamp somehow so we dont read past end of written
+          ;; need to clamp somehow so we dont read past end of written
           val (aget (js/Uint8Array. (.. memory -buffer)) bytesRead)]
       (if (< val 0) (throw (js/Error. "EOF"))) ;nil?
       (set! (.-bytesRead this) (inc bytesRead))

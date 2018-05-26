@@ -176,7 +176,7 @@
       (rawIn/reset raw)
       (is= (read-string form) (r/readObject rdr)))))
 
-; boolean, string
+; boolean, string, uuid, inst
 ;;int[] , long [], float[], double[], boolean[]
 ; list, openlist, closedlist
 ; structs

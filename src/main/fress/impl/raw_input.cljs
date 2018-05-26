@@ -82,9 +82,9 @@
       (when *throw-on-unsafe?*
         (if (<= a 127)
           (when (or (<= 32 b) (< 1561 (+ b c d e f g h)))
-            (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds javascript's Number.MAX_SAFE_INTEGER"))))
+            (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds js/Number.MAX_SAFE_INTEGER"))))
           (when (or (< a 255) (< b 224) (zero? h) )
-            (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds javascript's Number.MIN_SAFE_INTEGER"))))))
+            (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds js/Number.MIN_SAFE_INTEGER"))))))
       (let [x (Long.fromNumber 0xff)
             a  (.and (Long.fromNumber a) x)
             b  (.and (Long.fromNumber b) x)
@@ -114,9 +114,8 @@
   (readRawDouble ^number [this]
     (let [bytes (js/Int8Array. 8)]
       (dotimes [i 8]
-        (let [i (if isBigEndian i (- 7 i))
-              byte (readRawByte this)]
-          (aset bytes i byte)))
+        (let [i (if isBigEndian i (- 7 i))]
+          (aset bytes i (readRawByte this))))
       (aget (js/Float64Array. (.-buffer bytes)) 0)))
 
   (readFully [this length] ;; need to clamp somehow so we dont read past end of written

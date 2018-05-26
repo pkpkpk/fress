@@ -3,6 +3,7 @@
   (:require [fress.impl.raw-input :as rawIn]
             [fress.codes :as codes]
             [fress.ranges :as ranges]
+            [fress.util :refer [expected]]
             [goog.string :as gstring])
   (:import [goog.math Long]))
 
@@ -12,7 +13,7 @@
 (def ^:const I32_MIN_VALUE -2147483648)
 
 (defrecord StructType [tag fields])
-; (defrecord TaggedObject [tag value meta])
+(defrecord TaggedObject [tag value])
 
 (defn ^int internalReadInt32 [this])
 (defn ^bytes internalReadString [this count])
@@ -22,7 +23,7 @@
 (defn ^bytes internalReadChunkedBytes [this length])
 
 (defprotocol IFressianReader
-  (read [this code])
+  (read- [this code])
   (readNextCode [this])
   (readBoolean [this])
   (readInt [this])
@@ -30,18 +31,17 @@
   (readFloat [this])
   (readInt32 [this])
   (readObject [this])
-  (readCount [this])
-  (readObjects [this])
-  (readClosedList [this])
-  (readOpenList [this])
-  (readAndCacheObject [this cache])
-  (validateFooter [this]
-                  [this calculatedLength magicFromStream])
-  (handleStruct [this ^string tag fields])
-  (getHandler [this ^string tag])
-  (getPriorityCache [this])
-  (getStructCache [this])
-  (resetCaches [this]))
+  (readCount- [this])
+  (readObjects- [this length])
+  (readClosedList- [this])
+  (readOpenList- [this])
+  (readAndCacheObject- [this cache])
+  (validateFooter- [this] [this calculatedLength magicFromStream])
+  (handleStruct- [this ^string tag fields])
+  (getHandler- [this ^string tag])
+  (getPriorityCache- [this])
+  (getStructCache- [this])
+  (resetCaches- [this]))
 
 (defn ^number internalReadDouble [rdr code]
   (cond
@@ -52,10 +52,10 @@
     (== code codes/DOUBLE_1)
     1.0
     :else
-    (let [o (read rdr code)]
+    (let [o (read- rdr code)]
       (if (number? o)
         o
-        (throw (js/Error. (str "expected double: " code " " o) ))))))
+        (expected rdr "double" code o)))))
 
 (defn ^number internalReadInt
   ([rdr](internalReadInt rdr (readNextCode rdr) ))
@@ -94,9 +94,9 @@
      (rawIn/readRawInt64 (.-raw-in rdr))
 
      :default
-     (let [o (read rdr code)]
+     (let [o (read- rdr code)]
        (if (number? o) o
-         (throw (js/Error. (str "unexpected int64" code o))))))))
+         (expected rdr "i64" code o))))))
 
 (defn internalRead [rdr ^number code]
   (let []
@@ -227,10 +227,10 @@
       (internalReadBytes rdr (- code codes/BYTES_PACKED_LENGTH_START))
 
       (== code codes/BYTES)
-      (internalReadBytes rdr (readCount rdr))
+      (internalReadBytes rdr (readCount- rdr))
 
       (== code codes/BYTES_CHUNK)
-      (internalReadChunkedBytes rdr (readCount rdr))
+      (internalReadChunkedBytes rdr (readCount- rdr))
 
       (or
        (== code (+ codes/STRING_PACKED_LENGTH_START 0))
@@ -244,10 +244,10 @@
       (internalReadString rdr (- code codes/STRING_PACKED_LENGTH_START)) ;=> string
 
       (== code codes/STRING)
-      (internalReadString rdr (readCount rdr)) ;=> string
+      (internalReadString rdr (readCount- rdr)) ;=> string
 
       (== code codes/STRING_CHUNK)
-      (internalReadChunkedString rdr (readCount rdr)) ;=> string
+      (internalReadChunkedString rdr (readCount- rdr)) ;=> string
 
       (or
        (== code (+ codes/LIST_PACKED_LENGTH_START 0))
@@ -261,7 +261,7 @@
       (internalReadList rdr (- code codes/LIST_PACKED_LENGTH_START))
 
       (== code codes/LIST)
-      (internalReadList rdr (readCount rdr))
+      (internalReadList rdr (readCount- rdr))
 
       (== code codes/BEGIN_CLOSED_LIST)
       ; result = ((ConvertList) getHandler("list")).convertList(readClosedList());
@@ -317,7 +317,9 @@
       :else
       (throw (js/Error. (str "unmatched code: " code))))))
 
-(defrecord FressianReader [in raw-in lookup]
+(defrecord FressianReader [in raw-in lookup standardExtensionHandlers]
+  Object
+  ; (close [] (.close raw-in))
   IFressianReader
   (readNextCode [this] (rawIn/readRawByte raw-in))
   (readInt ^number [this] (internalReadInt this))
@@ -326,27 +328,88 @@
       (if (or (< i I32_MIN_VALUE)  (< I32_MAX_VALUE i))
         (throw (js/Error. (str  "value " i " out of range for i32"))))
       i))
-  (read [this code] (internalRead this code))
+  (readCount- [this](readInt32 this))
+  (read- [this code] (internalRead this code))
+  (readObject [this] (read- this (readNextCode this)))
   (readFloat ^number [this]
     (let [code (readNextCode this)]
       (if (== code codes/FLOAT)
         (rawIn/readRawFloat raw-in)
-        (let [o (read this code)]
+        (let [o (read- this code)]
           (if (number? o)
             o
-            (throw (js/Error. (str "Expected float " code o))))))))
+            (expected rdr "float" code o))))))
   (readDouble ^number [this]
+    (internalReadDouble this (readNextCode this)))
+  (readBoolean [this]
     (let [code (readNextCode this)]
-      (log "code:" code)
-      (internalReadDouble this code))))
+      (if (== code codes/TRUE)
+        true
+        (if (== code codes/FALSE)
+          false
+          (let [o (read- rdr code)]
+            (if (boolean? o)
+              o
+              (expected rdr "boolean" code o)))))))
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (getStructCache- [this]
+    (or structCache
+        (let [c (array-list)]
+          (set! (.-structCache this) c)
+          c)))
+  (getPriorityCache- [this]
+    (or getPriorityCache
+        (let [c (array-list)]
+          (set! (.-getPriorityCache this) c)
+          c)))
+  (resetCaches- [this]
+    (some-> priorityCache (.clear))
+    (some-> structCache (.clear)))
+  (getHandler- [this ^string tag]
+    (let [handler (lookup this tag)]
+      (if (nil? handler)
+        (throw (js/Error. (str "no read handler for tag: " (pr-str tag))))
+        handler)))
+  (handleStruct- [this ^string tag ^number fields]
+    (let [handler (or (lookup this tag)
+                      (.get standardExtensionHandlers tag))]
+      (if (nil? handler)
+        (TaggedObject. tag (readObjects- this fields))
+        (.read Handler this tag fields))))
+  (readObjects- ^Array [this ^number length] ;=> 'object[]'
+    (let [objects (make-array length)]
+      (loop [i 0]
+        (if-not (< i length)
+          objects
+          (do
+            (aset objects i (readObject this))
+            (recur (inc i)))))))
+  (readClosedList- [this])
+  (readOpenList- [this])
+  (readAndCacheObject- [this cache])
+  (validateFooter- [this] [this calculatedLength magicFromStream]))
 
+
+
+(defn readSet [rdr])
+(defn readMap [rdr])
+(defn readIntArray [rdr])
+(defn readLongArray [rdr])
 
 (def default-read-handlers
   {})
+
+(defn build-lookup
+  [userHandlers]
+  (let [handlers (merge default-read-handlers userHandlers)]
+    (fn lookup [rdr tag]
+      (get handlers tag))))
 
 (defn reader
   ([in] (reader in nil))
   ([in user-handlers]
    (let [handlers (merge default-read-handlers user-handlers)
-         raw-in (rawIn/raw-input in)]
-     (FressianReader. in raw-in handlers))))
+         lookup (build-lookup handlers)
+         raw-in (rawIn/raw-input in)
+         standardExtensionHandlers nil]
+     (FressianReader. in raw-in lookup standardExtensionHandlers))))

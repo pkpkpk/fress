@@ -112,7 +112,7 @@
   [{:form "Float/MIN_VALUE", :value 1.4E-45, :bytes [-7 0 0 0 1], :rawbytes [249 0 0 0 1]}
    {:form "Float/MAX_VALUE", :value 3.4028235E38, :bytes [-7 127 127 -1 -1], :rawbytes [249 127 127 255 255]}])
 
-(deftest read-floats-test
+#_(deftest read-floats-test
   (testing "Float/MAX_VALUE"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "Float/MAX_VALUE",
                                                       :value 3.4028235E38,
@@ -141,7 +141,7 @@
    {:form "Double/MAX_VALUE", :value 1.7976931348623157E308, :bytes [-6 127 -17 -1 -1 -1 -1 -1 -1], :rawbytes [250 127 239 255 255 255 255 255 255]}])
 
 
-(deftest read-double-test
+#_(deftest read-double-test
   (testing "Double/MAX_VALUE"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "Double/MAX_VALUE",
                                                       :value 1.7976931348623157E308
@@ -161,4 +161,5 @@
           (rawIn/reset raw)
           (is (kinda= value (r/readDouble rdr))))))))
 
+; boolean,
 ;;int[] , long [], float[], double[], boolean[]

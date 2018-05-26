@@ -13,14 +13,9 @@
 (def ^:const I32_MIN_VALUE -2147483648)
 
 (defrecord StructType [tag fields])
-(defrecord TaggedObject [tag value])
+(defrecord TaggedObject [tag value]) ;meta
 
 (defn ^int internalReadInt32 [this])
-(defn ^bytes internalReadString [this count])
-(defn ^bytes internalReadStringBuffer [this])
-(defn ^string internalReadChunkedString [this count])
-(defn ^bytes internalReadBytes [this length])
-(defn ^bytes internalReadChunkedBytes [this length])
 
 (defprotocol IFressianReader
   (read- [this code])
@@ -36,6 +31,7 @@
   (readClosedList- [this])
   (readOpenList- [this])
   (readAndCacheObject- [this cache])
+  (lookupCache- [this cache index])
   (validateFooter- [this] [this calculatedLength magicFromStream])
   (handleStruct- [this ^string tag fields])
   (getHandler- [this ^string tag])
@@ -97,6 +93,20 @@
      (let [o (read- rdr code)]
        (if (number? o) o
          (expected rdr "i64" code o))))))
+
+(defn internalReadList [rdr length]
+  (let [handler (getHandler- rdr "list")]
+    (handler (readObjects- rdr length))))
+
+(defn ^bytes internalReadBytes [rdr length]
+  ;; readFully returns a view on raw memory. here we copy values to get new buffer backing
+  (js/Int8Array.from (rawIn/readFully (.-raw-in rdr) length)))
+
+; (defn ^bytes internalReadString [this count])
+; (defn ^bytes internalReadStringBuffer [this])
+; (defn ^string internalReadChunkedString [this count])
+; (defn ^bytes internalReadChunkedBytes [this length])
+
 
 (defn internalRead [rdr ^number code]
   (let []
@@ -384,10 +394,51 @@
           (do
             (aset objects i (readObject this))
             (recur (inc i)))))))
-  (readClosedList- [this])
-  (readOpenList- [this])
-  (readAndCacheObject- [this cache])
-  (validateFooter- [this] [this calculatedLength magicFromStream]))
+  (readClosedList- [this]
+    (let [objects (array-list)]
+      (loop []
+        (let [code (readNextCode this)]
+          (if (== code codes/END_COLLECTION)
+            (.toArray objects)
+            (do
+              (.add objects (read rdr code))
+              (recur)))))))
+  (readOpenList- [this]
+    (let [objects (array-list)]
+      (loop []
+        (let [code (try
+                     (readNextCode this)
+                     (catch js/Error _ ;=<<<<<<<<< EOF
+                       codes/END_COLLECTION))]
+          (if (== code codes/END_COLLECTION)
+            (.toArray objects)
+            (do
+              (.add objects (read rdr code))
+              (recur)))))))
+  (readAndCacheObject- [this ^ArrayList cache]
+    (let [index (.size cache)
+          ; _(.add cache codes/UNDER_CONSTRUCTION)
+          o (readObject rdr)]
+      (.add cache index o)
+      o))
+  (lookupCache- [this cache index]
+    (if (< index (.size cache))
+      (.get cache index)
+      (throw (js/Error. (str "Requested object beyond end of cache at " index)))))
+  (validateFooter- [this]
+    (let [calculatedLength (rawIn/getBytesRead raw-in)
+          magicFromStream (rawIn/readRawInt32 raw-in)]
+      (validateFooter- this calculatedLength magicFromStream)))
+  (validateFooter- [this calculatedLength ^number magicFromStream]
+    (if-not (== magicFromStream codes/FOOTER_MAGIC)
+      (throw (js/Error. (str "Invalid footer magic, expected " codes/FOOTER_MAGIC " got " code)))
+      (let [lengthFromStream (rawIn/readRawInt32 raw-in)]
+        (if-not (== lengthFromStream calculatedLength)
+          (throw (js/Error. (str "Invalid footer lenght, expected " calculatedLength " got " lengthFromStream)))
+          (do
+            (rawIn/validateChecksum raw-in)
+            (rawIn/reset raw-in)
+            (resetCaches this)))))))
 
 
 
@@ -397,7 +448,8 @@
 (defn readLongArray [rdr])
 
 (def default-read-handlers
-  {})
+  {"list" (fn [objectArray] (vec objectArray))
+   })
 
 (defn build-lookup
   [userHandlers]

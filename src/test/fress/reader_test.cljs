@@ -4,6 +4,7 @@
   (:require [cljs.core.async :as casync
              :refer [close! put! take! alts! <! >! chan promise-chan timeout]]
             [cljs.test :refer-macros [deftest is testing async]]
+            [cljs.tools.reader :refer [read-string]]
             [fress.impl.raw-output :as rawOut]
             [fress.impl.raw-input :as rawIn]
             [fress.codes :as codes]
@@ -161,5 +162,22 @@
           (rawIn/reset raw)
           (is (kinda= value (r/readDouble rdr))))))))
 
-; boolean,
+(def misc-samples
+  [{:form "[1 2 3]", :value [1 2 3], :bytes [-25 1 2 3], :rawbytes [231 1 2 3]}
+   {:form "[true false [nil]]", :value [true false [nil]], :bytes [-25 -11 -10 -27 -9], :rawbytes [231 245 246 229 247]}
+
+   ])
+
+#_(deftest misc-types
+  (doseq [{:keys [form bytes value rawbytes throw?]} misc-samples]
+    (let [rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= (read-string form) (r/readObject rdr)))))
+
+; boolean, string
 ;;int[] , long [], float[], double[], boolean[]
+; list, openlist, closedlist
+; structs
+; footers, caching,, EOF

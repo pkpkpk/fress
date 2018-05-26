@@ -4,14 +4,16 @@
   (:require [cljs.core.async :as casync
              :refer [close! put! take! alts! <! >! chan promise-chan timeout]]
             [cljs.test :refer-macros [deftest is testing async]]
+            [cljs-node-io.core :refer [slurp]]
             [cljs.tools.reader :refer [read-string]]
             [fress.impl.raw-output :as rawOut]
             [fress.impl.raw-input :as rawIn]
             [fress.codes :as codes]
             [fress.ranges :as ranges]
             [fress.reader :as r]
+            [fress.util :refer [byte-array]]
             [fress.test-helpers :as helpers
-             :refer [log jvm-byteseq is= byteseq overflow into-bytes
+             :refer [log jvm-byteseq is= byteseq overflow into-bytes ;<= byte-array in util
                      precision= kinda=]]))
 
 (defn rawbyteseq [rdr]
@@ -176,7 +178,59 @@
       (rawIn/reset raw)
       (is= (read-string form) (r/readObject rdr)))))
 
-; boolean, string, uuid, inst
+
+;how to get relative path. can we do this in a macro?
+#_(defonce chunk-sample (read-string (slurp "/home/pat/dev/__/fress/src/test/fress/chunked_bytes_sample.edn")))
+
+(deftest bytes-test
+  ;; TODO byte chunking is at 64kB
+  (testing "packed bytes"
+    (let [{:keys [form bytes value rawbytes throw?]} {:form "(byte-array [-1 -2 -3 0 1 2 3])"
+                                                      :bytes [-41 -1 -2 -3 0 1 2 3]
+                                                      :rawbytes [215 255 254 253 0 1 2 3]}
+          rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)
+          input (second (read-string form))]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= (r/readNextCode rdr) (+ (count input) codes/BYTES_PACKED_LENGTH_START))
+      (rawIn/reset raw)
+      (is= (byte-array input) (r/readObject rdr))))
+  (testing "not packed, no chunks"
+    (let [{:keys [form bytes value rawbytes throw?]} {:form "(byte-array [-4 -3 -2 -1 0 1 2 3 4])",
+                                                      :bytes [-39 9 -4 -3 -2 -1 0 1 2 3 4],
+                                                      :rawbytes [217 9 252 253 254 255 0 1 2 3 4]}
+          rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)
+          input (second (read-string form))]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= (r/readNextCode rdr) codes/BYTES)
+      (is= (r/readNextCode rdr) (count input))
+      (rawIn/reset raw)
+      (is= (byte-array input) (r/readObject rdr))))
+  #_(testing "chunked"
+    (let [{:keys [form bytes value rawbytes throw?]} chunk-sample
+          rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)
+          input (vec (take 70000 (repeat 99)))
+          ; input (second (read-string form))
+          ; input (into [] (range (first input) (second input)))
+          ]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= (r/readNextCode rdr) codes/BYTES_CHUNK)
+      (is= (r/readCount- rdr) ranges/BYTE_CHUNK_SIZE)
+      (rawIn/reset raw)
+      #_(is= (byte-array input) (r/readObject rdr)))))
+
+
+
+
+
+; boolean, uuid, inst
+; bytes, bytes_chunk
+; string, string_chunk, string_no_chunk
 ;;int[] , long [], float[], double[], boolean[]
 ; list, openlist, closedlist
 ; structs

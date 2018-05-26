@@ -3,7 +3,7 @@
   (:require [fress.impl.raw-input :as rawIn]
             [fress.codes :as codes]
             [fress.ranges :as ranges]
-            [fress.util :refer [expected]]
+            [fress.util :refer [expected byte-array]]
             [goog.string :as gstring])
   (:import [goog.math Long]))
 
@@ -98,14 +98,45 @@
   (let [handler (getHandler- rdr "list")]
     (handler (readObjects- rdr length))))
 
-(defn ^bytes internalReadBytes [rdr length]
+(defn ^bytes internalReadBytes
+  "called on codes/BYTES"
   ;; readFully returns a view on raw memory. here we copy values to get new buffer backing
+  [rdr length]
   (js/Int8Array.from (rawIn/readFully (.-raw-in rdr) length)))
+
+; typed array sizes of i32, this is too big, need windowed byte-seq
+(defn ^bytes internalReadChunkedBytes
+  "called on codes/BYTES_CHUNK"
+  [rdr length]
+  (let [chunks (array-list)
+        code (loop [code codes/BYTES_CHUNK]
+               (if-not (== code codes/BYTES_CHUNK)
+                 code
+                 (do
+                   (.add chunks (internalReadBytes rdr (readCount- rdr)))
+                   (recur (readNextCode rdr)))))]
+    (if-not (== code codes/BYTES)
+      (throw (js/Error. (str "conclusion of chunked bytes " code))))
+    (.add chunks (internalReadBytes rdr (readCount- rdr)))
+    (let [size (.size chunks)
+          length (loop [length 0
+                        i 0]
+                   (if-not (< i size)
+                     length
+                     (recur (+ length (.-length (.get chunks i))) (inc i))))
+          result (byte-array length)]
+      (loop [pos 0
+             i 0]
+            (when (< i size)
+              (let [chunk (.get chunks i)]
+                (.set result chunk pos))
+              (recur (+ pos (.-length (.get chunks i))) (inc i))))
+      result)))
 
 ; (defn ^bytes internalReadString [this count])
 ; (defn ^bytes internalReadStringBuffer [this])
 ; (defn ^string internalReadChunkedString [this count])
-; (defn ^bytes internalReadChunkedBytes [this length])
+
 
 
 (defn internalRead [rdr ^number code]

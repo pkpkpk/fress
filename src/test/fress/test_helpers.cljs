@@ -9,7 +9,8 @@
             [cljs-node-io.async :as nasync]
             [cljs-node-io.core :as io :refer [slurp spit]]
             [cljs-node-io.fs :as fs]
-            [cljs.tools.reader :refer [read-string]]))
+            [cljs.tools.reader :refer [read-string]]
+            [fress.util :as util]))
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
 
@@ -24,6 +25,8 @@
     (aget arr 0)))
 
 (extend-type js/Int8Array
+  IEquiv
+  (-equiv [a b] (= (array-seq a) (array-seq b)))
   IIndexed
   (-nth
    ([arr n]
@@ -126,10 +129,6 @@
    (assert (number? tolerance) "roughly= tolerance is NaN")
    (< (js/Math.abs (- a b)) tolerance)))
 
-
-(def FLOAT_MIN_NORMAL 1.17549435E-38)
-(def FLOAT_MAX_VALUE 3.4028235E38)
-
 (defn nearly=
   ([a b](nearly= a b *eps*))
   ([a b eps]
@@ -138,10 +137,10 @@
          d (js/Math.abs (- a b))]
      (if (== a b)
        true
-       (if (or (zero? a) (zero? b) (< d FLOAT_MIN_NORMAL))
+       (if (or (zero? a) (zero? b) (< d util/FLOAT_MIN_NORMAL))
          ;;;extremely close, relative error less meaningful
-         (< d (* eps FLOAT_MIN_NORMAL))
-         (< (/ diff (js/Math.min (+ absA absB) FLOAT_MAX_VALUE)) eps))))))
+         (< d (* eps util/FLOAT_MIN_NORMAL))
+         (< (/ diff (js/Math.min (+ absA absB) util/FLOAT_MAX_VALUE)) eps))))))
 
 (defn precision=
   ([a b](precision= a b 8))

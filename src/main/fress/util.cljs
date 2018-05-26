@@ -1,5 +1,8 @@
 (ns fress.util)
 
+(def FLOAT_MIN_NORMAL 1.17549435E-38)
+(def FLOAT_MAX_VALUE 3.4028235E38)
+
 (def isBigEndian
   (-> (.-buffer (js/Uint32Array. #js[0x12345678]))
     (js/Uint8Array. )
@@ -12,3 +15,20 @@
         msg (str "Expected " tag " with code: " code "prior to index: " index
                  ", got " (type o) " " (pr-str o) "instead")]
     (throw (js/Error. msg))))
+;
+; (defn byte-array
+;   [])
+
+(defmulti byte-array type)
+
+(defmethod byte-array js/Number [n]
+  (js/Int8Array. n))
+
+(defmethod byte-array cljs.core/PersistentVector [v]
+  (js/Int8Array. (into-array v)))
+
+(defmethod byte-array js/Array [a]
+  (js/Int8Array. a))
+
+(defmethod byte-array ArrayList [al]
+  (js/Int8Array. (.toArray al)))

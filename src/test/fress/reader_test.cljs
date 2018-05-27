@@ -180,9 +180,9 @@
 
 
 ;how to get relative path. can we do this in a macro?
-#_(defonce chunk-sample (read-string (slurp "/home/pat/dev/__/fress/src/test/fress/chunked_bytes_sample.edn")))
+#_(defonce chunked_bytes_sample (read-string (slurp "/home/pat/dev/__/fress/src/test/fress/chunked_bytes_sample.edn")))
 
-(deftest bytes-test
+#_(deftest bytes-test
   ;; TODO byte chunking is at 64kB
   (testing "packed bytes"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "(byte-array [-1 -2 -3 0 1 2 3])"
@@ -209,27 +209,20 @@
       (is= (r/readNextCode rdr) (count input))
       (rawIn/reset raw)
       (is= (byte-array input) (r/readObject rdr))))
-  #_(testing "chunked"
-    (let [{:keys [form bytes value rawbytes throw?]} chunk-sample
+  (testing "chunked"
+    (let [{:keys [form bytes value rawbytes throw?]} chunked_bytes_sample
           rdr (r/reader (into-bytes bytes))
           raw (:raw-in rdr)
-          input (vec (take 70000 (repeat 99)))
-          ; input (second (read-string form))
-          ; input (into [] (range (first input) (second input)))
-          ]
+          input (vec (take 70000 (repeat 99)))]
       (is= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= (r/readNextCode rdr) codes/BYTES_CHUNK)
       (is= (r/readCount- rdr) ranges/BYTE_CHUNK_SIZE)
+      (is= (rawIn/readRawByte (:raw-in rdr)) 99)
       (rawIn/reset raw)
-      #_(is= (byte-array input) (r/readObject rdr)))))
-
-
-
-
+      (is= (byte-array input) (r/readObject rdr)))))
 
 ; boolean, uuid, inst
-; bytes, bytes_chunk
 ; string, string_chunk, string_no_chunk
 ;;int[] , long [], float[], double[], boolean[]
 ; list, openlist, closedlist

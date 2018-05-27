@@ -15,8 +15,6 @@
 (defrecord StructType [tag fields])
 (defrecord TaggedObject [tag value]) ;meta
 
-(defn ^int internalReadInt32 [this])
-
 (defprotocol IFressianReader
   (read- [this code])
   (readNextCode [this])
@@ -104,16 +102,15 @@
   [rdr length]
   (js/Int8Array.from (rawIn/readFully (.-raw-in rdr) length)))
 
-; typed array sizes of i32, this is too big, need windowed byte-seq
 (defn ^bytes internalReadChunkedBytes
   "called on codes/BYTES_CHUNK"
-  [rdr length]
+  [rdr]
   (let [chunks (array-list)
         code (loop [code codes/BYTES_CHUNK]
                (if-not (== code codes/BYTES_CHUNK)
                  code
-                 (do
-                   (.add chunks (internalReadBytes rdr (readCount- rdr)))
+                 (let [cnt (readCount- rdr)] ;<== suppossed to be ranges/BYTE_CHUNK_SIZE
+                   (.add chunks (internalReadBytes rdr cnt))
                    (recur (readNextCode rdr)))))]
     (if-not (== code codes/BYTES)
       (throw (js/Error. (str "conclusion of chunked bytes " code))))
@@ -271,7 +268,7 @@
       (internalReadBytes rdr (readCount- rdr))
 
       (== code codes/BYTES_CHUNK)
-      (internalReadChunkedBytes rdr (readCount- rdr))
+      (internalReadChunkedBytes rdr)
 
       (or
        (== code (+ codes/STRING_PACKED_LENGTH_START 0))

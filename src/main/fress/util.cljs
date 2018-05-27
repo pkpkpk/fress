@@ -1,7 +1,12 @@
 (ns fress.util)
 
+(extend-type ArrayList
+  Object
+  (get [this i] (aget (.-arr this) i)))
+
 (def FLOAT_MIN_NORMAL 1.17549435E-38)
 (def FLOAT_MAX_VALUE 3.4028235E38)
+(def U32_MAX_VALUE (js* "2**32 -1"))
 
 (def isBigEndian
   (-> (.-buffer (js/Uint32Array. #js[0x12345678]))
@@ -15,9 +20,6 @@
         msg (str "Expected " tag " with code: " code "prior to index: " index
                  ", got " (type o) " " (pr-str o) "instead")]
     (throw (js/Error. msg))))
-;
-; (defn byte-array
-;   [])
 
 (defmulti byte-array type)
 

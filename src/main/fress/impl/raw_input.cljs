@@ -118,6 +118,8 @@
       (aget (js/Float64Array. (.-buffer bytes)) 0)))
 
   (readFully [this length]
+    (assert (pos? length))
+    (assert (<= length (.-byteLength (.-buffer memory))))
     ;; need to clamp somehow so we dont read past end of written
     ;; lost an arity here, give another look
     (let [bytes (js/Int8Array. (.-buffer memory) bytesRead length)]

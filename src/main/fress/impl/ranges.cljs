@@ -1,4 +1,4 @@
-(ns fress.ranges)
+(ns fress.impl.ranges)
 
 (def ^:const PACKED_1_START 1)
 (def ^:const PACKED_1_END 64)

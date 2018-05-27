@@ -8,8 +8,8 @@
             [cljs.tools.reader :refer [read-string]]
             [fress.impl.raw-output :as rawOut]
             [fress.impl.raw-input :as rawIn]
-            [fress.codes :as codes]
-            [fress.ranges :as ranges]
+            [fress.impl.codes :as codes]
+            [fress.impl.ranges :as ranges]
             [fress.reader :as r]
             [fress.util :refer [byte-array] :as util]
             [fress.test-helpers :as helpers

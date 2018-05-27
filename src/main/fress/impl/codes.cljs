@@ -1,4 +1,4 @@
-(ns fress.codes)
+(ns fress.impl.codes)
 
 (def ^:const PRIORITY_CACHE_PACKED_START 0x80)
 (def ^:const PRIORITY_CACHE_PACKED_END 0xA0)

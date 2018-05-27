@@ -1,8 +1,8 @@
 (ns fress.reader
   (:require-macros [fress.macros :refer [<< >>>]])
   (:require [fress.impl.raw-input :as rawIn]
-            [fress.codes :as codes]
-            [fress.ranges :as ranges]
+            [fress.impl.codes :as codes]
+            [fress.impl.ranges :as ranges]
             [fress.util :refer [expected byte-array]]
             [goog.string :as gstring])
   (:import [goog.math Long]))

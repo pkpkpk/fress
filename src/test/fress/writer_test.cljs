@@ -5,8 +5,8 @@
              :refer [close! put! take! alts! <! >! chan promise-chan timeout]]
             [cljs.test :refer-macros [deftest is testing async]]
             [fress.impl.raw-output :as rawOut]
-            [fress.codes :as codes]
-            [fress.ranges :as ranges]
+            [fress.impl.codes :as codes]
+            [fress.impl.ranges :as ranges]
             [fress.writer :as w]
             [fress.test-helpers :as helpers
              :refer [log jvm-byteseq is= byteseq overflow]]))

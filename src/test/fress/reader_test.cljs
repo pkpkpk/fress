@@ -11,7 +11,7 @@
             [fress.codes :as codes]
             [fress.ranges :as ranges]
             [fress.reader :as r]
-            [fress.util :refer [byte-array]]
+            [fress.util :refer [byte-array] :as util]
             [fress.test-helpers :as helpers
              :refer [log jvm-byteseq is= byteseq overflow into-bytes ;<= byte-array in util
                      precision= kinda=]]))
@@ -222,7 +222,72 @@
       (rawIn/reset raw)
       (is= (byte-array input) (r/readObject rdr)))))
 
-; boolean, uuid, inst
+(def string-samples
+  [
+   ; {:form "\"\"", :bytes [-38], :rawbytes [218], :value ""}
+
+   ])
+
+; "áᚢ👨त🏽أبو بكבְּרֵא"
+
+#_(defonce chunked_string_sample (read-string (slurp "/home/pat/dev/__/fress/src/test/fress/chunked_string_sample.edn")))
+
+(deftest string-test
+  #_(testing "packed string"
+    (let [{:keys [form bytes value rawbytes throw?]} {:form "\"hola\"",
+                                                      :bytes [-34 104 111 108 97],
+                                                      :rawbytes [222 104 111 108 97],
+                                                      :value "hola"}
+          rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= (r/readNextCode rdr) (+ codes/STRING_PACKED_LENGTH_START (count value)))
+      (is= (rawIn/readRawByte raw) (.charCodeAt "h" 0))
+      (is= (rawIn/readRawByte raw) (.charCodeAt "o" 0))
+      (is= (rawIn/readRawByte raw) (.charCodeAt "l" 0))
+      (is= (rawIn/readRawByte raw) (.charCodeAt "a" 0))
+      (rawIn/reset raw)
+      (is= value (r/readObject rdr))))
+  #_(testing "no packing, no chunking"
+    (let [{:keys [form bytes value rawbytes throw?]} {:form "(apply str (take 20 (repeat \\A)))", :bytes [-29 20 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65], :rawbytes [227 20 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65], :value "AAAAAAAAAAAAAAAAAAAA"}
+          rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= (r/readNextCode rdr) codes/STRING)
+      (is= (r/readCount- rdr) (count value))
+      (rawIn/reset raw)
+      (is= value (r/readObject rdr))))
+  #_(testing "chunked"
+    (let [{:keys [form bytes value rawbytes throw?]} chunked_string_sample
+          rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= (r/readNextCode rdr) codes/STRING_CHUNK)
+      (is= (r/readCount- rdr) (inc util/U16_MAX_VALUE))
+      (is= (rawIn/readRawByte (:raw-in rdr)) (.charCodeAt "A" 0))
+      (rawIn/reset raw)
+      (is= value (r/readObject rdr))))
+  (testing "emoji"
+    (let [{:keys [form bytes value rawbytes throw?]}{:form "\"😉 😎 🤔 😐 🙄\"",
+                                                     :bytes [-29 34 -19 -96 -67 -19 -72 -119 32 -19 -96 -67 -19 -72 -114 32 -19 -96 -66 -19 -76 -108 32 -19 -96 -67 -19 -72 -112 32 -19 -96 -67 -19 -71 -124]
+                                                     :rawbytes [227 34 237 160 189 237 184 137 32 237 160 189 237 184 142 32 237 160 190 237 180 148 32 237 160 189 237 184 144 32 237 160 189 237 185 132]
+                                                     :value "😉 😎 🤔 😐 🙄"}
+          rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= 227 (r/readNextCode rdr) codes/STRING)
+      ; (is= (r/readCount- rdr) (.-byteLength (byte-array value)))
+      (rawIn/reset raw)
+      ; (is= (rawIn/readRawByte raw) (.charCodeAt "h" 0))
+      ; (is= (r/readCount- rdr) (count value))
+      (is= value (r/readObject rdr))
+      )))
+
+; uuid, inst
 ; string, string_chunk, string_no_chunk
 ;;int[] , long [], float[], double[], boolean[]
 ; list, openlist, closedlist

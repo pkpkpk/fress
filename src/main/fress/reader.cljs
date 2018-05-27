@@ -15,6 +15,32 @@
 (defrecord StructType [tag fields])
 (defrecord TaggedObject [tag value]) ;meta
 
+(defn read-utf8-chars [source offset length]
+  (let [buf (js/Array.)]
+    (loop [pos 0]
+      (let [ch (bit-and (aget source pos) 0xff)
+            ch>>4 (bit-shift-right ch 4)]
+        (when (< pos length)
+          (cond
+           (<=  0 ch>>4 7) (do (.push buf ch) (recur (inc pos)))
+           (<= 12 ch>>4 13) (let [ch1 (aget source (inc pos))]
+                           (.push buf (bit-or
+                                       (bit-shift-left
+                                        (bit-and ch 0x1f) 6)
+                                       (bit-and ch1 0x3f)))
+                           (recur (+ pos 2)))
+           (= ch>>4 14) (let [ch1 (aget source (inc pos))
+                           ch2 (aget source (+ pos 2))]
+                       (.push buf (bit-or
+                                   (bit-shift-left
+                                    (bit-and ch 0x0f) 12)
+                                   (bit-shift-left
+                                    (bit-and ch1 0x03f) 6)
+                                   (bit-and ch2 0x3f)))
+                       (recur (+ pos 3)))
+           :default (throw (gstring/format "Invalid UTF-8: %d" ch))))))
+    (.apply (.-fromCharCode js/String) nil buf)))
+
 (defprotocol IFressianReader
   (read- [this code])
   (readNextCode [this])
@@ -130,11 +156,41 @@
               (recur (+ pos (.-length (.get chunks i))) (inc i))))
       result)))
 
-; (defn ^bytes internalReadString [this count])
-; (defn ^bytes internalReadStringBuffer [this])
-; (defn ^string internalReadChunkedString [this count])
+(def TextDecoder (js/TextDecoder. "utf8"))
 
+(defn ^string internalReadString [rdr length]
+  (let [bytes  (rawIn/readFully (.-raw-in rdr) length)]
+    ; (.decode TextDecoder bytes)
+    (read-utf8-chars bytes 0 length)
+    ))
 
+(defn ^string internalReadChunkedString [rdr length]
+  (let [stringbuf (goog.string.StringBuffer. (internalReadString rdr length))]
+    (loop []
+      (let [code (readNextCode rdr)]
+        (cond
+          (or
+           (== code (+ codes/STRING_PACKED_LENGTH_START 0))
+           (== code (+ codes/STRING_PACKED_LENGTH_START 1))
+           (== code (+ codes/STRING_PACKED_LENGTH_START 2))
+           (== code (+ codes/STRING_PACKED_LENGTH_START 3))
+           (== code (+ codes/STRING_PACKED_LENGTH_START 4))
+           (== code (+ codes/STRING_PACKED_LENGTH_START 5))
+           (== code (+ codes/STRING_PACKED_LENGTH_START 6))
+           (== code (+ codes/STRING_PACKED_LENGTH_START 7)))
+          (.append stringbuf (internalReadString rdr (- code codes/STRING_PACKED_LENGTH_START)))
+
+          (== code codes/STRING)
+          (.append stringbuf (internalReadString rdr (readCount- rdr)))
+
+          (== code codes/STRING_CHUNK)
+          (do
+            (.append stringbuf (internalReadString rdr (readCount- rdr)))
+            (recur))
+
+          :else
+          (expected rdr "chunked string" code))))
+    (.toString stringbuf)))
 
 (defn internalRead [rdr ^number code]
   (let []
@@ -282,7 +338,9 @@
       (internalReadString rdr (- code codes/STRING_PACKED_LENGTH_START)) ;=> string
 
       (== code codes/STRING)
-      (internalReadString rdr (readCount- rdr)) ;=> string
+      (let [length (readCount- rdr)]
+        (log "LENGTH" length)
+        (internalReadString rdr length)) ;=> string
 
       (== code codes/STRING_CHUNK)
       (internalReadChunkedString rdr (readCount- rdr)) ;=> string

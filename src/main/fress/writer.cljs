@@ -210,8 +210,8 @@
             (rawOut/writeRawBytes raw-out bytes off len)))))
     this)
 
-  (writeString- [this ^string s]
-   (let [max-buf-needed (min (* (count s) 3) 65536)
+  (writeString- [this ^string s] ;empty string?
+   (let [max-buf-needed (min (* (count s) 3) 65536) ;;
          string-buffer (js/Int8Array. (js/ArrayBuffer. max-buf-needed))]
      (loop [[string-pos buf-pos] (buffer-string-chunk-utf8 s 0 string-buffer)]
        (if (< buf-pos ranges/STRING_PACKED_LENGTH_END)
@@ -229,9 +229,8 @@
 
   (writeStringNoChunk- [this ^string s]
     (assert (string? s))
-    ; breaking from fressian because we can use native TextEncoder to remove some dirty work
-    ; and chunking trigger is pointless for WASM, especially just at just 8 byte chunks
-    ; see writeBytes if need to impl larger chunking ie 64kB
+    ; breaking from fressian because we can use native TextEncoder to remove
+    ; some dirty work, also chunking is pointless for WASM
     (let [bytes (.encode TextEncoder s)
           length (.-byteLength bytes)]
       ; may need unique code here, breaking std fressian behavior

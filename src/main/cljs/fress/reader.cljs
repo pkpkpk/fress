@@ -338,9 +338,7 @@
       (internalReadString rdr (- code codes/STRING_PACKED_LENGTH_START)) ;=> string
 
       (== code codes/STRING)
-      (let [length (readCount- rdr)]
-        (log "LENGTH" length)
-        (internalReadString rdr length)) ;=> string
+      (internalReadString rdr (readCount- rdr))
 
       (== code codes/STRING_CHUNK)
       (internalReadChunkedString rdr (readCount- rdr)) ;=> string

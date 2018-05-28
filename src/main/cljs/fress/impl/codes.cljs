@@ -10,6 +10,9 @@
 (def ^:const INT_ARRAY 0xB3)
 (def ^:const FLOAT_ARRAY 0xB4)
 (def ^:const OBJECT_ARRAY 0xB5)
+
+(def ^:const UTF8 0xBF) ; <= unique to fress client
+
 (def ^:const MAP 0xC0)
 (def ^:const SET 0xC1)
 (def ^:const _UUID 0xC3)
@@ -75,7 +78,9 @@
 
 
 (def tag->code
-  { "map"      MAP
+  {
+   ; "utf8"     UTF8
+    "map"      MAP
     "set"      SET
     "uuid"     _UUID
     "regex"    REGEX

@@ -40,6 +40,16 @@
            :default (throw (str "Invalid UTF-8: " ch))))))
     (.apply (.-fromCharCode js/String) nil buf)))
 
+(def TextDecoder (js/TextDecoder. "utf8"))
+
+(defn readUTF8
+  "this uses TextDecoder on raw utf8 bytes instead of using js on compressed
+   fressian string bytes"
+  [rdr] ;tag fields
+  (let [length (readCount- rdr)
+        bytes (rawIn/readFully (:raw-in rdr) length)]
+    (.decode TextDecoder bytes)))
+
 (defprotocol IFressianReader
   (read- [this code])
   (readNextCode [this])
@@ -194,6 +204,9 @@
           (<= 0x00 code 0x7F)
           (== code codes/INT))
       (internalReadInt rdr code)
+
+      (== code codes/UTF8)
+      (readUTF8 rdr)
 
       (== code codes/PUT_PRIORITY_CACHE)
       (readAndCacheObject rdr (getPriorityCache rdr))
@@ -525,21 +538,10 @@
 (defn readIntArray [rdr])
 (defn readLongArray [rdr])
 
-(def TextDecoder (js/TextDecoder. "utf8"))
-
-(defn readUTF8
-  "this uses TextDecoder on raw utf8 bytes instead of using js on compressed
-   fressian string bytes
-
-  This can be made faster by adding a utf8 code?"
-  [rdr tag fields]
-  (let [length (readCount- rdr)
-        bytes (rawIn/readFully (:raw-in rdr) length)]
-    (.decode TextDecoder bytes)))
-
 (def default-read-handlers
   {"list" (fn [objectArray] (vec objectArray)) ;;is this signature right?
-   "utf8" readUTF8})
+   "utf8" #(readUTF8 %1) ;<= for tagged use, but default is still code
+   })
 
 (defn build-lookup
   [userHandlers]

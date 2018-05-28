@@ -3,7 +3,7 @@
             [clojure.java.io :as io])
   (:import [java.io ByteArrayOutputStream ByteArrayInputStream EOFException]
            [java.nio ByteBuffer]
-           [org.fressian.impl RawInput]
+           [org.fressian.impl RawInput Codes]
            [org.fressian.handlers WriteHandler ReadHandler]
            [org.fressian FressianWriter StreamingWriter FressianReader Writer Reader]
            [org.fressian.impl ByteBufferInputStream BytesOutputStream]))
@@ -29,11 +29,15 @@
       (let [bytes (.getBytes (.-s u) "UTF-8")
             raw-out (w->raw w)
             length (count bytes)]
-        (.writeTag w "utf8" 2)
+        ; (.writeTag w "utf8" 2)
+        (.writeCode w (int 191)) ;<= needs to be picked up by client
         (.writeCount w length)
         (.writeRawBytes raw-out bytes 0 length)))))
 
 (def utf8-reader
+  ;; cant modify fressian.impl.Codes so using code from client will fail
+  ;; will not recognized without "utf8" tag, see writer
+  ;; client will need to write with tag when targeting JVM
   (reify ReadHandler
     (read [_ rdr tag component-count]
       (let [length (int (.readInt rdr))
@@ -51,18 +55,6 @@
 (def read-handlers
   (-> (merge {"utf8" utf8-reader} fressian/clojure-read-handlers)
       fressian/associative-lookup))
-
-(defn utf8-test []
-  (let [baos (ByteArrayOutputStream.)
-        writer (fressian/create-writer baos :handlers write-handlers)
-        s "😉 😎 🤔 😐 🙄"
-        u (utf8. s)]
-    (.writeAs writer "utf8" u)
-    (let [bais (ByteArrayInputStream. (.toByteArray baos))
-          reader (fressian/create-reader bais :handlers read-handlers)
-          out (fressian/read-object reader)]
-      (assert (= s out)))))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; from fressian/src/test/org/fressian/api.clj

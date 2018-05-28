@@ -21,6 +21,8 @@
 
 (deftype utf8 [s])
 
+(defn utf8? [o] (instance? utf8 o))
+
 (def utf8-writer
   (reify WriteHandler
     (write [_ w u]
@@ -139,7 +141,8 @@
 (defmacro sample [form]
   (let [value (eval form)
         bytes (byteseq value)
-        rawbytes (rawbyteseq value)]
+        rawbytes (rawbyteseq value)
+        value (if (utf8? value) (.-s value)  value)]
     ; [(pr-str form) value (vec bytes) (vec rawbytes)]
     (cond-> {:form (pr-str form)
              :bytes (vec bytes)

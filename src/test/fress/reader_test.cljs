@@ -222,17 +222,9 @@
       (rawIn/reset raw)
       (is= (byte-array input) (r/readObject rdr)))))
 
-(def string-samples
-  [
-   ; {:form "\"\"", :bytes [-38], :rawbytes [218], :value ""}
-
-   ])
-
-; "áᚢ👨त🏽أبو بكבְּרֵא"
-
 #_(defonce chunked_string_sample (read-string (slurp "/home/pat/dev/__/fress/src/test/fress/chunked_string_sample.edn")))
 
-(deftest string-test
+#_(deftest string-test
   #_(testing "packed string"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "\"hola\"",
                                                       :bytes [-34 104 111 108 97],
@@ -280,15 +272,22 @@
       (is= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= 227 (r/readNextCode rdr) codes/STRING)
-      ; (is= (r/readCount- rdr) (.-byteLength (byte-array value)))
       (rawIn/reset raw)
-      ; (is= (rawIn/readRawByte raw) (.charCodeAt "h" 0))
-      ; (is= (r/readCount- rdr) (count value))
-      (is= value (r/readObject rdr))
-      )))
+      (is= value (r/readObject rdr)))))
+
+(def utf8-samples
+  [{:form "(->utf8 \"hello\")", :bytes [-17 -34 117 116 102 56 2 5 104 101 108 108 111], :rawbytes [239 222 117 116 102 56 2 5 104 101 108 108 111], :value "hello"}
+   {:form "(->utf8 \"😉 😎 🤔 😐 🙄\")", :bytes [-17 -34 117 116 102 56 2 24 -16 -97 -104 -119 32 -16 -97 -104 -114 32 -16 -97 -92 -108 32 -16 -97 -104 -112 32 -16 -97 -103 -124], :rawbytes [239 222 117 116 102 56 2 24 240 159 152 137 32 240 159 152 142 32 240 159 164 148 32 240 159 152 144 32 240 159 153 132], :value "😉 😎 🤔 😐 🙄"}])
+
+(deftest utf8-type-test
+  (doseq [{:keys [form bytes value rawbytes throw?]} utf8-samples]
+    (let [rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= value (r/readObject rdr)))))
 
 ; uuid, inst
-; string, string_chunk, string_no_chunk
 ;;int[] , long [], float[], double[], boolean[]
 ; list, openlist, closedlist
 ; structs

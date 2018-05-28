@@ -155,13 +155,9 @@
               (recur (+ pos (.-length (.get chunks i))) (inc i))))
       result)))
 
-(def TextDecoder (js/TextDecoder. "utf8"))
-
 (defn ^string internalReadString [rdr length]
   (let [bytes  (rawIn/readFully (.-raw-in rdr) length)]
-    ; (.decode TextDecoder bytes)
-    (read-utf8-chars bytes 0 length)
-    ))
+    (read-utf8-chars bytes 0 length)))
 
 (defn ^string internalReadChunkedString [rdr length]
   (let [stringbuf (goog.string.StringBuffer. (internalReadString rdr length))]
@@ -258,55 +254,55 @@
        (== code (+ codes/STRUCT_CACHE_PACKED_START 14))
        (== code (+ codes/STRUCT_CACHE_PACKED_START 15)))
       (let [struct-type (lookupCache rdr (getStructCache rdr) (- code codes/STRUCT_CACHE_PACKED_START))]
-        (handleStruct rdr (.-tag struct-type) (.-fields struct-type)))
+        (handleStruct- rdr (.-tag struct-type) (.-fields struct-type)))
 
       (== code codes/MAP)
-      (handleStruct rdr "map" 1)
+      (handleStruct- rdr "map" 1)
 
       (== code codes/SET)
-      (handleStruct rdr "set" 1)
+      (handleStruct- rdr "set" 1)
 
       (== code codes/UUID)
-      (handleStruct rdr "uuid" 2)
+      (handleStruct- rdr "uuid" 2)
 
       (== code codes/REGEX)
-      (handleStruct rdr "regex" 1)
+      (handleStruct- rdr "regex" 1)
 
       (== code codes/URI)
-      (handleStruct rdr "uri" 1)
+      (handleStruct- rdr "uri" 1)
 
       (== code codes/BIGINT)
-      (handleStruct rdr "bigint" 1)
+      (handleStruct- rdr "bigint" 1)
 
       (== code codes/BIGDEC)
-      (handleStruct rdr "bigdec" 2)
+      (handleStruct- rdr "bigdec" 2)
 
       (== code codes/INST)
-      (handleStruct rdr "inst" 1)
+      (handleStruct- rdr "inst" 1)
 
       (== code codes/SYM)
-      (handleStruct rdr "sym" 2)
+      (handleStruct- rdr "sym" 2)
 
       (== code codes/KEY)
-      (handleStruct rdr "key" 2)
+      (handleStruct- rdr "key" 2)
 
       (== code codes/INT_ARRAY)
-      (handleStruct rdr "int[]" 2)
+      (handleStruct- rdr "int[]" 2)
 
       (== code codes/LONG_ARRAY)
-      (handleStruct rdr "long[]" 2)
+      (handleStruct- rdr "long[]" 2)
 
       (== code codes/FLOAT_ARRAY)
-      (handleStruct rdr "float[]" 2)
+      (handleStruct- rdr "float[]" 2)
 
       (== code codes/DOUBLE_ARRAY)
-      (handleStruct rdr "double[]" 2)
+      (handleStruct- rdr "double[]" 2)
 
       (== code codes/BOOLEAN_ARRAY)
-      (handleStruct rdr "boolean[]" 2)
+      (handleStruct- rdr "boolean[]" 2)
 
       (== code codes/OBJECT_ARRAY)
-      (handleStruct rdr "Object[]" 2)
+      (handleStruct- rdr "Object[]" 2)
 
       (or
        (== code (+ codes/BYTES_PACKED_LENGTH_START 0))
@@ -394,13 +390,13 @@
 
       (== code codes/STRUCTTYPE)
       (let [tag (readObject rdr)
-            n-fields (rawIn/readInt32 (.-raw-in rdr))]
-        (.add (getStructCache rdr) (StructType. tag fields))
-        (handleStruct rdr tag fields))
+            n-fields (readInt32 rdr)]
+        (.add (getStructCache- rdr) (StructType. tag fields))
+        (handleStruct- rdr tag fields))
 
       (== code codes/STRUCT)
       (let [struct-type (lookupCache rdr (getStructCache rdr) (readInt32 rdr))]
-        (handleStruct rdr (.-tag struct-type) (.-fields struct-type)))
+        (handleStruct- rdr (.-tag struct-type) (.-fields struct-type)))
 
       (== code codes/RESET_CACHES)
       (do
@@ -464,11 +460,10 @@
         (throw (js/Error. (str "no read handler for tag: " (pr-str tag))))
         handler)))
   (handleStruct- [this ^string tag ^number fields]
-    (let [handler (or (lookup this tag)
-                      (.get standardExtensionHandlers tag))]
+    (let [handler (or (lookup this tag) (.get standardExtensionHandlers tag))]
       (if (nil? handler)
         (TaggedObject. tag (readObjects- this fields))
-        (.read Handler this tag fields))))
+        (handler this tag fields))))
   (readObjects- ^Array [this ^number length] ;=> 'object[]'
     (let [objects (make-array length)]
       (loop [i 0]
@@ -530,9 +525,21 @@
 (defn readIntArray [rdr])
 (defn readLongArray [rdr])
 
+(def TextDecoder (js/TextDecoder. "utf8"))
+
+(defn readUTF8
+  "this uses TextDecoder on raw utf8 bytes instead of using js on compressed
+   fressian string bytes
+
+  This can be made faster by adding a utf8 code?"
+  [rdr tag fields]
+  (let [length (readCount- rdr)
+        bytes (rawIn/readFully (:raw-in rdr) length)]
+    (.decode TextDecoder bytes)))
+
 (def default-read-handlers
-  {"list" (fn [objectArray] (vec objectArray))
-   })
+  {"list" (fn [objectArray] (vec objectArray)) ;;is this signature right?
+   "utf8" readUTF8})
 
 (defn build-lookup
   [userHandlers]
@@ -540,11 +547,15 @@
     (fn lookup [rdr tag]
       (get handlers tag))))
 
+(defn standardExtensionHandlers []
+  (reify Object
+    (get [this tag] nil)))
+
 (defn reader
   ([in] (reader in nil))
   ([in user-handlers]
    (let [handlers (merge default-read-handlers user-handlers)
          lookup (build-lookup handlers)
          raw-in (rawIn/raw-input in)
-         standardExtensionHandlers nil]
-     (FressianReader. in raw-in lookup standardExtensionHandlers))))
+         seh (standardExtensionHandlers)]
+     (FressianReader. in raw-in lookup seh))))

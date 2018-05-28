@@ -94,7 +94,7 @@
 (defn setup-repl []
   (cycle-tap)
   (let [out (promise-chan)]
-    (take! (write "(use 'notebook.fress)")
+    (take! (write "(use 'fress.api)")
      (fn [[write-err]]
        (if write-err
          (do

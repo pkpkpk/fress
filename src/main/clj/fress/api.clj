@@ -130,13 +130,27 @@
         raw (rdr->raw rdr)]
     (raw->rawbytes raw)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn typed-array? [o]
+  (let [c (class o)]
+    (or
+     (= c (Class/forName "[B"))
+     (= c (Class/forName "[S"))
+     (= c (Class/forName "[I"))
+     (= c (Class/forName "[J")) ;=> LONG_ARRAY
+     (= c (Class/forName "[F"))
+     (= c (Class/forName "[D"))
+     (= c (Class/forName "[Ljava.lang.Object;")))))
+
 (defmacro sample [form]
   (let [value (eval form)
         bytes (byteseq value)
         rawbytes (rawbyteseq value)
-        value (if (utf8? value) (.-s value)  value)]
-    ; [(pr-str form) value (vec bytes) (vec rawbytes)]
-    (cond-> {:form (pr-str form)
-             :bytes (vec bytes)
-             :rawbytes (vec rawbytes)}
-      (not (bytes? value)) (assoc :value value))))
+        value (if (utf8? value) (.-s value)  value)
+        base {:form (pr-str form)
+              :bytes (vec bytes)
+              :rawbytes (vec rawbytes)}]
+    (if-not (or (typed-array? value) (bytes? value))
+      (assoc base :value value)
+      (assoc base :input (eval (second form))))))

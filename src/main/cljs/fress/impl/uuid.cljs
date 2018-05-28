@@ -1,4 +1,4 @@
-(ns fress.uuid
+(ns fress.impl.uuid
 (:require [clojure.string :as string]))
 
 (defn rng []

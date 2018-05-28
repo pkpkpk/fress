@@ -3,8 +3,8 @@
   (:require [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
             [fress.impl.raw-output :as rawOut]
-            [fress.hopmap :as hop]
-            [fress.uuid :as uuid]))
+            [fress.impl.uuid :as uuid]
+            [fress.hopmap :as hop]))
 
 (defn log [& args]
   (.apply js/console.log js/console (into-array args)))

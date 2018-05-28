@@ -323,7 +323,7 @@
 
    ])
 
-#_(deftest misc-types
+(deftest misc-types
   (doseq [{:keys [form bytes value rawbytes throw?]} misc-samples]
     (let [rdr (r/reader (into-bytes bytes))
           raw (:raw-in rdr)]
@@ -337,3 +337,5 @@
 ; list, openlist, closedlist
 ; structs
 ; footers, caching,, EOF
+; unknown tag => TaggedObject
+;; bad regex, bad uri, bad uuid

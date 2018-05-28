@@ -3,6 +3,7 @@
   (:require [fress.impl.raw-input :as rawIn]
             [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
+            [fress.impl.uuid :as uuid]
             [fress.util :refer [expected byte-array]])
   (:import [goog.math Long]))
 
@@ -533,15 +534,112 @@
 
 
 
-(defn readSet [rdr])
-(defn readMap [rdr])
-(defn readIntArray [rdr])
-(defn readLongArray [rdr])
+(defn readSet [rdr _ _]
+  (let [lst (readObject rdr)]
+    (into #{} lst)))
+
+(defn readMap [rdr _ _]
+  (let [lst (readObject rdr)]
+    (apply hash-map lst)))
+
+(defn readIntArray [rdr _ _]
+  (let [length (readInt rdr)
+        arr (js/Uint32Array. length)]
+    (loop [i 0]
+      (when (< i length)
+        (aset arr i (readInt rdr))
+        (recur (inc i))))
+    arr))
+
+(defn readShortArray [rdr _ _]
+  (let [length (readInt rdr)
+        arr (js/Uint16Array. length)]
+    (loop [i 0]
+      (when (< i length)
+        (aset arr i (readInt rdr))
+        (recur (inc i))))
+    arr))
+
+(defn readLongArray [rdr _ _] ;=> regular Array<Number>
+  (let [length (readInt rdr)
+        arr (make-array length)]
+    (loop [i 0]
+      (when (< i length)
+        (aset arr i (readInt rdr))
+        (recur (inc i))))
+    arr))
+
+(defn readFloatArray [rdr _ _]
+  (let [length (readInt rdr)
+        arr (js/Float32Array. length)]
+    (loop [i 0]
+      (when (< i length)
+        (aset arr i (readFloat rdr))
+        (recur (inc i))))
+    arr))
+
+(defn readDoubleArray [rdr _ _]
+  (let [length (readInt rdr)
+        arr (js/Float64Array. length)]
+    (loop [i 0]
+      (when (< i length)
+        (aset arr i (readDouble rdr))
+        (recur (inc i))))
+    arr))
+
+(defn readObjectArray [rdr _ _] ;=> regular Array<Object>
+  (let [length (readInt rdr)
+        arr (make-array length)]
+    (loop [i 0]
+      (when (< i length)
+        (aset arr i (readObject rdr))
+        (recur (inc i))))
+    arr))
+
+(defn readBooleanArray [rdr _ _] ;=> regular Array<Boolean>
+  (let [length (readInt rdr)
+        arr (make-array length)]
+    (loop [i 0]
+      (when (< i length)
+        (aset arr i (readBoolean rdr))
+        (recur (inc i))))
+    arr))
+
+(defn readUUID [rdr _ _]
+  (let [bytes (readObject rdr)]
+    (assert (= (alength bytes) 16) (str "invalid UUID buffer size:" (alength bytes)))
+    (uuid/bytes->uuid bytes)))
+
+(defn readRegex [rdr _ _]
+  (let [source (readObject rdr)]
+    (js/RegExp. source)))
+
+(defn readUri [rdr _ _]
+  (let [uri (readObject rdr)]
+    (goog.Uri. uri)))
+
+(defn readInst [rdr _ _]
+  (let [date (readInt rdr)]
+    (js/Date. date)))
 
 (def default-read-handlers
   {"list" (fn [objectArray] (vec objectArray)) ;;is this signature right?
    "utf8" #(readUTF8 %1) ;<= for tagged use, but default is still code
-   })
+   "set" readSet
+   "map" readMap
+   "int[]" readIntArray
+   "short[]" readShortArray
+   "long[]" readLongArray
+   "float[]" readFloatArray
+   "double[]" readDoubleArray
+   "boolean[]" readBooleanArray
+   "object[]" readObjectArray
+   "uuid" readUUID
+   "regex" readRegex
+   "uri" readUri
+   "inst" readInst})
+
+;no bigint, bigdec
 
 (defn build-lookup
   [userHandlers]
@@ -555,9 +653,10 @@
 
 (defn reader
   ([in] (reader in nil))
-  ([in user-handlers]
+  ([in user-handlers](reader in user-handlers true))
+  ([in user-handlers validateAdler?]
    (let [handlers (merge default-read-handlers user-handlers)
          lookup (build-lookup handlers)
-         raw-in (rawIn/raw-input in)
+         raw-in (rawIn/raw-input in) ;validateAdler?
          seh (standardExtensionHandlers)]
      (FressianReader. in raw-in lookup seh))))

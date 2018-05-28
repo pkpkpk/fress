@@ -164,21 +164,6 @@
           (rawIn/reset raw)
           (is (kinda= value (r/readDouble rdr))))))))
 
-(def misc-samples
-  [{:form "[1 2 3]", :value [1 2 3], :bytes [-25 1 2 3], :rawbytes [231 1 2 3]}
-   {:form "[true false [nil]]", :value [true false [nil]], :bytes [-25 -11 -10 -27 -9], :rawbytes [231 245 246 229 247]}
-
-   ])
-
-#_(deftest misc-types
-  (doseq [{:keys [form bytes value rawbytes throw?]} misc-samples]
-    (let [rdr (r/reader (into-bytes bytes))
-          raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
-      (rawIn/reset raw)
-      (is= (read-string form) (r/readObject rdr)))))
-
-
 ;how to get relative path. can we do this in a macro?
 #_(defonce chunked_bytes_sample (read-string (slurp "/home/pat/dev/__/fress/src/test/fress/chunked_bytes_sample.edn")))
 
@@ -276,22 +261,76 @@
       (is= value (r/readObject rdr)))))
 
 (def utf8-samples
-  [
-   ;;; tagged
-   ; {:form "(->utf8 \"hello\")", :bytes [-17 -34 117 116 102 56 2 5 104 101 108 108 111], :rawbytes [239 222 117 116 102 56 2 5 104 101 108 108 111], :value "hello"}
-   ; {:form "(->utf8 \"😉 😎 🤔 😐 🙄\")", :bytes [-17 -34 117 116 102 56 2 24 -16 -97 -104 -119 32 -16 -97 -104 -114 32 -16 -97 -92 -108 32 -16 -97 -104 -112 32 -16 -97 -103 -124], :rawbytes [239 222 117 116 102 56 2 24 240 159 152 137 32 240 159 152 142 32 240 159 164 148 32 240 159 152 144 32 240 159 153 132], :value "😉 😎 🤔 😐 🙄"}
-
+  [;;; tagged
+   {:form "(->utf8 \"hello\")", :bytes [-17 -34 117 116 102 56 2 5 104 101 108 108 111], :rawbytes [239 222 117 116 102 56 2 5 104 101 108 108 111], :value "hello"}
+   {:form "(->utf8 \"😉 😎 🤔 😐 🙄\")", :bytes [-17 -34 117 116 102 56 2 24 -16 -97 -104 -119 32 -16 -97 -104 -114 32 -16 -97 -92 -108 32 -16 -97 -104 -112 32 -16 -97 -103 -124], :rawbytes [239 222 117 116 102 56 2 24 240 159 152 137 32 240 159 152 142 32 240 159 164 148 32 240 159 152 144 32 240 159 153 132], :value "😉 😎 🤔 😐 🙄"}
    ;;coded
    {:form "(->utf8 \"hello\")", :bytes [-65 5 104 101 108 108 111], :rawbytes [191 5 104 101 108 108 111], :value "hello"}
    {:form "(->utf8 \"😉 😎 🤔 😐 🙄\")", :bytes [-65 24 -16 -97 -104 -119 32 -16 -97 -104 -114 32 -16 -97 -92 -108 32 -16 -97 -104 -112 32 -16 -97 -103 -124], :rawbytes [191 24 240 159 152 137 32 240 159 152 142 32 240 159 164 148 32 240 159 152 144 32 240 159 153 132], :value "😉 😎 🤔 😐 🙄"}])
 
-(deftest utf8-type-test
-  (doseq [{:keys [form bytes value rawbytes throw?]} utf8-samples]
+#_(deftest utf8-type-test
+    (doseq [{:keys [form bytes value rawbytes throw?]} utf8-samples]
+      (let [rdr (r/reader (into-bytes bytes))
+            raw (:raw-in rdr)]
+        (is= rawbytes (rawbyteseq rdr))
+        (rawIn/reset raw)
+        (is= value (r/readObject rdr)))))
+
+(def n 100000)
+
+(def tag-sample
+  {:form "\"one ring to rule them all 😉 😎 🤔 😐 🙄 \"",
+   :bytes    [-29 61 111 110 101 32 114 105 110 103 32 116 111 32 114 117 108 101 32 116 104 101 109 32 97 108 108 32 -19 -96 -67 -19 -72 -119 32 -19 -96 -67 -19 -72 -114 32 -19 -96 -66 -19 -76 -108 32 -19 -96 -67 -19 -72 -112 32 -19 -96 -67 -19 -71 -124 32],
+   :rawbytes [227 61 111 110 101 32 114 105 110 103 32 116 111 32 114 117 108 101 32 116 104 101 109 32 97 108 108 32 237 160 189 237 184 137 32 237 160 189 237 184 142 32 237 160 190 237 180 148 32 237 160 189 237 184 144 32 237 160 189 237 185 132 32],
+   :value "one ring to rule them all 😉 😎 🤔 😐 🙄 "})
+
+(defn tag-benchmark []
+  (let [{:keys [form bytes value rawbytes throw?]} tag-sample]
+    (let [rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)]
+      (when (do
+              (assert (= rawbytes (rawbyteseq rdr)))
+              (rawIn/reset raw)
+              (assert (= value (r/readObject rdr)))
+              (rawIn/reset raw)
+              true)
+        (simple-benchmark [] (do (r/readObject rdr) (rawIn/reset raw)) n)))))
+
+(def code-sample
+  {:form "(->utf8 \"one ring to rule them all 😉 😎 🤔 😐 🙄 \")",
+   :bytes [-65 51 111 110 101 32 114 105 110 103 32 116 111 32 114 117 108 101 32 116 104 101 109 32 97 108 108 32 -16 -97 -104 -119 32 -16 -97 -104 -114 32 -16 -97 -92 -108 32 -16 -97 -104 -112 32 -16 -97 -103 -124 32]
+   :rawbytes [191 51 111 110 101 32 114 105 110 103 32 116 111 32 114 117 108 101 32 116 104 101 109 32 97 108 108 32 240 159 152 137 32 240 159 152 142 32 240 159 164 148 32 240 159 152 144 32 240 159 153 132 32]
+   :value "one ring to rule them all 😉 😎 🤔 😐 🙄 "})
+
+(defn code-benchmark []
+  (let [{:keys [form bytes value rawbytes throw?]} code-sample]
+    (let [rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)]
+      (when (do
+              (assert (= rawbytes (rawbyteseq rdr)))
+              (rawIn/reset raw)
+              (assert (= value (r/readObject rdr)))
+              (rawIn/reset raw)
+              true)
+        (simple-benchmark [] (do (r/readObject rdr) (rawIn/reset raw)) n)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(def misc-samples
+  [{:form "[1 2 3]", :value [1 2 3], :bytes [-25 1 2 3], :rawbytes [231 1 2 3]}
+   {:form "[true false [nil]]", :value [true false [nil]], :bytes [-25 -11 -10 -27 -9], :rawbytes [231 245 246 229 247]}
+
+   ])
+
+#_(deftest misc-types
+  (doseq [{:keys [form bytes value rawbytes throw?]} misc-samples]
     (let [rdr (r/reader (into-bytes bytes))
           raw (:raw-in rdr)]
       (is= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
-      (is= value (r/readObject rdr)))))
+      (is= (read-string form) (r/readObject rdr)))))
+
 
 ; uuid, inst
 ;;int[] , long [], float[], double[], boolean[]

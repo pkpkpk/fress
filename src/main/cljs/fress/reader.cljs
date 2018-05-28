@@ -3,8 +3,7 @@
   (:require [fress.impl.raw-input :as rawIn]
             [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
-            [fress.util :refer [expected byte-array]]
-            [goog.string :as gstring])
+            [fress.util :refer [expected byte-array]])
   (:import [goog.math Long]))
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
@@ -38,7 +37,7 @@
                                     (bit-and ch1 0x03f) 6)
                                    (bit-and ch2 0x3f)))
                        (recur (+ pos 3)))
-           :default (throw (gstring/format "Invalid UTF-8: %d" ch))))))
+           :default (throw (str "Invalid UTF-8: " ch))))))
     (.apply (.-fromCharCode js/String) nil buf)))
 
 (defprotocol IFressianReader

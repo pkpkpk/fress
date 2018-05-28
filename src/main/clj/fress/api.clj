@@ -115,9 +115,8 @@
   [bytes]
   (let [in (if (= (type bytes) java.nio.HeapByteBuffer)
              bytes
-             (byte-array bytes))
-        fin (fressian/create-reader in read-handlers)]
-    fin))
+             (byte-array bytes))]
+    (fressian/create-reader (io/input-stream in) :handler read-handlers)))
 
 (defn ->rdr [o] (-> o byte-buf bytes->rdr))
 (defn ->raw [o] (-> o byte-buf bytes->rdr rdr->raw))

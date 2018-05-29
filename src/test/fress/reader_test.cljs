@@ -266,7 +266,7 @@
       (rawIn/reset raw)
       (is= value (r/readObject rdr)))))
 
-(deftest uuid-test
+#_(deftest uuid-test
   (doseq [{:keys [form bytes value rawbytes throw?]} samples/uuid-samples]
     (let [rdr (r/reader (into-bytes bytes))
           raw (:raw-in rdr)]
@@ -274,17 +274,32 @@
       (rawIn/reset raw)
       (is= value (r/readObject rdr)))))
 
-; (deftest misc-types
-;   (doseq [{:keys [form bytes value rawbytes throw?]} samples/misc-samples]
-;     (let [rdr (r/reader (into-bytes bytes))
-;           raw (:raw-in rdr)]
-;       (is= rawbytes (rawbyteseq rdr))
-;       (rawIn/reset raw)
-;       (is= (read-string form) (r/readObject rdr)))))
+#_(deftest misc-types
+  (doseq [{:keys [form bytes value rawbytes throw?]} samples/misc-samples]
+    (let [rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= (read-string form) (r/readObject rdr)))))
+
+(def sym->fn
+  {'byte-array   util/byte-array
+   'int-array    util/i32-array
+   'float-array  util/f32-array
+   'double-array util/f64-array
+   'object-array into-array
+   'long-array into-array})
+
+#_(deftest typed-array-test
+  (doseq [{:keys [form bytes input rawbytes throw?]} samples/typed-array-samples]
+    (let [rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)
+          value ((sym->fn (first (read-string form))) input)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= value (r/readObject rdr)))))
 
 
-; uuid
-;;int[] , long [], float[], double[], boolean[]
 ; list, openlist, closedlist
 ; structs
 ; footers, caching,, EOF

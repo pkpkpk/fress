@@ -1,16 +1,24 @@
 (ns fress.util)
 
+(def TextEncoder (js/TextEncoder. "utf8")) ;;<== use this one globally
+(def TextDecoder (js/TextDecoder. "utf8"))
+
 (extend-type ArrayList
   Object
   (get [this i] (aget (.-arr this) i)))
 
-(def U16_MAX_VALUE 65535)
-(def I16_MIN_VALUE -32767)
-(def I16_MAX_VALUE 32767)
-(def U32_MAX_VALUE (js* "2**32 -1"))
+(def ^:const U8_MAX_VALUE 255) ;0xff
 
-(def FLOAT_MIN_NORMAL 1.17549435E-38)
-(def FLOAT_MAX_VALUE 3.4028235E38)
+(def ^:const U16_MAX_VALUE 65535)
+(def ^:const I16_MIN_VALUE -32767)
+(def ^:const I16_MAX_VALUE 32767)
+
+(def ^:const U32_MAX_VALUE 4294967295) ;0xffffffff
+(def ^:const I32_MAX_VALUE 2147483647)
+(def ^:const I32_MIN_VALUE -2147483648)
+
+(def ^:const F32_MIN_NORMAL 1.17549435E-38)
+(def ^:const F32_MAX_VALUE 3.4028235E38)
 
 (def isBigEndian
   (-> (.-buffer (js/Uint32Array. #js[0x12345678]))
@@ -31,19 +39,35 @@
 
 (defmulti byte-array type)
 
-(defmethod byte-array js/Number [n]
-  (js/Int8Array. n))
+(defmethod byte-array js/Number [n] (js/Int8Array. n))
+(defmethod byte-array PersistentVector [v] (js/Int8Array. (into-array v)))
+(defmethod byte-array js/Array [a] (js/Int8Array. a))
+(defmethod byte-array ArrayList [al] (js/Int8Array. (.toArray al)))
+(defmethod byte-array js/String [s] (.encode TextEncoder s))
 
-(defmethod byte-array cljs.core/PersistentVector [v]
-  (js/Int8Array. (into-array v)))
+(def i8-array byte-array)
 
-(defmethod byte-array js/Array [a]
-  (js/Int8Array. a))
+(defmulti  u8-array type)
+(defmethod u8-array js/Number [n] (js/Uint8Array. n))
+(defmethod u8-array PersistentVector [v] (js/Uint8Array. (into-array v)))
+(defmethod u8-array js/Array [a] (js/Uint8Array. a))
+(defmethod u8-array ArrayList [al] (js/Uint8Array. (.toArray al)))
+(defmethod u8-array js/String [s] (.encode TextEncoder s))
 
-(defmethod byte-array ArrayList [al]
-  (js/Int8Array. (.toArray al)))
+(defmulti  i32-array type)
+(defmethod i32-array js/Number [n] (js/Int32Array. n))
+(defmethod i32-array PersistentVector [v] (js/Int32Array. (into-array v)))
+(defmethod i32-array js/Array [a] (js/Int32Array. a))
+(defmethod i32-array ArrayList [al] (js/Int32Array. (.toArray al)))
 
-(def TextEncoder (js/TextEncoder. "utf8"))
+(defmulti  f32-array type)
+(defmethod f32-array js/Number [n] (js/Float32Array. n))
+(defmethod f32-array PersistentVector [v] (js/Float32Array. (into-array v)))
+(defmethod f32-array js/Array [a] (js/Float32Array. a))
+(defmethod f32-array ArrayList [al] (js/Float32Array. (.toArray al)))
 
-(defmethod byte-array js/String [s]
-  (.encode TextEncoder s))
+(defmulti  f64-array type)
+(defmethod f64-array js/Number [n] (js/Float64Array. n))
+(defmethod f64-array PersistentVector [v] (js/Float64Array. (into-array v)))
+(defmethod f64-array js/Array [a] (js/Float64Array. a))
+(defmethod f64-array ArrayList [al] (js/Float64Array. (.toArray al)))

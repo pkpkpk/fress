@@ -4,13 +4,12 @@
             [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
             [fress.impl.uuid :as uuid]
-            [fress.util :refer [expected byte-array]])
+            [fress.util :as util :refer [expected byte-array]])
   (:import [goog.math Long]))
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
 
-(def ^:const I32_MAX_VALUE 2147483647)
-(def ^:const I32_MIN_VALUE -2147483648)
+
 
 (defrecord StructType [tag fields])
 (defrecord TaggedObject [tag value]) ;meta
@@ -41,15 +40,13 @@
            :default (throw (str "Invalid UTF-8: " ch))))))
     (.apply (.-fromCharCode js/String) nil buf)))
 
-(def TextDecoder (js/TextDecoder. "utf8"))
-
 (defn readUTF8
   "this uses TextDecoder on raw utf8 bytes instead of using js on compressed
    fressian string bytes"
   [rdr] ;tag fields
   (let [length (readCount- rdr)
         bytes (rawIn/readFully (:raw-in rdr) length)]
-    (.decode TextDecoder bytes)))
+    (.decode util/TextDecoder bytes)))
 
 (defprotocol IFressianReader
   (read- [this code])
@@ -428,7 +425,7 @@
   (readInt ^number [this] (internalReadInt this))
   (readInt32 ^number [this]
     (let [i (readInt this)]
-      (if (or (< i I32_MIN_VALUE)  (< I32_MAX_VALUE i))
+      (if (or (< i util/I32_MIN_VALUE)  (< util/I32_MAX_VALUE i))
         (throw (js/Error. (str  "value " i " out of range for i32"))))
       i))
   (readCount- [this](readInt32 this))
@@ -544,7 +541,7 @@
 
 (defn readIntArray [rdr _ _]
   (let [length (readInt rdr)
-        arr (js/Uint32Array. length)]
+        arr (js/Int32Array. length)]
     (loop [i 0]
       (when (< i length)
         (aset arr i (readInt rdr))
@@ -553,7 +550,7 @@
 
 (defn readShortArray [rdr _ _]
   (let [length (readInt rdr)
-        arr (js/Uint16Array. length)]
+        arr (js/Int16Array. length)]
     (loop [i 0]
       (when (< i length)
         (aset arr i (readInt rdr))
@@ -636,7 +633,7 @@
    "float[]" readFloatArray
    "double[]" readDoubleArray
    "boolean[]" readBooleanArray
-   "object[]" readObjectArray
+   "Object[]" readObjectArray
    "uuid" readUUID
    "regex" readRegex
    "uri" readUri

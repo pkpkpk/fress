@@ -1,7 +1,7 @@
 (ns fress.impl.raw-input
   (:require-macros [fress.macros :refer [<< >>>]])
   (:require [fress.adler32 :as adler]
-            [fress.util :refer [isBigEndian]])
+            [fress.util :as util :refer [isBigEndian]])
   (:import [goog.math Long]))
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
@@ -25,19 +25,19 @@
 
 (def ^:dynamic *throw-on-unsafe?* true)
 
-(def L0xff (Long.fromNumber 0xff))
-(def L0xffffffff (Long.fromNumber 0xffffffff))
+(def L_U8_MAX_VALUE (Long.fromNumber util/U8_MAX_VALUE))
+(def L_U32_MAX_VALUE (Long.fromNumber util/U32_MAX_VALUE))
 
 (defn ^Long readRawInt32L [this]
-  (let [a (.and (Long.fromNumber (readRawByte this)) L0xff)
-        b (.and (Long.fromNumber (readRawByte this)) L0xff)
-        c (.and (Long.fromNumber (readRawByte this)) L0xff)
-        d (.and (Long.fromNumber (readRawByte this)) L0xff)]
+  (let [a (.and (Long.fromNumber (readRawByte this)) L_U8_MAX_VALUE)
+        b (.and (Long.fromNumber (readRawByte this)) L_U8_MAX_VALUE)
+        c (.and (Long.fromNumber (readRawByte this)) L_U8_MAX_VALUE)
+        d (.and (Long.fromNumber (readRawByte this)) L_U8_MAX_VALUE)]
     (-> (.shiftLeft a 24)
         (.or (.shiftLeft b 16))
         (.or (.shiftLeft c 8))
         (.or d)
-        (.and L0xffffffff))))
+        (.and L_U32_MAX_VALUE))))
 
 (defn ^Long readRawInt40L [this]
   (let [high (Long.fromNumber (readRawByte this))
@@ -64,14 +64,14 @@
           (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds js/Number.MAX_SAFE_INTEGER"))))
         (when (or (< a 255) (< b 224) (zero? h) )
           (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds js/Number.MIN_SAFE_INTEGER"))))))
-    (let [a  (.and (Long.fromNumber a) L0xff)
-          b  (.and (Long.fromNumber b) L0xff)
-          c  (.and (Long.fromNumber c) L0xff)
-          d  (.and (Long.fromNumber d) L0xff)
-          e  (.and (Long.fromNumber e) L0xff)
-          f  (.and (Long.fromNumber f) L0xff)
-          g  (.and (Long.fromNumber g) L0xff)
-          h  (.and (Long.fromNumber h) L0xff)]
+    (let [a  (.and (Long.fromNumber a) L_U8_MAX_VALUE)
+          b  (.and (Long.fromNumber b) L_U8_MAX_VALUE)
+          c  (.and (Long.fromNumber c) L_U8_MAX_VALUE)
+          d  (.and (Long.fromNumber d) L_U8_MAX_VALUE)
+          e  (.and (Long.fromNumber e) L_U8_MAX_VALUE)
+          f  (.and (Long.fromNumber f) L_U8_MAX_VALUE)
+          g  (.and (Long.fromNumber g) L_U8_MAX_VALUE)
+          h  (.and (Long.fromNumber h) L_U8_MAX_VALUE)]
       (-> (.shiftLeft a 56)
           (.or (.shiftLeft b 48))
           (.or (.shiftLeft c 40))

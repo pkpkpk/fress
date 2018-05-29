@@ -38,6 +38,53 @@
       (aget arr n)
       not-found))))
 
+(extend-type js/Int32Array
+  IEquiv
+  (-equiv [a b] (= (array-seq a) (array-seq b)))
+  IIndexed
+  (-nth
+   ([arr n]
+    (if (and (<= 0 n) (< n (.-length arr)))
+      (aget arr n)
+      (throw  (js/Error. "Index out of bounds"))))
+   ([arr n not-found]
+    (if (and (<= 0 n) (< n (.-length arr)))
+      (aget arr n)
+      not-found))))
+
+(extend-type js/Float32Array
+  IEquiv
+  (-equiv [a b] (= (array-seq a) (array-seq b)))
+  IIndexed
+  (-nth
+   ([arr n]
+    (if (and (<= 0 n) (< n (.-length arr)))
+      (aget arr n)
+      (throw  (js/Error. "Index out of bounds"))))
+   ([arr n not-found]
+    (if (and (<= 0 n) (< n (.-length arr)))
+      (aget arr n)
+      not-found))))
+
+(extend-type js/Float64Array
+  IEquiv
+  (-equiv [a b] (= (array-seq a) (array-seq b)))
+  IIndexed
+  (-nth
+   ([arr n]
+    (if (and (<= 0 n) (< n (.-length arr)))
+      (aget arr n)
+      (throw  (js/Error. "Index out of bounds"))))
+   ([arr n not-found]
+    (if (and (<= 0 n) (< n (.-length arr)))
+      (aget arr n)
+      not-found))))
+
+(extend-type array
+  IEquiv
+  (-equiv [a b] (= (array-seq a) (array-seq b)))
+  )
+
 (defn byteseq [wrt]
   (-> (js/Int8Array. (.. wrt -raw-out -memory -buffer) 0 (.. wrt -raw-out -bytesWritten))
     array-seq))
@@ -137,10 +184,10 @@
          d (js/Math.abs (- a b))]
      (if (== a b)
        true
-       (if (or (zero? a) (zero? b) (< d util/FLOAT_MIN_NORMAL))
+       (if (or (zero? a) (zero? b) (< d util/F32_MIN_NORMAL))
          ;;;extremely close, relative error less meaningful
-         (< d (* eps util/FLOAT_MIN_NORMAL))
-         (< (/ diff (js/Math.min (+ absA absB) util/FLOAT_MAX_VALUE)) eps))))))
+         (< d (* eps util/F32_MIN_NORMAL))
+         (< (/ diff (js/Math.min (+ absA absB) util/F32_MAX_VALUE)) eps))))))
 
 (defn precision=
   ([a b](precision= a b 8))

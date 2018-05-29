@@ -327,11 +327,23 @@
       (rawIn/reset raw)
       (is= value (r/readObject rdr))
       (is (nil? (r/validateFooter rdr)))))
-  )
-      ; footers, caching,, EOF
+  (testing "footer with adler (byte array)"
+    (let [{:keys [form bytes input rawbytes throw? footer value]}
+          {:form "(byte-array [7 11 13 17])"
+           :bytes [-44 7 11 13 17 -49 -49 -49 -49 0 0 0 5 33 -60 4 70]
+           :footer true
+           :rawbytes [212 7 11 13 17 207 207 207 207 0 0 0 5 33 196 4 70]
+           :input [7 11 13 17]}
+          rdr (r/reader (into-bytes bytes) :validateAdler? true)
+          raw (:raw-in rdr)
+          value ((sym->fn (first (read-string form))) input)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= value (r/readObject rdr))
+      (is (nil? (r/validateFooter rdr))))))
 
-
-; list, openlist, closedlist
+;  caching,, EOF
+; openlist, closedlist
 ; structs
 ; unknown tag => TaggedObject
 ;; bad regex, bad uri, bad uuid

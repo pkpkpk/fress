@@ -9,8 +9,6 @@
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
 
-
-
 (defrecord StructType [tag fields])
 (defrecord TaggedObject [tag value]) ;meta
 
@@ -624,9 +622,7 @@
     date))
 
 (def default-read-handlers
-  {"list" (fn [objectArray]
-            (log "default list handler objectArray" objectArray)
-            (vec objectArray)) ;;is this signature right?
+  {"list" (fn [objectArray] (vec objectArray)) ;;diff sig, called by internalReadList
    "utf8" #(readUTF8 %1) ;<= for tagged use, but default is still code
    "set" readSet
    "map" readMap
@@ -656,6 +652,7 @@
 
 ;; readAll? validateFooter?
 ;readAll => read until footer, return vec<readObject()>
+;; readObject(rdr validate)
 
 (defn reader
   [in & {:keys [handlers validateAdler? offset]

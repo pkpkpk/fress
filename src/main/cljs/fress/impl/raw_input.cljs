@@ -103,6 +103,7 @@
     ;; lost an arity here, give another look
     (let [bytes (js/Int8Array. (.-buffer memory) bytesRead length)]
       (set! (.-bytesRead this) (+ bytesRead length))
+      (when checksum (adler/update! checksum bytes 0 length))
       bytes))
 
   (readRawInt8 ^number [this] (readRawByte this))
@@ -147,7 +148,7 @@
   (validateChecksum [this]
     (if (nil? checksum)
       (readRawInt32 this)
-      (let [calculatedChecksum (adler/get-value checksum)
+      (let [calculatedChecksum @checksum
             receivedChecksum (readRawInt32 this)]
         (if (not= calculatedChecksum receivedChecksum)
           (throw

@@ -258,21 +258,28 @@
 (defn utf8+code-benchmark [] (utf8-benchmark utf8+code-sample n))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-#_(deftest misc-types
-  (doseq [{:keys [form bytes value rawbytes throw?]} samples/misc-samples]
+#_(deftest inst-test
+  (doseq [{:keys [form bytes value rawbytes throw?]} samples/inst-samples]
     (let [rdr (r/reader (into-bytes bytes))
           raw (:raw-in rdr)]
       (is= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
-      (is= (read-string form) (r/readObject rdr)))))
+      (is= value (r/readObject rdr)))))
+
+; (deftest misc-types
+;   (doseq [{:keys [form bytes value rawbytes throw?]} samples/misc-samples]
+;     (let [rdr (r/reader (into-bytes bytes))
+;           raw (:raw-in rdr)]
+;       (is= rawbytes (rawbyteseq rdr))
+;       (rawIn/reset raw)
+;       (is= (read-string form) (r/readObject rdr)))))
 
 
-; uuid, inst
+; uuid
 ;;int[] , long [], float[], double[], boolean[]
 ; list, openlist, closedlist
 ; structs
 ; footers, caching,, EOF
 ; unknown tag => TaggedObject
 ;; bad regex, bad uri, bad uuid
+

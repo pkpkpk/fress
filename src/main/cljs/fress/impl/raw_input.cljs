@@ -25,6 +25,25 @@
 
 (def ^:dynamic *throw-on-unsafe?* true)
 
+(def L0xff (Long.fromNumber 0xff))
+(def L0xffffffff (Long.fromNumber 0xffffffff))
+
+(defn ^Long readRawInt32L [this]
+  (let [a (.and (Long.fromNumber (readRawByte this)) L0xff)
+        b (.and (Long.fromNumber (readRawByte this)) L0xff)
+        c (.and (Long.fromNumber (readRawByte this)) L0xff)
+        d (.and (Long.fromNumber (readRawByte this)) L0xff)]
+    (-> (.shiftLeft a 24)
+        (.or (.shiftLeft b 16))
+        (.or (.shiftLeft c 8))
+        (.or d)
+        (.and L0xffffffff))))
+
+(defn ^Long readRawInt40L [this]
+  (let [high (Long.fromNumber (readRawByte this))
+        low (readRawInt32L this)]
+    (.add (.shiftLeft high 32) low)))
+
 (defrecord RawInput [memory bytesRead checksum]
   IRawInput
   (getBytesRead ^number [this] bytesRead)
@@ -33,9 +52,6 @@
     (assert (and (int? bytesRead) (<= 0 bytesRead)))
     (let [; val (.getInt8 (js/DataView. (.. memory -buffer)) bytesRead)
           ; val (aget (js/Int8Array. (.. memory -buffer)) bytesRead)
-          ;; need to clamp somehow so we dont read past end of written
-          ;; need to clamp somehow so we dont read past end of written
-          ;; need to clamp somehow so we dont read past end of written
           ;; need to clamp somehow so we dont read past end of written
           val (aget (js/Uint8Array. (.. memory -buffer)) bytesRead)]
       (if (< val 0) (throw (js/Error. "EOF"))) ;nil?
@@ -53,20 +69,13 @@
        (bit-shift-left (readRawByte this) 8)
        (readRawByte this)))
 
-  (readRawInt32 ^number [this]
-    (+ (bit-shift-left (readRawByte this) 24)
-       (bit-shift-left (readRawByte this) 16)
-       (bit-shift-left (readRawByte this) 8)
-       (readRawByte this)))
+  (readRawInt32 ^number [this] (.toNumber (readRawInt32L this)))
 
-  (readRawInt40 ^number [this]
-    (let [high (Long.fromNumber (readRawByte this))
-          low (Long.fromNumber (readRawInt32 this))]
-      (.toNumber (.add (.shiftLeft high 32) low))))
+  (readRawInt40 ^number [this] (.toNumber (readRawInt40L this)))
 
   (readRawInt48 ^number [this]
     (let [high (Long.fromNumber (readRawByte this))
-          low (Long.fromNumber (readRawInt40 this))]
+          low (readRawInt40L this)]
       (.toNumber (.add (.shiftLeft high 40) low))))
 
   (readRawInt64 ^number [this]
@@ -84,15 +93,14 @@
             (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds js/Number.MAX_SAFE_INTEGER"))))
           (when (or (< a 255) (< b 224) (zero? h) )
             (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds js/Number.MIN_SAFE_INTEGER"))))))
-      (let [x (Long.fromNumber 0xff)
-            a  (.and (Long.fromNumber a) x)
-            b  (.and (Long.fromNumber b) x)
-            c  (.and (Long.fromNumber c) x)
-            d  (.and (Long.fromNumber d) x)
-            e  (.and (Long.fromNumber e) x)
-            f  (.and (Long.fromNumber f) x)
-            g  (.and (Long.fromNumber g) x)
-            h  (.and (Long.fromNumber h) x)]
+      (let [a  (.and (Long.fromNumber a) L0xff)
+            b  (.and (Long.fromNumber b) L0xff)
+            c  (.and (Long.fromNumber c) L0xff)
+            d  (.and (Long.fromNumber d) L0xff)
+            e  (.and (Long.fromNumber e) L0xff)
+            f  (.and (Long.fromNumber f) L0xff)
+            g  (.and (Long.fromNumber g) L0xff)
+            h  (.and (Long.fromNumber h) L0xff)]
         (-> (.shiftLeft a 56)
             (.or (.shiftLeft b 48))
             (.or (.shiftLeft c 40))

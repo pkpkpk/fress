@@ -57,8 +57,10 @@
    {:form "(object-array [7 11 13 17])", :bytes [-75 4 7 11 13 17], :rawbytes [181 4 7 11 13 17], :input [7 11 13 17]}
    ])
 
+(def inst-samples
+  [{:form #inst "2018-05-29T11:17:10.600-00:00" :bytes [-56 123 99 -85 -99 -71 72] :rawbytes [200 123 99 171 157 185 72] :value #inst "2018-05-29T11:17:10.600-00:00"}
+   {:form "(java.util.Date.)", :bytes [-56 123 99 -85 -92 -95 -91], :rawbytes [200 123 99 171 164 161 165], :value #inst "2018-05-29T11:24:43.301-00:00"}])
+
 (def misc-samples
   [{:form "[1 2 3]", :value [1 2 3], :bytes [-25 1 2 3], :rawbytes [231 1 2 3]}
-   {:form "[true false [nil]]", :value [true false [nil]], :bytes [-25 -11 -10 -27 -9], :rawbytes [231 245 246 229 247]}
-
-   ])
+   {:form "[true false [nil]]", :value [true false [nil]], :bytes [-25 -11 -10 -27 -9], :rawbytes [231 245 246 229 247]}])

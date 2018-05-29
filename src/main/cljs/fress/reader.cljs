@@ -112,7 +112,7 @@
 
      (<= 0x78 code 0x7B)
      (let [packing (Long.fromNumber (- code codes/INT_PACKED_6_ZERO))
-           i40 (Long.fromNumber (rawIn/readRawInt40 (.-raw-in rdr)))]
+           i40 (rawIn/readRawInt40L (.-raw-in rdr))]
        (.toNumber (.or (.shiftLeft packing 40) i40)))
 
      (<= 0x7C code 0x7F)
@@ -619,8 +619,10 @@
     (goog.Uri. uri)))
 
 (defn readInst [rdr _ _]
-  (let [date (readInt rdr)]
-    (js/Date. date)))
+  (let [time (readInt rdr)
+        date (js/Date.)]
+    (.setTime date time)
+    date))
 
 (def default-read-handlers
   {"list" (fn [objectArray] (vec objectArray)) ;;is this signature right?

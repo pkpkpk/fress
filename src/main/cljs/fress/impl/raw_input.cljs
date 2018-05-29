@@ -44,6 +44,43 @@
         low (readRawInt32L this)]
     (.add (.shiftLeft high 32) low)))
 
+(defn ^Long readRawInt48L [this]
+  (let [high (Long.fromNumber (readRawByte this))
+        low (readRawInt40L this)]
+    (.add (.shiftLeft high 40) low)))
+
+(defn ^Long readRawInt64L [this]
+  (let [a (readRawByte this)
+        b (readRawByte this)
+        c (readRawByte this)
+        d (readRawByte this)
+        e (readRawByte this)
+        f (readRawByte this)
+        g (readRawByte this)
+        h (readRawByte this)]
+    (when *throw-on-unsafe?*
+      (if (<= a 127)
+        (when (or (<= 32 b) (< 1561 (+ b c d e f g h)))
+          (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds js/Number.MAX_SAFE_INTEGER"))))
+        (when (or (< a 255) (< b 224) (zero? h) )
+          (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds js/Number.MIN_SAFE_INTEGER"))))))
+    (let [a  (.and (Long.fromNumber a) L0xff)
+          b  (.and (Long.fromNumber b) L0xff)
+          c  (.and (Long.fromNumber c) L0xff)
+          d  (.and (Long.fromNumber d) L0xff)
+          e  (.and (Long.fromNumber e) L0xff)
+          f  (.and (Long.fromNumber f) L0xff)
+          g  (.and (Long.fromNumber g) L0xff)
+          h  (.and (Long.fromNumber h) L0xff)]
+      (-> (.shiftLeft a 56)
+          (.or (.shiftLeft b 48))
+          (.or (.shiftLeft c 40))
+          (.or (.shiftLeft d 32))
+          (.or (.shiftLeft e 24))
+          (.or (.shiftLeft f 16))
+          (.or (.shiftLeft g 8))
+          (.or h)))))
+
 (defrecord RawInput [memory bytesRead checksum]
   IRawInput
   (getBytesRead ^number [this] bytesRead)
@@ -57,6 +94,7 @@
       (if (< val 0) (throw (js/Error. "EOF"))) ;nil?
       (set! (.-bytesRead this) (inc bytesRead))
       val))
+
   (readRawInt8 ^number [this] (readRawByte this))
 
   (readRawInt16 ^number [this]
@@ -73,43 +111,9 @@
 
   (readRawInt40 ^number [this] (.toNumber (readRawInt40L this)))
 
-  (readRawInt48 ^number [this]
-    (let [high (Long.fromNumber (readRawByte this))
-          low (readRawInt40L this)]
-      (.toNumber (.add (.shiftLeft high 40) low))))
+  (readRawInt48 ^number [this] (.toNumber (readRawInt48L this)))
 
-  (readRawInt64 ^number [this]
-    (let [a (readRawByte this)
-          b (readRawByte this)
-          c (readRawByte this)
-          d (readRawByte this)
-          e (readRawByte this)
-          f (readRawByte this)
-          g (readRawByte this)
-          h (readRawByte this)]
-      (when *throw-on-unsafe?*
-        (if (<= a 127)
-          (when (or (<= 32 b) (< 1561 (+ b c d e f g h)))
-            (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds js/Number.MAX_SAFE_INTEGER"))))
-          (when (or (< a 255) (< b 224) (zero? h) )
-            (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds js/Number.MIN_SAFE_INTEGER"))))))
-      (let [a  (.and (Long.fromNumber a) L0xff)
-            b  (.and (Long.fromNumber b) L0xff)
-            c  (.and (Long.fromNumber c) L0xff)
-            d  (.and (Long.fromNumber d) L0xff)
-            e  (.and (Long.fromNumber e) L0xff)
-            f  (.and (Long.fromNumber f) L0xff)
-            g  (.and (Long.fromNumber g) L0xff)
-            h  (.and (Long.fromNumber h) L0xff)]
-        (-> (.shiftLeft a 56)
-            (.or (.shiftLeft b 48))
-            (.or (.shiftLeft c 40))
-            (.or (.shiftLeft d 32))
-            (.or (.shiftLeft e 24))
-            (.or (.shiftLeft f 16))
-            (.or (.shiftLeft g 8))
-            (.or h)
-            (.toNumber)))))
+  (readRawInt64 ^number [this] (.toNumber (readRawInt64L this)))
 
   (readRawFloat ^number [this]
     (let [bytes (js/Int8Array. 4)]
@@ -133,10 +137,12 @@
     (let [bytes (js/Int8Array. (.-buffer memory) bytesRead length)]
       (set! (.-bytesRead this) (+ bytesRead length))
       bytes))
+
   (reset [this]
     (set! (.-bytesRead this) 0)
     (when checksum
       (adler/reset checksum)))
+
   (validateChecksum [this]
     (if (nil? checksum)
       (readRawInt32 this)

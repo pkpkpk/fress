@@ -28,7 +28,7 @@
             (.push acc byte)
             (recur)))))))
 
-#_(deftest readInt-test
+(deftest readInt-test
   (testing "readRawInt40"
     (let [{:keys [form bytes value rawbytes]} {:form "(long -549755813887)"
                                                :value -549755813887

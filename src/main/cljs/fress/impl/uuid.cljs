@@ -11,9 +11,10 @@
                  0xFF)))))
 
 (defn unparse [buf]
+  (assert (goog.isArrayLike buf))
   (let [offset (atom 0)]
     (for [n [4 2 2 2 6]]
-      (let [token (->> buf
+      (let [token (->> (array-seq buf)
                        (drop @offset)
                        (take n)
                        (map #(-> (js/Uint8Array. (int-array [%]))
@@ -48,17 +49,6 @@
           (swap! idx inc))))
     buf))
 
-(defn uuid->bytes [uuid]
-  (js/Uint8Array. (parse (.-uuid uuid))))
+(defn uuid->bytes [uuid] (js/Uint8Array. (parse (.-uuid uuid))))
 
-(defn- create-array-from-typed [array-buffer-view]
-  (let [arr (make-array (. array-buffer-view -length))]
-    (dotimes [n (count arr)]
-      (aset arr n (aget array-buffer-view n)))
-    arr))
-
-(defn bytes->uuid [bytes]
-  (let [b-array (if (instance? js/Uint8Array bytes)
-                  (create-array-from-typed bytes)
-                  bytes)]
-    (UUID. (string/join "-" (unparse b-array)) nil)))
+(defn bytes->uuid [bytes] (UUID. (string/join "-" (unparse bytes)) nil))

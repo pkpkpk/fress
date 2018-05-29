@@ -64,3 +64,8 @@
 (def misc-samples
   [{:form "[1 2 3]", :value [1 2 3], :bytes [-25 1 2 3], :rawbytes [231 1 2 3]}
    {:form "[true false [nil]]", :value [true false [nil]], :bytes [-25 -11 -10 -27 -9], :rawbytes [231 245 246 229 247]}])
+
+(def uuid-samples
+  [{:form "(java.util.UUID/randomUUID)", :bytes [-61 -39 16 15 86 86 -123 61 -80 71 99 -66 80 -20 17 -2 19 83 -81],
+    :rawbytes [195 217 16 15 86 86 133 61 176 71 99 190 80 236 17 254 19 83 175],
+    :value #uuid "0f565685-3db0-4763-be50-ec11fe1353af"}])

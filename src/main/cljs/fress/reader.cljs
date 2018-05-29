@@ -276,7 +276,7 @@
       (== code codes/SET)
       (handleStruct- rdr "set" 1)
 
-      (== code codes/UUID)
+      (== code codes/_UUID)
       (handleStruct- rdr "uuid" 2)
 
       (== code codes/REGEX)
@@ -608,6 +608,7 @@
 (defn readUUID [rdr _ _]
   (let [bytes (readObject rdr)]
     (assert (= (alength bytes) 16) (str "invalid UUID buffer size:" (alength bytes)))
+    (log "bytes:" bytes)
     (uuid/bytes->uuid bytes)))
 
 (defn readRegex [rdr _ _]

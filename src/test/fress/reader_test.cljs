@@ -28,7 +28,7 @@
             (.push acc byte)
             (recur)))))))
 
-(deftest readInt-test
+#_(deftest readInt-test
   (testing "readRawInt40"
     (let [{:keys [form bytes value rawbytes]} {:form "(long -549755813887)"
                                                :value -549755813887
@@ -260,6 +260,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 #_(deftest inst-test
   (doseq [{:keys [form bytes value rawbytes throw?]} samples/inst-samples]
+    (let [rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= value (r/readObject rdr)))))
+
+(deftest uuid-test
+  (doseq [{:keys [form bytes value rawbytes throw?]} samples/uuid-samples]
     (let [rdr (r/reader (into-bytes bytes))
           raw (:raw-in rdr)]
       (is= rawbytes (rawbyteseq rdr))

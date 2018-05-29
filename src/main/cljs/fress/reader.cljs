@@ -362,13 +362,11 @@
       (internalReadList rdr (readCount- rdr))
 
       (== code codes/BEGIN_CLOSED_LIST)
-      ; result = ((ConvertList) getHandler("list")).convertList(readClosedList());
-      (let [handler (getHandler rdr "list")]
+      (let [handler (getHandler- rdr "list")]
         (handler (readClosedList rdr)))
 
       (== code codes/BEGIN_OPEN_LIST)
-      (let [handler (getHandler rdr "list")]
-        ; result = ((ConvertList) getHandler("list")).convertList(readOpenList());
+      (let [handler (getHandler- rdr "list")]
         (handler (readOpenList rdr)))
 
       (== code codes/TRUE)
@@ -384,12 +382,10 @@
        (== code codes/DOUBLE)
        (== code codes/DOUBLE_0)
        (== code codes/DOUBLE_1))
-      (let [handler (getHandler rdr "double")] ;=================>>>>>>>>>>>>>>>>>>>
-        (handler (internalReadDouble rdr code)))
+      (internalReadDouble rdr code)
 
       (== code codes/FLOAT)
-      (let [handler (getHandler rdr "float")] ;>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-        (handler (readRawFloat (.-raw-in rdr))))
+      (rawIn/readRawFloat (:raw-in rdr))
 
       (== code codes/FOOTER)
       (let [calculatedLength (dec (rawIn/getBytesRead (.-raw-in rdr)))

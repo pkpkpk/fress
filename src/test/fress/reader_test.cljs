@@ -41,7 +41,9 @@
         (is= 549755813889 i40)
         (is= 549755813889 (.toNumber (goog.math.Long.fromNumber i40))))
       (rawIn/reset (:raw-in rdr))
-      (is= value (r/readInt rdr))))
+      (is= value (r/readInt rdr))
+      (rawIn/reset (:raw-in rdr))
+      (is= value (r/readObject rdr))))
   (testing "readRawInt48"
     (let [{:keys [form bytes value rawbytes]} {:form "(long 1.4073749E14)"
                                                :value 140737490000000
@@ -53,7 +55,9 @@
       (let [i48 (rawIn/readRawInt48 raw)]
         (is= i48 140737490000000  (.toNumber (goog.math.Long.fromNumber i48))))
       (rawIn/reset (:raw-in rdr))
-      (is= value (r/readInt rdr))))
+      (is= value (r/readInt rdr))
+      (rawIn/reset (:raw-in rdr))
+      (is= value (r/readObject rdr))))
   (testing "readRawInt64"
     (let [{:keys [form bytes value rawbytes]} {:form "(long 9007199254740991)"
                                                :value 9007199254740991
@@ -68,7 +72,9 @@
       (let [i64 (rawIn/readRawInt64 raw)]
         (is= i64 9007199254740991 (.toNumber (goog.math.Long.fromNumber i64))))
       (rawIn/reset (:raw-in rdr))
-      (is= value (r/readInt rdr))))
+      (is= value (r/readInt rdr))
+      (rawIn/reset (:raw-in rdr))
+      (is= value (r/readObject rdr))))
   (testing "unsafe i64"
     (let [{:keys [form bytes value rawbytes]}{:form "(long 9007199254740992)"
                                               :value 9007199254740992
@@ -86,7 +92,10 @@
           (rawIn/reset (:raw-in rdr))
           (if throw?
             (is (thrown? js/Error (r/readInt rdr)))
-            (is= value (r/readInt rdr))))))))
+            (do
+              (is= value (r/readInt rdr))
+              (rawIn/reset (:raw-in rdr))
+              (is= value (r/readObject rdr)))))))))
 
 #_(deftest read-floats-test
   (testing "Float/MAX_VALUE"
@@ -101,7 +110,9 @@
       (is= 249 (rawIn/readRawByte raw))
       (is (precision= value (rawIn/readRawFloat raw) 8))
       (rawIn/reset raw)
-      (is (precision= value (r/readFloat rdr) 8))))
+      (is (precision= value (r/readFloat rdr) 8))
+      (rawIn/reset raw)
+      (is (kinda= value (r/readObject rdr)))))
   (testing "readFloat"
     (doseq [{:keys [form bytes value rawbytes throw?]} samples/float-samples]
       (testing form
@@ -109,7 +120,9 @@
               raw (:raw-in rdr)]
           (is= rawbytes (rawbyteseq rdr))
           (rawIn/reset raw)
-          (is (kinda= value (r/readFloat rdr))))))))
+          (is (kinda= value (r/readFloat rdr)))
+          (rawIn/reset raw)
+          (is (kinda= value (r/readObject rdr))))))))
 
 #_(deftest read-double-test
   (testing "Double/MAX_VALUE"
@@ -121,7 +134,9 @@
           raw (:raw-in rdr)]
       (is= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
-      (is (precision= value (r/readDouble rdr) 16))))
+      (is (precision= value (r/readDouble rdr) 16))
+      (rawIn/reset raw)
+      (is (kinda= value (r/readObject rdr)))))
   (testing "double-samples"
     (doseq [{:keys [form bytes value rawbytes throw?]} samples/double-samples]
       (testing form

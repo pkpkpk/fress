@@ -63,7 +63,7 @@
   (readOpenList- [this])
   (readAndCacheObject- [this cache])
   (lookupCache- [this cache index])
-  (validateFooter- [this] [this calculatedLength magicFromStream])
+  (validateFooter [this] [this calculatedLength magicFromStream])
   (handleStruct- [this ^string tag fields])
   (getHandler- [this ^string tag])
   (getPriorityCache- [this])
@@ -394,7 +394,8 @@
         (handler (readRawFloat (.-raw-in rdr))))
 
       (== code codes/FOOTER)
-      (let [calculatedLength (dec (rawIn/getBytesRead (.-raw-in rdr)))
+      (let [_(log "GOT FOOTER CODE")
+            calculatedLength (dec (rawIn/getBytesRead (.-raw-in rdr)))
             magic (+ (bit-shift-left code 24) (rawIn/readRawInt24 (.-raw-in rdr)))]
         (validateFooter rdr calculatedLength magic)
         (readObject rdr))
@@ -514,11 +515,11 @@
     (if (< index (.size cache))
       (.get cache index)
       (throw (js/Error. (str "Requested object beyond end of cache at " index)))))
-  (validateFooter- [this]
+  (validateFooter [this]
     (let [calculatedLength (rawIn/getBytesRead raw-in)
           magicFromStream (rawIn/readRawInt32 raw-in)]
-      (validateFooter- this calculatedLength magicFromStream)))
-  (validateFooter- [this calculatedLength ^number magicFromStream]
+      (validateFooter this calculatedLength magicFromStream)))
+  (validateFooter [this calculatedLength ^number magicFromStream]
     (if-not (== magicFromStream codes/FOOTER_MAGIC)
       (throw (js/Error. (str "Invalid footer magic, expected " codes/FOOTER_MAGIC " got " code)))
       (let [lengthFromStream (rawIn/readRawInt32 raw-in)]
@@ -527,7 +528,7 @@
           (do
             (rawIn/validateChecksum raw-in)
             (rawIn/reset raw-in)
-            (resetCaches this)))))))
+            (resetCaches- this)))))))
 
 
 
@@ -623,7 +624,9 @@
     date))
 
 (def default-read-handlers
-  {"list" (fn [objectArray] (vec objectArray)) ;;is this signature right?
+  {"list" (fn [objectArray]
+            (log "default list handler objectArray" objectArray)
+            (vec objectArray)) ;;is this signature right?
    "utf8" #(readUTF8 %1) ;<= for tagged use, but default is still code
    "set" readSet
    "map" readMap
@@ -651,12 +654,14 @@
   (reify Object
     (get [this tag] nil)))
 
+;; readAll? validateFooter?
+;readAll => read until footer, return vec<readObject()>
+
 (defn reader
-  ([in] (reader in nil))
-  ([in user-handlers](reader in user-handlers true))
-  ([in user-handlers validateAdler?]
-   (let [handlers (merge default-read-handlers user-handlers)
-         lookup (build-lookup handlers)
-         raw-in (rawIn/raw-input in) ;validateAdler?
-         seh (standardExtensionHandlers)]
-     (FressianReader. in raw-in lookup seh))))
+  [in & {:keys [handlers validateAdler? offset]
+         :or {handlers nil, offset 0, validateAdler? false}}]
+  (assert (some? (.-buffer in)) "valid inputs need arraybuffer backing ie typed arrays or wasm memory")
+  (let [lookup (build-lookup (merge default-read-handlers handlers))
+        raw-in (rawIn/raw-input in offset validateAdler?)
+        seh (standardExtensionHandlers)]
+    (FressianReader. in raw-in lookup seh)))

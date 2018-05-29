@@ -1,6 +1,6 @@
 (ns fress.impl.raw-input
   (:require-macros [fress.macros :refer [<< >>>]])
-  (:require [fress.adler32 :as adler]
+  (:require [fress.impl.adler32 :as adler]
             [fress.util :as util :refer [isBigEndian]])
   (:import [goog.math Long]))
 
@@ -93,7 +93,17 @@
           val (aget (js/Uint8Array. (.. memory -buffer)) bytesRead)]
       (if (< val 0) (throw (js/Error. "EOF"))) ;nil?
       (set! (.-bytesRead this) (inc bytesRead))
+      (when checksum (adler/update! checksum val))
       val))
+
+  (readFully [this length]
+    (assert (<= 0 length))
+    (assert (<= length (.-byteLength (.-buffer memory))))
+    ;; need to clamp somehow so we dont read past end of written
+    ;; lost an arity here, give another look
+    (let [bytes (js/Int8Array. (.-buffer memory) bytesRead length)]
+      (set! (.-bytesRead this) (+ bytesRead length))
+      bytes))
 
   (readRawInt8 ^number [this] (readRawByte this))
 
@@ -129,15 +139,6 @@
           (aset bytes i (readRawByte this))))
       (aget (js/Float64Array. (.-buffer bytes)) 0)))
 
-  (readFully [this length]
-    (assert (<= 0 length))
-    (assert (<= length (.-byteLength (.-buffer memory))))
-    ;; need to clamp somehow so we dont read past end of written
-    ;; lost an arity here, give another look
-    (let [bytes (js/Int8Array. (.-buffer memory) bytesRead length)]
-      (set! (.-bytesRead this) (+ bytesRead length))
-      bytes))
-
   (reset [this]
     (set! (.-bytesRead this) 0)
     (when checksum
@@ -152,10 +153,8 @@
           (throw
             (js/Error. "Invalid footer checksum, expected " calculatedChecksum" got " receivedChecksum)))))))
 
-
 (defn raw-input
   ([memory](raw-input memory 0))
   ([memory start-index](raw-input memory start-index true))
   ([memory ^number start-index ^boolean validateAdler]
-   ; (if validateAdler )
-   (RawInput. memory start-index (adler/adler32))))
+   (RawInput. memory start-index (if validateAdler (adler/adler32)))))

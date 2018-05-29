@@ -1,4 +1,4 @@
-(ns fress.adler32)
+(ns fress.impl.adler32)
 
 (def *BASE* 65521)
 

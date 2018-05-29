@@ -1,6 +1,6 @@
 (ns fress.impl.raw-output
   (:require-macros [fress.macros :refer [>>>]])
-  (:require [fress.adler32 :as adler]
+  (:require [fress.impl.adler32 :as adler]
             [fress.util :refer [isBigEndian]]
             [goog.string :as gstring]))
 

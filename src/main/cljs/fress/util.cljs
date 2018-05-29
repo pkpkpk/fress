@@ -1,6 +1,6 @@
 (ns fress.util)
 
-(def TextEncoder (js/TextEncoder. "utf8")) ;;<== use this one globally
+(def TextEncoder (js/TextEncoder. "utf8"))
 (def TextDecoder (js/TextDecoder. "utf8"))
 
 (extend-type ArrayList

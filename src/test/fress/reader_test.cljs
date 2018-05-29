@@ -300,9 +300,39 @@
       (is= value (r/readObject rdr)))))
 
 
+(deftest footer-test
+  (testing "footer no adler"
+    (let [{:keys [form bytes input rawbytes throw? footer value]}
+          {:form "[1 2 3]",
+           :bytes [-25 1 2 3 -49 -49 -49 -49 0 0 0 4 32 36 4 46],
+           :footer true,
+           :rawbytes [231 1 2 3 207 207 207 207 0 0 0 4 32 36 4 46],
+           :value [1 2 3]}
+          rdr (r/reader (into-bytes bytes))
+          raw (:raw-in rdr)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= value (r/readObject rdr))
+      (is (nil? (r/validateFooter rdr)))))
+  (testing "footer with adler (via readRawByte) "
+    (let [{:keys [form bytes input rawbytes throw? footer value]}
+          {:form "[1 2 3]",
+           :bytes [-25 1 2 3 -49 -49 -49 -49 0 0 0 4 32 36 4 46],
+           :footer true,
+           :rawbytes [231 1 2 3 207 207 207 207 0 0 0 4 32 36 4 46],
+           :value [1 2 3]}
+          rdr (r/reader (into-bytes bytes) :validateAdler? true)
+          raw (:raw-in rdr)]
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset raw)
+      (is= value (r/readObject rdr))
+      (is (nil? (r/validateFooter rdr)))))
+  )
+      ; footers, caching,, EOF
+
+
 ; list, openlist, closedlist
 ; structs
-; footers, caching,, EOF
 ; unknown tag => TaggedObject
 ;; bad regex, bad uri, bad uuid
 

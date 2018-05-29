@@ -1,26 +1,26 @@
 (ns fress.impl.adler32)
 
-(def *BASE* 65521)
-
 (defprotocol Adler32Protocol
-  (update! [_ b] [_ bs off len])
-  (get-value [_])
-  (reset [_]))
+  (update! [this byte]
+           [this bytes offset length])
+  (get-value [this])
+  (reset [this]))
+
+(def ^:const adler32-base 65521)
 
 (defrecord Adler32 [value]
   IDeref
-  (-deref [this] (bit-and @value 0xffffffff))
+  (-deref [this] (bit-and value 0xffffffff))
   Adler32Protocol
-  (update! [_ b]
-    (let [s1 (+ (bit-and @value 0xffff) (bit-and b 0xff))
-          s2 (+ (bit-and (bit-shift-right @value 16) 0xffff) s1)]
-      (reset! value
-              (bit-or (bit-shift-left (mod s2 *BASE*) 16)
-                      (mod s1 *BASE*)))))
+  (update! [this byte]
+    (let [s1 (+ (bit-and value 0xffff) (bit-and byte 0xff))
+          s2 (+ (bit-and (bit-shift-right value 16) 0xffff) s1)]
+      (set! (.-value this)
+        (bit-or (bit-shift-left (mod s2 adler32-base) 16)
+                (mod s1 adler32-base)))))
   (update! [this bs off len]
     (doseq [i (range off (+ off len))]
       (update! this (aget bs i))))
-  (get-value [_] (bit-and @value 0xffffffff))
-  (reset [_] (reset! value 1)))
+  (reset [this] (set! (.-value this) 1)))
 
-(defn adler32 [] (Adler32. (atom 1)))
+(defn adler32 [] (Adler32. 1))

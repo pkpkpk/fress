@@ -299,48 +299,16 @@
       (rawIn/reset raw)
       (is= value (r/readObject rdr)))))
 
-
 (deftest footer-test
-  (testing "footer no adler"
-    (let [{:keys [form bytes input rawbytes throw? footer value]}
-          {:form "[1 2 3]",
-           :bytes [-25 1 2 3 -49 -49 -49 -49 0 0 0 4 32 36 4 46],
-           :footer true,
-           :rawbytes [231 1 2 3 207 207 207 207 0 0 0 4 32 36 4 46],
-           :value [1 2 3]}
-          rdr (r/reader (into-bytes bytes))
-          raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
-      (rawIn/reset raw)
-      (is= value (r/readObject rdr))
-      (is (nil? (r/validateFooter rdr)))))
-  (testing "footer with adler (via readRawByte) "
-    (let [{:keys [form bytes input rawbytes throw? footer value]}
-          {:form "[1 2 3]",
-           :bytes [-25 1 2 3 -49 -49 -49 -49 0 0 0 4 32 36 4 46],
-           :footer true,
-           :rawbytes [231 1 2 3 207 207 207 207 0 0 0 4 32 36 4 46],
-           :value [1 2 3]}
-          rdr (r/reader (into-bytes bytes) :validateAdler? true)
-          raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
-      (rawIn/reset raw)
-      (is= value (r/readObject rdr))
-      (is (nil? (r/validateFooter rdr)))))
-  (testing "footer with adler (byte array)"
-    (let [{:keys [form bytes input rawbytes throw? footer value]}
-          {:form "(byte-array [7 11 13 17])"
-           :bytes [-44 7 11 13 17 -49 -49 -49 -49 0 0 0 5 33 -60 4 70]
-           :footer true
-           :rawbytes [212 7 11 13 17 207 207 207 207 0 0 0 5 33 196 4 70]
-           :input [7 11 13 17]}
-          rdr (r/reader (into-bytes bytes) :validateAdler? true)
-          raw (:raw-in rdr)
-          value ((sym->fn (first (read-string form))) input)]
-      (is= rawbytes (rawbyteseq rdr))
-      (rawIn/reset raw)
-      (is= value (r/readObject rdr))
-      (is (nil? (r/validateFooter rdr))))))
+  (doseq [{:keys [form bytes input rawbytes throw? footer value]} samples/footer-samples]
+    (testing form
+      (let [rdr (r/reader (into-bytes bytes) :validateAdler? true)
+            raw (:raw-in rdr)
+            value (or value ((sym->fn (first (read-string form))) input))]
+        (is= rawbytes (rawbyteseq rdr))
+        (rawIn/reset raw)
+        (is= value (r/readObject rdr))
+        (is (nil? (r/validateFooter rdr)))))))
 
 ;  caching,, EOF
 ; openlist, closedlist

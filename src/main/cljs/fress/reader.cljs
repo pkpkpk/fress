@@ -392,8 +392,7 @@
         (handler (readRawFloat (.-raw-in rdr))))
 
       (== code codes/FOOTER)
-      (let [_(log "GOT FOOTER CODE")
-            calculatedLength (dec (rawIn/getBytesRead (.-raw-in rdr)))
+      (let [calculatedLength (dec (rawIn/getBytesRead (.-raw-in rdr)))
             magic (+ (bit-shift-left code 24) (rawIn/readRawInt24 (.-raw-in rdr)))]
         (validateFooter rdr calculatedLength magic)
         (readObject rdr))

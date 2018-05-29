@@ -82,6 +82,7 @@
   (let [BYTES-os (BytesOutputStream.)
         writer (fressian/create-writer BYTES-os :handlers write-handlers)]
     (.writeObject writer obj)
+    (when footer (.writeFooter writer))
     (bytestream->buf BYTES-os)))
 
 (defn read-batch
@@ -103,7 +104,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn byteseq [obj] (byte-buffer-seq (byte-buf obj)))
+(defn byteseq [obj & {:keys [handlers footer]}]
+  (byte-buffer-seq (byte-buf obj :footer footer)))
 
 (defn bytes->rdr
   [bytes]
@@ -124,13 +126,15 @@
         acc
         (recur (conj acc byte))))))
 
-(defn rawbyteseq [obj]
-  (let [bytes (byte-buf obj)
+(defn rawbyteseq [obj & {:keys [handlers footer]}]
+  (let [bytes (byte-buf obj :footer footer)
         rdr (bytes->rdr bytes)
         raw (rdr->raw rdr)]
     (raw->rawbytes raw)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;js MAX_SAFE_INT etc
+
 
 (defn typed-array? [o]
   (let [c (class o)]
@@ -143,14 +147,17 @@
      (= c (Class/forName "[D"))
      (= c (Class/forName "[Ljava.lang.Object;")))))
 
-(defmacro sample [form]
-  (let [value (eval form)
-        bytes (byteseq value)
-        rawbytes (rawbyteseq value)
-        value (if (utf8? value) (.-s value)  value)
-        base {:form (pr-str form)
-              :bytes (vec bytes)
-              :rawbytes (vec rawbytes)}]
-    (if-not (or (typed-array? value) (bytes? value))
-      (assoc base :value value)
-      (assoc base :input (eval (second form))))))
+(defmacro sample
+  ([form & {:keys [footer] :or {footer false}}]
+   (let [value (eval form)
+         bytes (byteseq value :footer footer)
+         rawbytes (rawbyteseq value :footer footer)
+         value (if (utf8? value) (.-s value)  value)
+         base {:form (pr-str form)
+               :bytes (vec bytes)
+               :footer footer
+               :rawbytes (vec rawbytes)}]
+     (if-not (or (typed-array? value) (bytes? value))
+       (assoc base :value value)
+       (assoc base :input (eval (second form)))))))
+

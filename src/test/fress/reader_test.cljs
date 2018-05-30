@@ -13,7 +13,7 @@
             [fress.reader :as r]
             [fress.util :refer [byte-array] :as util]
             [fress.test-helpers :as helpers
-             :refer [log jvm-byteseq is= byteseq overflow into-bytes ;<= byte-array in util
+             :refer [log is= byteseq overflow into-bytes ;<= byte-array in util
                      precision= kinda=]]
             [fress.samples :as samples]))
 

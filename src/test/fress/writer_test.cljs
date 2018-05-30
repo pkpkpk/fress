@@ -8,8 +8,7 @@
             [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
             [fress.writer :as w]
-            [fress.test-helpers :as helpers
-             :refer [log jvm-byteseq is= byteseq overflow]]))
+            [fress.test-helpers :as helpers :refer [log is= byteseq overflow]]))
 
 (def samples
   [{}

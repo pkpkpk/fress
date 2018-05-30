@@ -648,10 +648,21 @@
 ;; readAll => read until footer, return vec<readObject()>
 ;; readObject(rdr validate)
 
+(defn assert-valid-handlers [handlers]
+  (when handlers
+    (assert (and (map? handlers)
+                 (every? string? (keys handlers))
+                 (every? fn? (vals handlers)))
+            "handlers must be a Map<string,fn>")))
+
 (defn reader
   [in & {:keys [handlers validateAdler? offset]
-         :or {handlers nil, offset 0, validateAdler? false}}]
+         :or {handlers nil, offset 0, validateAdler? false} :as opts}]
+  (when ^boolean goog.DEBUG
+    (when (get opts :handler)
+      (throw (js/Error. "reader needs `:handlers` , not `:handler`" ))))
   (assert (some? (.-buffer in)) "valid inputs need arraybuffer backing ie typed arrays or wasm memory")
+  (assert-valid-handlers handlers)
   (let [lookup (build-lookup (merge default-read-handlers handlers))
         raw-in (rawIn/raw-input in offset validateAdler?)
         seh (standardExtensionHandlers)]

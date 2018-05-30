@@ -340,7 +340,7 @@
 
           :default
           (do
-            (writeCode this codes/STRUCT)
+            (writeCode this codes/STRUCT) ;<= when cache length exceeds packing
             (writeInt this index)))))
     this)
 

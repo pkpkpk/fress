@@ -327,15 +327,21 @@
 ;;struct
 
 (deftype Person [firstName lastName]
-  Object
-  (toString [this] (str "Person " firstName " " lastName)))
+  IEquiv
+  (-equiv [this that]
+    (and (= (type this) (type that))
+         (= firstName (.-firstName that))
+         (= lastName (.-lastName that)))))
+
+(defn readPerson [rdr _ _]
+  (Person. (r/readObject rdr) (r/readObject rdr)))
 
 (deftest read-person-test
-  (let [bytes [-17 -29 28 111 114 103 46 102 114 101 115 115 105 97 110 46 69 120 97 109 112 108 101 115 46 80 101 114 115 111 110 2 -33 106 111 110 110 121 -29 9 103 114 101 101 110 119 111 111 100 -96 -34 116 104 111 109 -33 121 111 114 107 101]]
+  (let [bytes [-17 -29 28 111 114 103 46 102 114 101 115 115 105 97 110 46 69 120 97 109 112 108 101 115 46 80 101 114 115 111 110 2 -33 106 111 110 110 121 -29 9 103 114 101 101 110 119 111 111 100 -96 -34 116 104 111 109 -33 121 111 114 107 101]
+        tag "org.fressian.Examples.Person"]
     (testing "reading without handler"
       (let [rdr (r/reader (byte-array bytes))
-            raw (:raw-in rdr)
-            tag "org.fressian.Examples.Person"]
+            raw (:raw-in rdr)]
         (testing "by component..."
           (is= (r/readNextCode rdr) codes/STRUCTTYPE)
           (is= (r/readObject rdr) tag)
@@ -351,15 +357,18 @@
         (r/resetCaches rdr)
         (testing "readObject no handler => TaggedObject"
           (let [o (r/readObject rdr)]
-            (log "o" o)
             (is (instance? r/TaggedObject o))
             (is= (.-tag o) tag)
             (is= (vec (.-value o)) ["jonny" "greenwood"]))
           (let [o (r/readObject rdr)]
             (is (instance? r/TaggedObject o))
             (is= (.-tag o) tag)
-            (is= (vec (.-value o)) ["thom" "yorke"])))
-        ))))
+            (is= (vec (.-value o)) ["thom" "yorke"])))))
+    (testing "with read handler"
+      (let [rdr (r/reader (byte-array bytes) :handlers {tag readPerson})
+            raw (:raw-in rdr)]
+        (is= (r/readObject rdr) (Person. "jonny" "greenwood"))
+        (is= (r/readObject rdr) (Person. "thom" "yorke"))))))
 
 ; caching,, EOF
 ; openlist, closedlist, metadata, missing meta field on struct-type

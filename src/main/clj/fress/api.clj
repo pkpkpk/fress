@@ -185,10 +185,8 @@
                      fressian/associative-lookup
                      fressian/inheritance-lookup)
         writer (fressian/create-writer BYTES-os :handlers handlers)]
-    (.writeObject writer (->Person "jonny" "greenwood"))
-    (.writeObject writer (->Person "thom" "yorke"))
-    ; (.toByteArray baos)
-    (bytestream->buf BYTES-os)
-    ))
+    (.writeObject writer (->Person "jonny" "greenwood")) ;<= triggers caching
+    (.writeObject writer (->Person "thom" "yorke")) ;<= written with cache reference code
+    (bytestream->buf BYTES-os)))
 
 

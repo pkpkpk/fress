@@ -333,10 +333,10 @@
          (= firstName (.-firstName that))
          (= lastName (.-lastName that)))))
 
-(defn readPerson [rdr _ _]
+(defn readPerson [rdr tag fields]
   (Person. (r/readObject rdr) (r/readObject rdr)))
 
-(deftest read-person-test
+#_(deftest read-person-test
   (let [bytes [-17 -29 28 111 114 103 46 102 114 101 115 115 105 97 110 46 69 120 97 109 112 108 101 115 46 80 101 114 115 111 110 2 -33 106 111 110 110 121 -29 9 103 114 101 101 110 119 111 111 100 -96 -34 116 104 111 109 -33 121 111 114 107 101]
         tag "org.fressian.Examples.Person"]
     (testing "reading without handler"
@@ -370,8 +370,18 @@
         (is= (r/readObject rdr) (Person. "jonny" "greenwood"))
         (is= (r/readObject rdr) (Person. "thom" "yorke"))))))
 
-; caching,, EOF
-; openlist, closedlist, metadata, missing meta field on struct-type
-; structs
-; unknown tag => TaggedObject
-; bad regex, bad uri, bad uuid
+(deftest read-cached-test
+  (let [bytes [-51 -63 -23 -33 104 101 108 108 111 1 79 -42 -10 -56 123 99 -79 -33 -94 -3 -128]
+        value #{"hello" 1 -42 false #inst "2018-05-30T16:26:53.565-00:00"}
+        rdr (r/reader (byte-array bytes))
+        raw (:raw-in rdr)]
+    (testing "by component"
+      (is= (r/readNextCode rdr) codes/PUT_PRIORITY_CACHE)
+      (is= (r/readObject rdr) value)
+      (is= (r/readNextCode rdr) (+ codes/PRIORITY_CACHE_PACKED_START 0))
+      (is (thrown-with-msg? js/Error #"EOF" (r/readObject rdr))))
+    (rawIn/reset raw)
+    (r/resetCaches rdr)
+    (testing "normal use"
+      (is= (r/readObject rdr) value)
+      (is= (r/readObject rdr) value))))

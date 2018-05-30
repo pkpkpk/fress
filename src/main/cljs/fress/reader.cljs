@@ -205,7 +205,7 @@
       (readUTF8 rdr)
 
       (== code codes/PUT_PRIORITY_CACHE)
-      (readAndCacheObject rdr (getPriorityCache- rdr))
+      (readAndCacheObject- rdr (getPriorityCache- rdr))
 
       (== code codes/GET_PRIORITY_CACHE)
       (lookupCache rdr (getPriorityCache- rdr) (readInt32 rdr))
@@ -435,7 +435,7 @@
             (expected rdr "float" code o))))))
   (readDouble ^number [this]
     (internalReadDouble this (readNextCode this)))
-  (readBoolean [this]
+  (readBoolean ^boolean [this]
     (let [code (readNextCode this)]
       (if (== code codes/TRUE)
         true
@@ -500,8 +500,8 @@
               (recur)))))))
   (readAndCacheObject- [this ^ArrayList cache]
     (let [index (.size cache)
-          o (readObject rdr)]
-      (.add cache index o)
+          o (readObject this)]
+      (.add cache o)
       o))
   (lookupCache [this cache index]
     (if (< index (.size cache))

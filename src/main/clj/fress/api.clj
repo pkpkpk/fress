@@ -185,8 +185,20 @@
                      fressian/associative-lookup
                      fressian/inheritance-lookup)
         writer (fressian/create-writer BYTES-os :handlers handlers)]
-    (.writeObject writer (->Person "jonny" "greenwood")) ;<= triggers caching
+    (.writeObject writer (->Person "jonny" "greenwood")) ;<= triggers struct caching
     (.writeObject writer (->Person "thom" "yorke")) ;<= written with cache reference code
+    (bytestream->buf BYTES-os)))
+
+(def bunchOfData #{1 false "hello" (java.util.Date.) -42})
+
+(defn write-cached []
+  (let [BYTES-os (BytesOutputStream.)
+        handlers (-> fressian/clojure-write-handlers
+                     fressian/associative-lookup
+                     fressian/inheritance-lookup)
+        writer (fressian/create-writer BYTES-os :handlers handlers)]
+    (.writeObject writer bunchOfData true) ;<= triggers priorityCache
+    (.writeObject writer bunchOfData true) ;<= written with cache reference code
     (bytestream->buf BYTES-os)))
 
 

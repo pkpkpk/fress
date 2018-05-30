@@ -314,7 +314,7 @@
       (rawIn/reset raw)
       (is= value (r/readObject rdr)))))
 
-(deftest footer-test
+#_(deftest footer-test
   (doseq [{:keys [form bytes input rawbytes throw? footer value]} samples/footer-samples]
     (testing form
       (let [rdr (r/reader (into-bytes bytes) :validateAdler? true)
@@ -325,8 +325,23 @@
         (is= value (r/readObject rdr))
         (is (nil? (r/validateFooter rdr)))))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;struct
+
+(deftype Person [firstName lastName]
+  Object
+  (toString [this] (str "Person " firstName " " lastName)))
+
+(deftest read-person-test
+  (let [bytes [-17 -29 28 111 114 103 46 102 114 101 115 115 105 97 110 46 69 120 97 109 112 108 101 115 46 80 101 114 115 111 110 2 -33 106 111 110 110 121 -29 9 103 114 101 101 110 119 111 111 100]]
+    (testing "reading without handler"
+      (let [rdr (r/reader (into-bytes bytes))]
+        (is= (r/readNextCode rdr) codes/STRUCTTYPE)
+        ; (is= (r/readNextCode rdr) codes/STRUCTTYPE)
+        ))))
+
 ;  caching,, EOF
-; openlist, closedlist
+; openlist, closedlist, metadata, missing meta field on struct-type
 ; structs
 ; unknown tag => TaggedObject
 ;; bad regex, bad uri, bad uuid

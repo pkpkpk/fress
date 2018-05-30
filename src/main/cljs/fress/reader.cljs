@@ -646,7 +646,7 @@
     (get [this tag] nil)))
 
 ;; readAll? validateFooter?
-;readAll => read until footer, return vec<readObject()>
+;; readAll => read until footer, return vec<readObject()>
 ;; readObject(rdr validate)
 
 (defn reader

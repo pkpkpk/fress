@@ -161,3 +161,33 @@
        (assoc base :value value)
        (assoc base :input (eval (second form)))))))
 
+#_(def read-handlers
+  (-> (merge {"utf8" utf8-reader} fressian/clojure-read-handlers)
+      fressian/associative-lookup))
+
+(deftype Person [ ^String firstName ^String  lastName]
+  Object
+  (toString [this] (str "Person " firstName " " lastName)))
+
+
+
+(defn write-person []
+  (let [BYTES-os (BytesOutputStream.)
+        ; baos (ByteArrayOutputStream.)
+        tag "org.fressian.Examples.Person"
+        person-writer (reify WriteHandler
+                        (write [_ w person]
+                          (println tag)
+                          (.writeTag w tag 2)
+                          (.writeObject w (.-firstName person))
+                          (.writeObject w (.-lastName person))))
+        handlers (-> (merge {Person {tag person-writer}} fressian/clojure-write-handlers)
+                     fressian/associative-lookup
+                     fressian/inheritance-lookup)
+        writer (fressian/create-writer BYTES-os :handlers handlers)]
+    (.writeObject writer (->Person "jonny" "greenwood"))
+    ; (.toByteArray baos)
+    (bytestream->buf BYTES-os)
+    ))
+
+

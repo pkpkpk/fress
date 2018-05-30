@@ -91,7 +91,7 @@
           ; val (aget (js/Int8Array. (.. memory -buffer)) bytesRead)
           ;; need to clamp somehow so we dont read past end of written
           val (aget (js/Uint8Array. (.. memory -buffer)) bytesRead)]
-      (if (< val 0) (throw (js/Error. "EOF"))) ;nil?
+      (if (or (< val 0) (nil? val)) (throw (js/Error. "EOF"))) ;nil?
       (set! (.-bytesRead this) (inc bytesRead))
       (when checksum (adler/update! checksum val))
       val))

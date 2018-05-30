@@ -331,15 +331,38 @@
   (toString [this] (str "Person " firstName " " lastName)))
 
 (deftest read-person-test
-  (let [bytes [-17 -29 28 111 114 103 46 102 114 101 115 115 105 97 110 46 69 120 97 109 112 108 101 115 46 80 101 114 115 111 110 2 -33 106 111 110 110 121 -29 9 103 114 101 101 110 119 111 111 100]]
+  (let [bytes [-17 -29 28 111 114 103 46 102 114 101 115 115 105 97 110 46 69 120 97 109 112 108 101 115 46 80 101 114 115 111 110 2 -33 106 111 110 110 121 -29 9 103 114 101 101 110 119 111 111 100 -96 -34 116 104 111 109 -33 121 111 114 107 101]]
     (testing "reading without handler"
-      (let [rdr (r/reader (byte-array bytes))]
-        (is= (r/readNextCode rdr) codes/STRUCTTYPE)
-        ; (is= (r/readNextCode rdr) codes/STRUCTTYPE)
+      (let [rdr (r/reader (byte-array bytes))
+            raw (:raw-in rdr)
+            tag "org.fressian.Examples.Person"]
+        (testing "by component..."
+          (is= (r/readNextCode rdr) codes/STRUCTTYPE)
+          (is= (r/readObject rdr) tag)
+          (is= (r/readObject rdr) 2)
+          (is= (r/readObject rdr) "jonny")
+          (is= (r/readObject rdr) "greenwood")
+          ;; writer has now cached the object..., reader keeps record
+          ;; at cache index 0
+          (is= (r/readNextCode rdr) (+ codes/STRUCT_CACHE_PACKED_START 0))
+          (is= (r/readObject rdr) "thom")
+          (is= (r/readObject rdr) "yorke"))
+        (rawIn/reset raw)
+        (r/resetCaches rdr)
+        (testing "readObject no handler => TaggedObject"
+          (let [o (r/readObject rdr)]
+            (log "o" o)
+            (is (instance? r/TaggedObject o))
+            (is= (.-tag o) tag)
+            (is= (vec (.-value o)) ["jonny" "greenwood"]))
+          (let [o (r/readObject rdr)]
+            (is (instance? r/TaggedObject o))
+            (is= (.-tag o) tag)
+            (is= (vec (.-value o)) ["thom" "yorke"])))
         ))))
 
-;  caching,, EOF
+; caching,, EOF
 ; openlist, closedlist, metadata, missing meta field on struct-type
 ; structs
 ; unknown tag => TaggedObject
-;; bad regex, bad uri, bad uuid
+; bad regex, bad uri, bad uuid

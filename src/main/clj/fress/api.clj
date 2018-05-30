@@ -186,6 +186,7 @@
                      fressian/inheritance-lookup)
         writer (fressian/create-writer BYTES-os :handlers handlers)]
     (.writeObject writer (->Person "jonny" "greenwood"))
+    (.writeObject writer (->Person "thom" "yorke"))
     ; (.toByteArray baos)
     (bytestream->buf BYTES-os)
     ))

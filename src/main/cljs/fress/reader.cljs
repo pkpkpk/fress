@@ -60,13 +60,13 @@
   (readClosedList- [this])
   (readOpenList- [this])
   (readAndCacheObject- [this cache])
-  (lookupCache- [this cache index])
+  (lookupCache [this cache index])
   (validateFooter [this] [this calculatedLength magicFromStream])
   (handleStruct- [this ^string tag fields])
   (getHandler- [this ^string tag])
   (getPriorityCache- [this])
   (getStructCache- [this])
-  (resetCaches- [this]))
+  (resetCaches [this]))
 
 (defn ^number internalReadDouble [rdr code]
   (cond
@@ -205,10 +205,10 @@
       (readUTF8 rdr)
 
       (== code codes/PUT_PRIORITY_CACHE)
-      (readAndCacheObject rdr (getPriorityCache rdr))
+      (readAndCacheObject rdr (getPriorityCache- rdr))
 
       (== code codes/GET_PRIORITY_CACHE)
-      (lookupCache rdr (getPriorityCache rdr) (readInt32 rdr))
+      (lookupCache rdr (getPriorityCache- rdr) (readInt32 rdr))
 
       (or
        (== code (+ codes/PRIORITY_CACHE_PACKED_START 0))
@@ -243,7 +243,7 @@
        (== code (+ codes/PRIORITY_CACHE_PACKED_START 29))
        (== code (+ codes/PRIORITY_CACHE_PACKED_START 30))
        (== code (+ codes/PRIORITY_CACHE_PACKED_START 31)))
-      (lookupCache rdr (getPriorityCache rdr) (- code codes/PRIORITY_CACHE_PACKED_START))
+      (lookupCache rdr (getPriorityCache- rdr) (- code codes/PRIORITY_CACHE_PACKED_START))
 
       (or
        (== code (+ codes/STRUCT_CACHE_PACKED_START 0))
@@ -262,7 +262,7 @@
        (== code (+ codes/STRUCT_CACHE_PACKED_START 13))
        (== code (+ codes/STRUCT_CACHE_PACKED_START 14))
        (== code (+ codes/STRUCT_CACHE_PACKED_START 15)))
-      (let [struct-type (lookupCache rdr (getStructCache rdr) (- code codes/STRUCT_CACHE_PACKED_START))]
+      (let [struct-type (lookupCache rdr (getStructCache- rdr) (- code codes/STRUCT_CACHE_PACKED_START))]
         (handleStruct- rdr (.-tag struct-type) (.-fields struct-type)))
 
       (== code codes/MAP)
@@ -396,11 +396,11 @@
       (== code codes/STRUCTTYPE)
       (let [tag (readObject rdr)
             n-fields (readInt32 rdr)]
-        (.add (getStructCache- rdr) (StructType. tag fields))
-        (handleStruct- rdr tag fields))
+        (.add (getStructCache- rdr) (StructType. tag n-fields))
+        (handleStruct- rdr tag n-fields))
 
       (== code codes/STRUCT)
-      (let [struct-type (lookupCache rdr (getStructCache rdr) (readInt32 rdr))]
+      (let [struct-type (lookupCache rdr (getStructCache- rdr) (readInt32 rdr))]
         (handleStruct- rdr (.-tag struct-type) (.-fields struct-type)))
 
       (== code codes/RESET_CACHES)
@@ -411,7 +411,7 @@
       :else
       (throw (js/Error. (str "unmatched code: " code))))))
 
-(defrecord FressianReader [in raw-in lookup standardExtensionHandlers]
+(defrecord FressianReader [in raw-in lookup standardExtensionHandlers priorityCache structCache]
   Object
   ; (close [] (.close raw-in))
   IFressianReader
@@ -452,11 +452,11 @@
           (set! (.-structCache this) c)
           c)))
   (getPriorityCache- [this]
-    (or getPriorityCache
+    (or priorityCache
         (let [c (array-list)]
-          (set! (.-getPriorityCache this) c)
+          (set! (.-priorityCache this) c)
           c)))
-  (resetCaches- [this]
+  (resetCaches [this]
     (some-> priorityCache (.clear))
     (some-> structCache (.clear)))
   (getHandler- [this ^string tag]
@@ -500,11 +500,10 @@
               (recur)))))))
   (readAndCacheObject- [this ^ArrayList cache]
     (let [index (.size cache)
-          ; _(.add cache codes/UNDER_CONSTRUCTION)
           o (readObject rdr)]
       (.add cache index o)
       o))
-  (lookupCache- [this cache index]
+  (lookupCache [this cache index]
     (if (< index (.size cache))
       (.get cache index)
       (throw (js/Error. (str "Requested object beyond end of cache at " index)))))
@@ -656,4 +655,4 @@
   (let [lookup (build-lookup (merge default-read-handlers handlers))
         raw-in (rawIn/raw-input in offset validateAdler?)
         seh (standardExtensionHandlers)]
-    (FressianReader. in raw-in lookup seh)))
+    (FressianReader. in raw-in lookup seh nil nil)))

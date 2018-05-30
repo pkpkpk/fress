@@ -82,11 +82,6 @@
   (-> (js/Int8Array. (.. wrt -raw-out -memory -buffer) 0 (.. wrt -raw-out -bytesWritten))
     array-seq))
 
-(defn into-bytes [byte-seq]
-  (js/Int8Array. (into-array byte-seq)))
-
-
-
 (def ^:dynamic *eps* 0.00001)
 
 (defn roughly=
@@ -114,9 +109,10 @@
   ([a b sig]
    (= (.toPrecision a sig) (.toPrecision b sig))))
 
-(defn kinda=
+(defn float=
   "lol"
   [a b]
   (or (roughly= a b)
       (nearly= a b)
       (precision= a b)))
+

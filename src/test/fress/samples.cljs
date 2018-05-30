@@ -1,5 +1,7 @@
 (ns fress.samples
+  (:require-macros [fress.test-macros :as mac])
   (:require [cljs-node-io.core :as io :refer [slurp spit]]
+            [cljs-node-io.fs :as fs]
             [cljs.tools.reader :refer [read-string]]))
 
 (def int-samples
@@ -34,11 +36,26 @@
   [{:form "Double/MIN_VALUE", :value 4.9E-324, :bytes [-6 0 0 0 0 0 0 0 1], :rawbytes [250 0 0 0 0 0 0 0 1]}
    {:form "Double/MAX_VALUE", :value 1.7976931348623157E308, :bytes [-6 127 -17 -1 -1 -1 -1 -1 -1], :rawbytes [250 127 239 255 255 255 255 255 255]}])
 
+(defn local-dir [] (fs/dirname (mac/filename)))
+(def path (js/require "path"))
 
-;; how to get relative path. can we do this in a macro?
-;; get-path-relative-to-definition-macro
-(defonce chunked_bytes_sample  (read-string (slurp "/home/pat/dev/__/fress/src/test/fress/chunked_bytes_sample.edn")))
-(defonce chunked_string_sample (read-string (slurp "/home/pat/dev/__/fress/src/test/fress/chunked_string_sample.edn")))
+(defonce chunked_bytes_sample
+  (let [path (path.join (local-dir) "chunked_bytes_sample.edn")]
+    (delay
+     (do
+       (js/console.info "slurping path:" path)
+       (let [_str (slurp path)]
+         (js/console.info "reading edn...")
+         (read-string _str))))))
+
+(defonce chunked_string_sample
+  (let [path (path.join (local-dir) "chunked_string_sample.edn")]
+    (delay
+     (do
+       (js/console.info "slurping path:" path)
+       (let [_str (slurp path)]
+         (js/console.info "reading edn...")
+         (read-string _str))))))
 
 (def utf8-samples
   [;;; tagged

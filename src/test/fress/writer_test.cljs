@@ -1,39 +1,12 @@
 (ns fress.writer-test
-  (:require-macros [fress.macros :refer [>>>]]
-                   [cljs.core.async.macros :refer [go-loop]])
-  (:require [cljs.core.async :as casync
-             :refer [close! put! take! alts! <! >! chan promise-chan timeout]]
-            [cljs.test :refer-macros [deftest is testing async]]
+  (:require-macros [fress.macros :refer [>>>]])
+  (:require [cljs.test :refer-macros [deftest is testing async]]
             [fress.impl.raw-output :as rawOut]
             [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
             [fress.writer :as w]
+            [fress.util :as util]
             [fress.test-helpers :as helpers :refer [log is= byteseq overflow]]))
-
-(def samples
-  [{}
-   {"a" ""}
-   {"a" "foo"}
-   {"a" []}
-   {"a" {}}
-   {3 #{"a" :a}}])
-
-#_(deftest byte-parity-test
-    (helpers/cycle-tap)
-    (async done
-           (go-loop [samples samples]
-             (when (seq samples)
-               (let [o (first samples)
-                     [err jvmbytes] (<! (jvm-byteseq o))]
-                 (if-not err
-                   (let [wrt (w/Writer)]
-                     (w/writeObject wrt o)
-                     (is= jvmbytes (byteseq wrt)))
-                   (js/console.error "fail on sample:" (pr-str o)))
-                 ; (<! (timeout 50))
-                 (recur (rest samples))))
-             (done))))
-
 
 (deftest writeBytes-test
   (testing "(< length ranges/BYTES_PACKED_LENGTH_END)"
@@ -83,8 +56,6 @@
         (is= (w/getByte wrtr (+ 7 ranges/BYTE_CHUNK_SIZE)) 99)))))
 
 (deftest writeInt-test
-  ;; hard coded nums taken from jvm
-  ;; (fressian.api/byte-buffer-seq (fressian.api/byte-buf <OBJECT>))
   (let [wrt (w/Writer nil {})
         n 300]
     (w/writeInt wrt n)
@@ -112,32 +83,29 @@
     (is= 108 (w/getByte wrt 1))
     (is= 32  (w/getByte wrt 2))))
 
-(def TextDecoder (js/TextDecoder.))
-(def TextEncoder (js/TextEncoder.))
-
 (defn getBuf [wrt] (.. wrt -raw-out -memory -buffer))
 
 (deftest writeString-test
   (testing "small string, count fits in byte"
     (let [wrt (w/Writer nil {})
           s "hello world"
-          bytes (.encode TextEncoder s)]
+          bytes (.encode util/TextEncoder s)]
       (w/writeString wrt s)
       (is= (w/getByte wrt 0) (overflow codes/STRING))
       (is= (w/getByte wrt 1) (alength bytes))
       (let [tail (js/Uint8Array. (getBuf wrt) 2 (alength bytes))]
-        (is= s (.decode TextDecoder tail)))))
+        (is= s (.decode util/TextDecoder tail)))))
   (testing "small string, count larger than byte"
     (let [wrt (w/Writer nil {})
           n 300
           s (.repeat "p" n)
-          bytes (.encode TextEncoder s)]
+          bytes (.encode util/TextEncoder s)]
       (w/writeString wrt s)
       (is= (w/getByte wrt 0) (overflow codes/STRING))
       (is= 81 (w/getByte wrt 1) (overflow (+ codes/INT_PACKED_2_ZERO (>>> n 8))))
       (is= 44 (w/getByte wrt 2) (overflow n))
       (let [tail (js/Uint8Array. (getBuf wrt) 3 (alength bytes))]
-        (is= s (.decode TextDecoder tail))))))
+        (is= s (.decode util/TextDecoder tail))))))
 
 (deftest float-test
   (testing "writeFloat"

@@ -1,12 +1,6 @@
 (ns fress.reader-test
-  (:require-macros [fress.macros :refer [>>>]]
-                   [cljs.core.async.macros :refer [go-loop]])
-  (:require [cljs.core.async :as casync
-             :refer [close! put! take! alts! <! >! chan promise-chan timeout]]
-            [cljs.test :refer-macros [deftest is testing async]]
-            [cljs-node-io.core :refer [slurp]]
+  (:require [cljs.test :refer-macros [deftest is testing async]]
             [cljs.tools.reader :refer [read-string]]
-            [fress.impl.raw-output :as rawOut]
             [fress.impl.raw-input :as rawIn]
             [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]

@@ -111,26 +111,30 @@
           ;;   - the hash is identical but the object is not
           ;; so we shift (bit-and hash mask) until zero, looking up the stored
           ;; object for each to see if we already have interned it
-          (loop [bhash (aget hopidx (+ (<< bkt 2) 2))
-                 bkt (bit-and (inc bkt) mask)]
-            (when-not (zero? bhash)
-              (if (== hash bhash)
-                (let [key-index (aget hopidx (+ (<< bkt 2) 3))]
-                  (if (= k (aget keys key-index))
-                    key-index
-                    (recur
-                      (aget hopidx (+ (<< bkt 2) 2))
-                      (bit-and (inc bkt) mask))))
-                (recur
-                  (aget hopidx (+ (<< bkt 2) 2))
-                  (bit-and (inc bkt) mask)))))
+          (let [bkt (atom bkt)
+                increment-bkt #(swap! bkt (fn [n] (bit-and (inc n) mask)))]
+            (loop [bhash (aget hopidx (+ (<< @bkt 2) 2))]
+              (when-not (zero? bhash)
+                (if (== hash bhash)
+                  (let [key-index (aget hopidx (+ (<< @bkt 2) 3))]
+                    (if (= k (aget keys key-index))
+                      key-index
+                      (do
+                        (increment-bkt)
+                        (recur (aget hopidx (+ (<< @bkt 2) 2))))))
+                  (do
+                    (increment-bkt)
+                    (recur (aget hopidx (+ (<< bkt 2) 2))))))))
           (do
             (reset! slot (+ 2 (<< bkt 2)))
             nil)))
      (let [i (.-count this)] ;new item
-       (aset hopidx @slot hash)
-       (aset hopidx (inc @slot) i)
+       (dbg "interning " k " hash " hash "at @slot " @slot ", k[i] at " (inc @slot))
+       (aset hopidx @slot hash) ; 884087478
+       (dbg "(aget hopidx @slot)" (aget hopidx @slot))
+       (aset hopidx (inc @slot) i) ;39
        (aset keys i k)
+       (dbg "(aget keys i)" (aget keys i) )
        (set! (.-count this) (inc (.-count this)))
        (when (== (.-count this) cap)
          (resize this))

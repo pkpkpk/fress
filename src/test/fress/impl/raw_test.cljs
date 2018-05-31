@@ -1,12 +1,7 @@
-(ns fress.raw-test
+(ns fress.impl.raw-test
   (:require [cljs.test :refer-macros [deftest is testing]]
             [fress.impl.raw-output :as rawOut]
             [fress.impl.raw-input :as rawIn]))
-
-;; need overflow behaviors
-;; read/write oob
-;; bad types
-;; adler parity
 
 (deftest rawBytes-test
   (testing "writeRawByte"
@@ -39,7 +34,7 @@
       (is (= 11 (rawOut/getByte out 2)))
       (is (= 11 (rawIn/readRawByte in)))
       (is (nil? (rawOut/getByte out 3)))
-      ; (is (nil? (rawIn/readRawByte in))) ;;?????/ supposed to use footer to stop?
+      ; (is (nil? (rawIn/readRawByte in))) need EOF solution for wasm
       (let [offset 3
             len 2]
         (rawOut/writeRawBytes out bytes offset len)

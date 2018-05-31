@@ -4,7 +4,7 @@
             [fress.impl.ranges :as ranges]
             [fress.impl.raw-output :as rawOut]
             [fress.impl.uuid :as uuid]
-            [fress.hopmap :as hop]))
+            [fress.impl.hopmap :as hop]))
 
 (defn log [& args]
   (.apply js/console.log js/console (into-array args)))

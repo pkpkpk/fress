@@ -13,37 +13,41 @@
           old-count (.-count hop)
           hash (hopmap/_hash value)
           mask (dec (.-cap hop))
-          bkt (bit-and hash mask)
-          ; _(log "bhash before: " (aget (.-hopidx hop) (<< bkt 2)))
-          idx (hopmap/intern hop value)
-          ; _(log "bhash after: " (aget (.-hopidx hop) (<< bkt 2)))
-          ; _(log "hop0" hop)
-          ]
-      (is= (.-count hop) 1)
-      (is= (aget (.-hopidx hop) 0) hash)
-      (is= (aget (.-hopidx hop) 1) old-count 0)
-      (is= (aget (.-keys hop) idx) value)
-      (testing "try to intern same value"
-        (let [idx2 (hopmap/intern hop value)]
-          (is= (.-count hop) 1)
-          (is= idx idx2))))))
+          bkt (bit-and hash mask)]
+      (is (zero? (aget (.-hopidx hop) (<< bkt 2))))
+      (let [idx (hopmap/intern hop value)]
+        (is= (.-count hop) 1)
+        (is (not (zero? (aget (.-hopidx hop) (<< bkt 2)))))
+        (is= (aget (.-hopidx hop) 0) hash)
+        (is= (aget (.-hopidx hop) 1) old-count 0)
+        (is= (aget (.-keys hop) idx) value)
+        (testing "try to intern same value"
+          (let [idx2 (hopmap/intern hop value)]
+            (is= (.-count hop) 1)
+            (is= idx idx2))))))
+  (let [hop (hopmap/hopmap 100)
+        v_38 "38"
+        i_38 (hopmap/intern hop v_38)
+        v_39 "39"
+        i_39 (hopmap/intern hop v_39)]
+    (is= i_38 (get hop v_38))
+    (is= i_39 (get hop v_39))))
 
-; (deftest hopmap-test
-;   (let [n 1
-;         stuff (array-list)
-;         _ (dotimes [i n]
-;             (.add stuff (str i)))
-;         start (js/performance.now)
-;         hop (hopmap/hopmap 100)
-;         ht (atom {})]
-;     (dotimes [i n]
-;       (let [_str (.get stuff i)]
-;         (hopmap/intern hop _str)
-;         (swap! ht assoc _str i)))
-;     (js/console.log hop)
-;     (dotimes [i n]
-;       (let [s (.get stuff i)]
-;         (assert (string? s))
-;         (is= i (get @ht s) (get hop s))))
-;
-;     (is= -1 (get hop "foobar"))))
+(deftest hopmap-test
+  (let [n 50
+        stuff (array-list)
+        _ (dotimes [i n]
+            (.add stuff (str i)))
+        hop (hopmap/hopmap 1024)
+        ht (atom {})]
+    (dotimes [i n]
+      (let [_str (.get stuff i)]
+        (binding [hopmap/*debug* (if (== i 39) true)]
+          (let [i (hopmap/intern hop _str)]
+            ; (log "_str:" _str "i:" i)
+            (is (= i (hopmap/intern hop _str))  "interning same value should return same index")))
+        (swap! ht assoc _str i)))
+    (dotimes [i n]
+     (let [s (.get stuff i)]
+       (is (=  i (get @ht s) (get hop s)) (str "i: " (pr-str i)))))
+    (is= -1 (get hop "foobar"))))

@@ -21,6 +21,12 @@
       42
       h)))
 
+(def ^:dynamic *debug* false)
+
+(defn dbg [& args]
+  (when *debug*
+    (apply log args)))
+
 (defn _get
   "@param k, non-null
    @return the integer associated with k, or -1 if not present"
@@ -28,27 +34,28 @@
   (assert (some? k))
   (let [hopidx (.-hopidx this)
         keys (.-keys this)
-        hsh (_hash k)
+        hash (_hash k)
         mask (dec (.-cap this))
-        bkt (bit-and hsh mask)
+        bkt (bit-and hash mask)
         bhash (aget hopidx (<< bkt 2))]
-    (assert (and (int? hsh) (int? mask) (int? bkt) (int? bhash)))
+    (assert (and (int? hash) (int? mask) (int? bkt) (int? bhash)))
     (or
       (and (not= 0 bhash)
         (let [bhash+1 (aget hopidx (inc (<< bkt 2)))
               bkey (aget keys bhash+1)]
-          (if (and (= hsh bhash) (= k bkey))
+          (if (and (= hash bhash) (= k bkey))
             bhash+1
-            (loop [bhash (aget hopidx (+ (<< bkt 2) 2))
-                   bkt (bit-and (inc bkt) mask)]
-              (when-not (zero? bhash)
-                (let [i (aget hopidx (+ (<< bkt 2) 3))
-                      bkey (aget keys i)]
-                  (if (and (= hsh bhash) (= bkey k))
-                    idx
-                    (recur
-                      (aget hopidx (+ (<< bkt 2) 2))
-                      (bit-and (inc bkt) mask)))))))))
+            (let [bkt (atom bkt)
+                  increment-bkt #(swap! bkt (fn [n] (bit-and (inc n) mask)))]
+              (loop [bhash (aget hopidx (+ (<< @bkt 2) 2))]
+                (when-not (zero? bhash)
+                  (let [key-index (aget hopidx (+ (<< @bkt 2) 3))
+                        bkey (aget keys key-index)]
+                    (if (and (= hash bhash) (= bkey k))
+                      (aget hopidx (+ (<< @bkt 2) 3))
+                      (do
+                        (increment-bkt)
+                        (recur (aget hopidx (+ (<< @bkt 2) 2))))))))))))
       -1)))
 
 (defn _clear [this]
@@ -129,12 +136,9 @@
             (reset! slot (+ 2 (<< bkt 2)))
             nil)))
      (let [i (.-count this)] ;new item
-       (dbg "interning " k " hash " hash "at @slot " @slot ", k[i] at " (inc @slot))
-       (aset hopidx @slot hash) ; 884087478
-       (dbg "(aget hopidx @slot)" (aget hopidx @slot))
-       (aset hopidx (inc @slot) i) ;39
+       (aset hopidx @slot hash)
+       (aset hopidx (inc @slot) i)
        (aset keys i k)
-       (dbg "(aget keys i)" (aget keys i) )
        (set! (.-count this) (inc (.-count this)))
        (when (== (.-count this) cap)
          (resize this))

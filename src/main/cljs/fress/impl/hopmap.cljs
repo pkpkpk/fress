@@ -166,10 +166,10 @@
 
 (defn _resize
   [this]
-  (let [oldhops (.-hopidx this)
-        _(set! (.-hopidx this) (i32-array (* 2 (alength oldhops))))
-        _(set! (.-cap this) (<< (.-cap this) 1))
-        _(set! (.-length (.-keys this)) (.-cap this))]
+  (let [oldhops (.-hopidx this)]
+    (set! (.-hopidx this) (i32-array (* 2 (alength oldhops))))
+    (set! (.-cap this) (<< (.-cap this) 1))
+    (set! (.-length (.-keys this)) (.-cap this))
     (loop [slot 0]
       (when (< slot (alength oldhops))
         (let [item (aget oldhops slot)

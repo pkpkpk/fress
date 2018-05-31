@@ -4,8 +4,6 @@
             [fress.util :as util :refer [isBigEndian]])
   (:import [goog.math Long]))
 
-(defn log [& args] (.apply js/console.log js/console (into-array args)))
-
 (defprotocol IRawInput
   (readRawByte [this])
   (readRawInt8 [this])
@@ -87,11 +85,9 @@
 
   (readRawByte ^number [this]
     (assert (and (int? bytesRead) (<= 0 bytesRead)))
-    (let [; val (.getInt8 (js/DataView. (.. memory -buffer)) bytesRead)
-          ; val (aget (js/Int8Array. (.. memory -buffer)) bytesRead)
-          ;; need to clamp somehow so we dont read past end of written
-          val (aget (js/Uint8Array. (.. memory -buffer)) bytesRead)]
-      (if (or (< val 0) (nil? val)) (throw (js/Error. "EOF"))) ;nil?
+     ;; wasm users need to use footer or write -1 to trigger EOF
+    (let [val (aget (js/Uint8Array. (.. memory -buffer)) bytesRead)]
+      (if (or (< val 0) (nil? val)) (throw (js/Error. "EOF")))
       (set! (.-bytesRead this) (inc bytesRead))
       (when checksum (adler/update! checksum val))
       val))
@@ -100,7 +96,7 @@
     (assert (<= 0 length))
     (assert (<= length (.-byteLength (.-buffer memory))))
     ;; need to clamp somehow so we dont read past end of written
-    ;; lost an arity here, give another look
+    ;; need arity to provides byte-array destination
     (let [bytes (js/Int8Array. (.-buffer memory) bytesRead length)]
       (set! (.-bytesRead this) (+ bytesRead length))
       (when checksum (adler/update! checksum bytes 0 length))
@@ -111,11 +107,11 @@
   (readRawInt16 ^number [this]
     (let [high (readRawByte this)
           low  (readRawByte this)]
-      (+ (bit-shift-left high 8) low)))
+      (+ (<< high 8) low)))
 
   (readRawInt24 ^number [this]
-    (+ (bit-shift-left (readRawByte this) 16)
-       (bit-shift-left (readRawByte this) 8)
+    (+ (<< (readRawByte this) 16)
+       (<< (readRawByte this) 8)
        (readRawByte this)))
 
   (readRawInt32 ^number [this] (.toNumber (readRawInt32L this)))

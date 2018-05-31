@@ -469,7 +469,7 @@
       (if (nil? handler)
         (TaggedObject. tag (readObjects- this fields))
         (handler this tag fields))))
-  (readObjects- ^Array [this ^number length] ;=> 'object[]'
+  (readObjects- ^array [this ^number length] ;=> 'object[]'
     (let [objects (make-array length)]
       (loop [i 0]
         (if-not (< i length)
@@ -520,7 +520,7 @@
           (do
             (rawIn/validateChecksum raw-in)
             (rawIn/reset raw-in)
-            (resetCaches- this)))))))
+            (resetCaches this)))))))
 
 
 
@@ -550,7 +550,7 @@
         (recur (inc i))))
     arr))
 
-(defn readLongArray [rdr _ _] ;=> regular Array<Number>
+(defn ^array readLongArray [rdr _ _] ;=> regular Array<Number>
   (let [length (readInt rdr)
         arr (make-array length)]
     (loop [i 0]
@@ -577,7 +577,7 @@
         (recur (inc i))))
     arr))
 
-(defn readObjectArray [rdr _ _] ;=> regular Array<Object>
+(defn ^array readObjectArray [rdr _ _] ;=> regular Array<Object>
   (let [length (readInt rdr)
         arr (make-array length)]
     (loop [i 0]
@@ -586,7 +586,7 @@
         (recur (inc i))))
     arr))
 
-(defn readBooleanArray [rdr _ _] ;=> regular Array<Boolean>
+(defn ^array readBooleanArray [rdr _ _] ;=> regular Array<Boolean>
   (let [length (readInt rdr)
         arr (make-array length)]
     (loop [i 0]
@@ -648,12 +648,10 @@
 ;; readAll => read until footer, return vec<readObject()>
 ;; readObject(rdr validate)
 
-(defn assert-valid-handlers [handlers]
-  (when handlers
-    (assert (and (map? handlers)
-                 (every? string? (keys handlers))
-                 (every? fn? (vals handlers)))
-            "handlers must be a Map<string,fn>")))
+(defn valid-handlers? [handlers]
+  (and (map? handlers)
+       (every? string? (keys handlers))
+       (every? fn? (vals handlers))))
 
 (defn reader
   [in & {:keys [handlers validateAdler? offset]
@@ -662,7 +660,7 @@
     (when (get opts :handler)
       (throw (js/Error. "reader needs `:handlers` , not `:handler`" ))))
   (assert (some? (.-buffer in)) "valid inputs need arraybuffer backing ie typed arrays or wasm memory")
-  (assert-valid-handlers handlers)
+  (when handlers (assert (valid-handlers? handlers)) "handlers must be a Map<string,fn>")
   (let [lookup (build-lookup (merge default-read-handlers handlers))
         raw-in (rawIn/raw-input in offset validateAdler?)
         seh (standardExtensionHandlers)]

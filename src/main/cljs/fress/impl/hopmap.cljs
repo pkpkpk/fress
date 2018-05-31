@@ -1,5 +1,8 @@
 (ns fress.impl.hopmap
-  (:require-macros [fress.macros :refer [<<]]))
+  (:require-macros [fress.macros :refer [<<]])
+  (:require [fress.util :refer [i32-array]]))
+
+(defn log [& args] (.apply js/console.log js/console (into-array args)))
 
 ; a hashmap that uses open-addressing,
 ; and the InterleavedIndexHopMap describes how to deal with collisions
@@ -12,7 +15,7 @@
   (resize [this])
   (findSlot [this hash]))
 
-(defn _hash [ k]
+(defn _hash [k]
   (let [h (hash k)]
     (if (zero? h) ; reserve 0 for no-entry
       42
@@ -81,46 +84,57 @@
   (let [hopidx (.-hopidx this)
         keys (.-keys this)
         cap (.-cap this)
-
         hash (_hash k)
         mask (dec cap)
         bkt (bit-and hash mask)
         bhash (aget hopidx (<< bkt 2))
-        _(assert (and (int? hash) (int? mask) (int? bkt) (int? bhash)))
+        _(assert (int? hash)  (str "hash should be an int, got" (pr-str hash)))
+        _(assert (int? mask)  (str "mask should be an int, got" (pr-str mask)))
+        _(assert (int? bkt)   (str "bkt should be an int, got" (pr-str bkt)))
+        _(assert (int? bhash) (str "bhash should be an int, got" (pr-str bhash)))
         slot (atom 0)
-        _(set-validator! slot int?)
-        bkey (atom nil)]
-    (if (zero? bhash)
-      (reset! slot (<< bkt 2))
-      (or
-        (and (== hash bhash)
-          (let [item (aget hopidx (inc (<< bkt 2)))]
-            (reset! bkey (aget keys item))
-            (when (== k @bkey)
-              item)))
-        (loop [bhash (aget hopidx (+ (<< bkt 2) 2))
-               bkt (bit-and (inc bkt) mask)]
-          (when-not (zero? bhash)
-            (if (== hash bhash)
-              (let [idx (aget hopidx (+ (<< bkt 2) 3))]
-                (reset! bkey (aget keys idx))
-                (if (== k @bkey)
-                  idx
-                  (recur
-                    (aget hopidx (+ (<< bkt 2) 2))
-                    (bit-and (inc bkt) mask))))
-              (recur
-                (aget hopidx (+ (<< bkt 2) 2))
-                (bit-and (inc bkt) mask)))))
-        (do
-          (reset! slot (+ 2 (<< bkt 2)))
-          (let [i (.-count this)]
-            (aset hopidx @slot hash)
-            (aset hopidx (inc @slot) i)
-            (aset keys i k)
-            (when (== (.-count this) cap)
-              (resize this))
-            i))))))
+        _(set-validator! slot int?)]
+    (when (zero? bhash) ; not found hopidx lookup
+      (reset! slot (<< bkt 2)))
+    (or
+      (when-not (zero? bhash) ; found value at (aget hopidx (<< bkt 2))
+        (or
+          ;; if hash is identical && stored object is identical
+          ;; return key-index of (already) interned object
+          (and (== hash bhash)
+            (let [key-index (aget hopidx (inc (<< bkt 2)))]
+              (when (= k (aget keys key-index))
+                key-index)))
+
+          ;; theres is an item found at (aget hopidx (<< bkt 2)) but either:
+          ;;   - the hash stored at hopidx[(<< bkt 2)] is not identical to k's hash
+          ;;   - the hash is identical but the object is not
+          ;; so we shift (bit-and hash mask) until zero, looking up the stored
+          ;; object for each to see if we already have interned it
+          (loop [bhash (aget hopidx (+ (<< bkt 2) 2))
+                 bkt (bit-and (inc bkt) mask)]
+            (when-not (zero? bhash)
+              (if (== hash bhash)
+                (let [key-index (aget hopidx (+ (<< bkt 2) 3))]
+                  (if (= k (aget keys key-index))
+                    key-index
+                    (recur
+                      (aget hopidx (+ (<< bkt 2) 2))
+                      (bit-and (inc bkt) mask))))
+                (recur
+                  (aget hopidx (+ (<< bkt 2) 2))
+                  (bit-and (inc bkt) mask)))))
+          (do
+            (reset! slot (+ 2 (<< bkt 2)))
+            nil)))
+     (let [i (.-count this)] ;new item
+       (aset hopidx @slot hash)
+       (aset hopidx (inc @slot) i)
+       (aset keys i k)
+       (set! (.-count this) (inc (.-count this)))
+       (when (== (.-count this) cap)
+         (resize this))
+       i))))
 
 
 (defn ^number _findSlot
@@ -149,15 +163,15 @@
 (defn _resize
   [this]
   (let [oldhops (.-hopidx this)
-        _(set! (.-hopidx this) (make-array (* 2 (alength oldhops))))
+        _(set! (.-hopidx this) (i32-array (* 2 (alength oldhops))))
         _(set! (.-cap this) (<< (.-cap this) 1))
         _(set! (.-length (.-keys this)) (.-cap this))]
     (loop [slot 0]
       (when (< slot (alength oldhops))
         (let [item (aget oldhops slot)
               new-slot (findSlot this item)]
-          (aset hopidx new-slot item)
-          (aset hopidx (inc new-slot) (aget oldhops (inc slot)))
+          (aset (.-hopidx this) new-slot item)
+          (aset (.-hopidx this) (inc new-slot) (aget oldhops (inc slot)))
           (recur (+ 2 slot)))))))
 
 ; cap => int
@@ -183,6 +197,6 @@
          _ (while (< @cap capacity)
              (swap! cap #(<< % 1)))
          cap @cap
-         hopidx (make-array (<< cap 2)) ;; [hash, idx of key, collision hash, collision idx, ...]
+         hopidx (i32-array (<< cap 2)) ;; [hash, idx of key, collision hash, collision idx, ...]
          keys (make-array cap)]
      (InterleavedIndexHopMap. cap hopidx keys 0))))

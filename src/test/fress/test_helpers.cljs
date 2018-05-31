@@ -4,6 +4,7 @@
   (:require [cljs.test :as test :refer-macros [deftest is testing async]]
             [cljs-node-io.core :as io :refer [slurp spit]]
             [cljs.tools.reader :refer [read-string]]
+            [fress.impl.raw-input :as rawIn]
             [fress.util :as util]))
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
@@ -81,6 +82,19 @@
 (defn byteseq [wrt]
   (-> (js/Int8Array. (.. wrt -raw-out -memory -buffer) 0 (.. wrt -raw-out -bytesWritten))
     array-seq))
+
+(defn rawbyteseq [rdr]
+  (let [raw (.-raw-in rdr)
+        acc #js[]]
+    (loop []
+      (let [byte (try (rawIn/readRawByte raw)
+                   (catch js/Error EOF
+                     false))]
+        (if-not byte
+          (vec acc)
+          (do
+            (.push acc byte)
+            (recur)))))))
 
 (def ^:dynamic *eps* 0.00001)
 

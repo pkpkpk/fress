@@ -13,20 +13,9 @@
             [fress.reader :as r]
             [fress.samples :as samples]
             [fress.util :refer [byte-array] :as util]
-            [fress.test-helpers  :refer [log is= byteseq overflow precision= float=]]))
+            [fress.test-helpers :refer [log is= byteseq rawbyteseq overflow precision= float=]]))
 
-(defn rawbyteseq [rdr]
-  (let [raw (.-raw-in rdr)
-        acc #js[]]
-    (loop []
-      (let [byte (rawIn/readRawByte raw)]
-        (if-not byte
-          (vec acc)
-          (do
-            (.push acc byte)
-            (recur)))))))
-
-#_(deftest readInt-test
+(deftest readInt-test
   (testing "readRawInt40"
     (let [{:keys [form bytes value rawbytes]} {:form "(long -549755813887)"
                                                :value -549755813887
@@ -63,12 +52,12 @@
                                                :rawbytes [248 0 31 255 255 255 255 255 255]}
           rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
-      (when rawbytes
-        (is= rawbytes (rawbyteseq rdr))
-        (rawIn/reset (:raw-in rdr)))
-      (is= 248 (rawIn/readRawByte raw))
-      (let [i64 (rawIn/readRawInt64 raw)]
-        (is= i64 9007199254740991 (.toNumber (goog.math.Long.fromNumber i64))))
+      (is= rawbytes (rawbyteseq rdr))
+      (rawIn/reset (:raw-in rdr))
+      (testing "by component"
+        (is= 248 (r/readNextCode rdr) codes/INT)
+        (let [i64 (rawIn/readRawInt64 raw)]
+          (is= i64 9007199254740991 (.toNumber (goog.math.Long.fromNumber i64)))))
       (rawIn/reset (:raw-in rdr))
       (is= value (r/readInt rdr))
       (rawIn/reset (:raw-in rdr))
@@ -95,7 +84,7 @@
               (rawIn/reset (:raw-in rdr))
               (is= value (r/readObject rdr)))))))))
 
-#_(deftest read-floats-test
+(deftest read-floats-test
   (testing "Float/MAX_VALUE"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "Float/MAX_VALUE",
                                                       :value 3.4028235E38,
@@ -122,7 +111,7 @@
           (rawIn/reset raw)
           (is (float= value (r/readObject rdr))))))))
 
-#_(deftest read-double-test
+(deftest read-double-test
   (testing "Double/MAX_VALUE"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "Double/MAX_VALUE",
                                                       :value 1.7976931348623157E308
@@ -144,7 +133,7 @@
           (rawIn/reset raw)
           (is (float= value (r/readDouble rdr))))))))
 
-#_(deftest bytes-test
+(deftest bytes-test
   (testing "packed bytes"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "(byte-array [-1 -2 -3 0 1 2 3])"
                                                       :bytes [-41 -1 -2 -3 0 1 2 3]
@@ -183,7 +172,7 @@
       (rawIn/reset raw)
       (is= (byte-array input) (r/readObject rdr)))))
 
-#_(deftest string-test
+(deftest string-test
   (testing "packed string"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "\"hola\"",
                                                       :bytes [-34 104 111 108 97],
@@ -234,7 +223,7 @@
       (rawIn/reset raw)
       (is= value (r/readObject rdr)))))
 
-#_(deftest utf8-type-test
+(deftest utf8-type-test
   (doseq [{:keys [form bytes value rawbytes throw?]} samples/utf8-samples]
     (let [rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
@@ -271,7 +260,7 @@
 (defn utf8+code-benchmark [] (utf8-benchmark utf8+code-sample n))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#_(deftest inst-test
+(deftest inst-test
   (doseq [{:keys [form bytes value rawbytes throw?]} samples/inst-samples]
     (let [rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
@@ -279,7 +268,7 @@
       (rawIn/reset raw)
       (is= value (r/readObject rdr)))))
 
-#_(deftest uuid-test
+(deftest uuid-test
   (doseq [{:keys [form bytes value rawbytes throw?]} samples/uuid-samples]
     (let [rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
@@ -287,7 +276,7 @@
       (rawIn/reset raw)
       (is= value (r/readObject rdr)))))
 
-#_(deftest misc-types
+(deftest misc-types
   (doseq [{:keys [form bytes value rawbytes throw?]} samples/misc-samples]
     (let [rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
@@ -303,7 +292,7 @@
    'object-array into-array
    'long-array into-array})
 
-#_(deftest typed-array-test
+(deftest typed-array-test
   (doseq [{:keys [form bytes input rawbytes throw?]} samples/typed-array-samples]
     (let [rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)
@@ -312,7 +301,7 @@
       (rawIn/reset raw)
       (is= value (r/readObject rdr)))))
 
-#_(deftest footer-test
+(deftest footer-test
   (doseq [{:keys [form bytes input rawbytes throw? footer value]} samples/footer-samples]
     (testing form
       (let [rdr (r/reader (byte-array bytes) :validateAdler? true)
@@ -336,7 +325,7 @@
 (defn readPerson [rdr tag fields]
   (Person. (r/readObject rdr) (r/readObject rdr)))
 
-#_(deftest read-person-test
+(deftest read-person-test
   (let [bytes [-17 -29 28 111 114 103 46 102 114 101 115 115 105 97 110 46 69 120 97 109 112 108 101 115 46 80 101 114 115 111 110 2 -33 106 111 110 110 121 -29 9 103 114 101 101 110 119 111 111 100 -96 -34 116 104 111 109 -33 121 111 114 107 101]
         tag "org.fressian.Examples.Person"]
     (testing "reading without handler"

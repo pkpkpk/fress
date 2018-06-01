@@ -21,7 +21,10 @@
 
 (extend-type js/Int8Array
   IEquiv
-  (-equiv [a b] (= (array-seq a) (array-seq b)))
+  (-equiv [a b]
+          (if (goog.isArrayLike b)
+            (= (array-seq a) (array-seq b))
+            (= (array-seq a (seq b)))))
   IIndexed
   (-nth
    ([arr n]

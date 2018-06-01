@@ -112,7 +112,7 @@
 
   (room? ^boolean [this length]
     (let [free (getFreeCapacity this)]
-      (< length free)))
+      (<= length free)))
 
   (grow [this bytes-needed]
     (let [pages-needed (js/Math.ceil (/ bytes-needed 65535))]

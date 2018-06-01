@@ -1,67 +1,54 @@
 (ns fress.impl.raw-output
   (:require-macros [fress.macros :refer [>>>]])
   (:require [fress.impl.adler32 :as adler]
-            [fress.util :refer [isBigEndian]]
+            [fress.util :refer [isBigEndian log dbg]]
+            [fress.impl.buffer :as buf]
+            [fress.impl.adler32 :as adler]
             [goog.string :as gstring]))
 
 (defprotocol IRawOutput
-  (getByte [this index] "returns nil on oob")
-  (getMemory [this])
-  (notifyBytesWritten [this ^int count])
+  (getByte [this index])
   (getBytesWritten [this])
-  (writeRawByte [this b] "pub")
-  (writeRawBytes [this bs off len])
+  (writeRawByte [this b])
+  (writeRawBytes
+   [this bytes]
+   [this bs off len])
   (writeRawInt16 [this i])
   (writeRawInt24 [this i])
   (writeRawInt32 [this i])
   (writeRawInt40 [this i])
   (writeRawInt48 [this i])
   (writeRawInt64 [this i])
-
   (writeRawFloat [this i])
   (writeRawDouble [this i])
   (getChecksum [this])
   (reset [this]))
 
-(deftype RawOutput [memory ^number bytesWritten checksum]
+(deftype RawOutput [out checksum]
   IRawOutput
   (getChecksum [this] (adler/get-value checksum))
 
   (reset [this]
-    (set! (.-bytesWritten this) 0)
+    (buf/reset out)
     (adler/reset checksum))
 
-  (getByte [this ^number index] ;?int
-    (assert (and (int? index) (<= 0 index)))
-    (when (< index bytesWritten)
-      ; (let [view (js/DataView. (.. memory -buffer))]
-      ;   (.getInt8 view index))
-      (aget (js/Int8Array. (.. memory -buffer)) index)))
+  (getByte [this ^number index] (buf/getByte out index))
 
-  (getMemory [this] memory)
+  (getBytesWritten ^number [this] (buf/getBytesWritten out))
 
-  (getBytesWritten ^number [this] bytesWritten)
+  (writeRawByte [this byte]
+    (buf/writeByte out byte)
+    (adler/update! checksum byte))
 
-  (notifyBytesWritten [this ^number n]
-    (assert (int? n) "written byte count must be an int")
-    (set! (.-bytesWritten this) (+ n bytesWritten)))
+  (writeRawBytes [this bytes]
+    (buf/writeBytes out bytes)
+    (adler/update! checksum bytes 0 (alength bytes)))
 
-  (writeRawByte [this ^number byte]; packing ints requires letting some bytes roll
-    (when (< (.. memory -buffer -byteLength) (+ bytesWritten len))
-      (.grow memory 1))
-    (aset (js/Int8Array. (.. memory -buffer)) bytesWritten byte)
-    (adler/update! checksum byte)
-    (notifyBytesWritten this 1))
+  (writeRawBytes [this bytes offset length]
+    (buf/writeBytes out bytes offset length)
+    (adler/update! checksum bytes offset length))
 
-  (writeRawBytes [this bytes offset len]
-    (when (< (.. memory -buffer -byteLength) (+ bytesWritten len))
-      (let [byte-diff (- (+ bytesWritten len) (.. memory -buffer -byteLength))
-            pages-needed (js/Math.ceil (/ byte-diff 65535))]
-        (.grow memory pages-needed)))
-    (let [i8array (js/Int8Array. (.. memory  -buffer))]
-      (.set i8array (.subarray bytes offset (+ offset len)) bytesWritten)
-      (adler/update! checksum bytes offset len)
-      (notifyBytesWritten this len)))
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
   (writeRawInt16 [this i]
     (writeRawByte this (bit-and (>>> i 8) 0xFF))
@@ -123,8 +110,17 @@
           (writeRawBytes this bytes 0 (alength bytes))
           (writeRawBytes this (.reverse bytes) 0 (alength bytes)))))))
 
-(defn raw-output []
-  (let [memory (js/WebAssembly.Memory. #js{:initial 1})
-        bytesWritten 0]
-    (RawOutput. memory bytesWritten (adler/adler32))))
+(defn raw-output
+  ([](raw-output nil ))
+  ([out] (raw-output out 0))
+  ([out offset]
+   (let [
+          ; out (if (nil? out)
+          ;      (buf/writable-buffer)
+          ;      (if (implements? buf/IWritableBuffer out)
+          ;        out
+          ;        (buf/writable-buffer out offset)))
+         out (buf/writable-buffer out offset)
+         checksum (adler/adler32)]
+     (RawOutput. out checksum))))
 

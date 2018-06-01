@@ -598,7 +598,6 @@
 (defn readUUID [rdr _ _]
   (let [bytes (readObject rdr)]
     (assert (= (alength bytes) 16) (str "invalid UUID buffer size:" (alength bytes)))
-    (log "bytes:" bytes)
     (uuid/bytes->uuid bytes)))
 
 (defn readRegex [rdr _ _]

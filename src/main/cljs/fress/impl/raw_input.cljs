@@ -1,7 +1,8 @@
 (ns fress.impl.raw-input
   (:require-macros [fress.macros :refer [<< >>>]])
   (:require [fress.impl.adler32 :as adler]
-            [fress.util :as util :refer [isBigEndian]])
+            [fress.impl.buffer :as buf]
+            [fress.util :as util :refer [isBigEndian log dbg]])
   (:import [goog.math Long]))
 
 (defprotocol IRawInput
@@ -79,28 +80,26 @@
           (.or (.shiftLeft g 8))
           (.or h)))))
 
-(defrecord RawInput [memory bytesRead checksum]
+(defrecord RawInput [in checksum]
   IRawInput
-  (getBytesRead ^number [this] bytesRead)
+  (getBytesRead ^number [this] (buf/getBytesRead in))
 
-  (readRawByte ^number [this]
-    (assert (and (int? bytesRead) (<= 0 bytesRead)))
-     ;; wasm users need to use footer or write -1 to trigger EOF
-    (let [val (aget (js/Uint8Array. (.. memory -buffer)) bytesRead)]
-      (if (or (< val 0) (nil? val)) (throw (js/Error. "EOF")))
-      (set! (.-bytesRead this) (inc bytesRead))
-      (when checksum (adler/update! checksum val))
-      val))
+  (readRawByte [this]
+    (let [byte (buf/readUnsignedByte in)]
+      (when checksum (adler/update! checksum byte))
+      byte))
 
-  (readFully [this length]
-    (assert (<= 0 length))
-    (assert (<= length (.-byteLength (.-buffer memory))))
+  (readFully [this length] ;=> signed-byte-array
     ;; need to clamp somehow so we dont read past end of written
     ;; need arity to provides byte-array destination
-    (let [bytes (js/Int8Array. (.-buffer memory) bytesRead length)]
-      (set! (.-bytesRead this) (+ bytesRead length))
+    (let [bytes (buf/readSignedBytes in length)]
       (when checksum (adler/update! checksum bytes 0 length))
       bytes))
+
+  (reset [this]
+    (buf/reset in)
+    (when checksum (adler/reset checksum)))
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
   (readRawInt8 ^number [this] (readRawByte this))
 
@@ -136,11 +135,6 @@
           (aset bytes i (readRawByte this))))
       (aget (js/Float64Array. (.-buffer bytes)) 0)))
 
-  (reset [this]
-    (set! (.-bytesRead this) 0)
-    (when checksum
-      (adler/reset checksum)))
-
   (validateChecksum [this]
     (if (nil? checksum)
       (readRawInt32 this)
@@ -151,7 +145,9 @@
             (js/Error. "Invalid footer checksum, expected " calculatedChecksum" got " receivedChecksum)))))))
 
 (defn raw-input
-  ([memory](raw-input memory 0))
-  ([memory start-index](raw-input memory start-index true))
-  ([memory ^number start-index ^boolean validateAdler]
-   (RawInput. memory start-index (if validateAdler (adler/adler32)))))
+  ([in](raw-input in 0))
+  ([in start-index](raw-input in start-index true))
+  ([in ^number start-index ^boolean validateAdler]
+   ; (assert (some? (.-buffer in)))
+   (let [in (buf/readable-buffer in start-index)]
+     (RawInput. in (if validateAdler (adler/adler32))))))

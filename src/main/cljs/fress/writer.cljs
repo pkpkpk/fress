@@ -58,8 +58,11 @@
   (writeBytes ^FressianWriter [this bs] [this bs offset length])
   ; (writeFooterFor [this byteBuffer])
   (writeFooter ^FressianWriter [this])
+  (close [this] "public")
+
   (clearCaches [this])
   (resetCaches ^FressianWriter [this]"public")
+
   (getPriorityCache ^InterleavedIndexHopMap [this]"public")
   (getStructCache ^InterleavedIndexHopMap [this]"public")
   (writeTag ^FressianWriter [this tag componentCount] "public")
@@ -70,7 +73,6 @@
   (writeAs ^FressianWriter [this tag o] [this tag o cache?] "public")
   (writeObject ^FressianWriter [this o] [this o cache?] "public")
   (writeCode [this code] "public")
-  (close [this] "public")
   (beginOpenList ^FressianWriter [this] "public")
   (beginClosedList ^FressianWriter [this] "public")
   (endList ^FressianWriter [this] "public")
@@ -85,49 +87,46 @@
   (let [s (bit-switch n)
         raw (.-raw-out wtr)]
     (cond
-      (<=  1 s 14)
-      (do
-        (writeCode wtr codes/INT)
-        (rawOut/writeRawInt64 raw n))
-
-      (<= 15 s 22)
-      (do
-        (rawOut/writeRawByte raw (+ codes/INT_PACKED_7_ZERO (>>> n 48)))
-        (rawOut/writeRawInt48 raw n))
-
-      (<= 23 s 30)
-      (do
-        (rawOut/writeRawByte raw (+ codes/INT_PACKED_6_ZERO (>>> n 40)))
-        (rawOut/writeRawInt40 raw n))
-
-      (<= 31 s 38)
-      (do
-        (rawOut/writeRawByte raw (+ codes/INT_PACKED_5_ZERO (>>> n 32))) ;;;; revisit
-        (rawOut/writeRawInt32 raw n))
-
-      (<= 39 s 44)
-      (do
-        (rawOut/writeRawByte raw (+ codes/INT_PACKED_4_ZERO (>>> n 24)))
-        (rawOut/writeRawInt24 raw n))
-
-      (<= 45 s 51)
-      (do
-        (rawOut/writeRawByte raw (+ codes/INT_PACKED_3_ZERO (>>> n 16)))
-        (rawOut/writeRawInt16 raw n))
-
-      (<= 52 s 57)
-      (do
-        (rawOut/writeRawByte raw (+ codes/INT_PACKED_2_ZERO (>>> n 8)))
-        (rawOut/writeRawByte raw n))
-
       (<= 58 s 64)
       (do
         (when (< n -1)
           (rawOut/writeRawByte raw (+ codes/INT_PACKED_2_ZERO (>>> n 8))))
         (rawOut/writeRawByte raw n))
 
-      :default
-      (throw (js/Error. "more than 64 bits in a long!")))))
+      (<= 52 s 57)
+      (do
+        (rawOut/writeRawByte raw (+ codes/INT_PACKED_2_ZERO (>>> n 8)))
+        (rawOut/writeRawByte raw n))
+
+      (<= 45 s 51)
+      (do
+        (rawOut/writeRawByte raw (+ codes/INT_PACKED_3_ZERO (>>> n 16)))
+        (rawOut/writeRawInt16 raw n))
+
+      (<= 39 s 44)
+      (do
+        (rawOut/writeRawByte raw (+ codes/INT_PACKED_4_ZERO (>>> n 24)))
+        (rawOut/writeRawInt24 raw n))
+
+      (<= 31 s 38)
+      (do
+        (rawOut/writeRawByte raw (+ codes/INT_PACKED_5_ZERO (>>> n 32)))
+        (rawOut/writeRawInt32 raw n))
+
+      (<= 23 s 30)
+      (do
+        (rawOut/writeRawByte raw (+ codes/INT_PACKED_6_ZERO (>>> n 40)))
+        (rawOut/writeRawInt40 raw n))
+
+      (<= 15 s 22)
+      (do
+        (rawOut/writeRawByte raw (+ codes/INT_PACKED_7_ZERO (>>> n 48)))
+        (rawOut/writeRawInt48 raw n))
+
+      :else
+      (do
+        (writeCode wtr codes/INT)
+        (rawOut/writeRawInt64 raw n)))))
 
 (defn internalWriteFooter [wrt ^number length]
   (let [raw-out (.-raw-out wrt)]
@@ -136,10 +135,9 @@
     (rawOut/writeRawInt32 raw-out (rawOut/getChecksum raw-out))
     (rawOut/reset raw-out)))
 
-(def TextEncoder (js/TextEncoder.))
-(def ^:dynamic *chunk-strings?* true)
+; (def ^:dynamic *chunk-strings?* true)
 
-(defrecord FressianWriter [out raw-out priorityCache structCache sb ^fn lookup]
+(deftype FressianWriter [out raw-out priorityCache structCache ^fn lookup]
   IFressianWriter
   (getByte [this index] (rawOut/getByte raw-out index))
 
@@ -227,18 +225,18 @@
        (when (< string-pos (count s))
          (recur (buffer-string-chunk-utf8 s string-pos string-buffer))))))
 
-  (writeStringNoChunk- [this ^string s]
-    (assert (string? s))
-    ; breaking from fressian because we can use native TextEncoder to remove
-    ; some dirty work, also chunking is pointless for WASM
-    (let [bytes (.encode TextEncoder s)
-          length (.-byteLength bytes)]
-      ; may need unique code here, breaking std fressian behavior
-      ; need to test if jvm can still read this
-      (writeCode this codes/STRING)
-      (writeCount this length)
-      (rawOut/writeRawBytes raw-out bytes 0 length))
-    this)
+  ; (writeStringNoChunk- [this ^string s]
+  ;   (assert (string? s))
+  ;   ; breaking from fressian because we can use native TextEncoder to remove
+  ;   ; some dirty work, also chunking is pointless for WASM
+  ;   (let [bytes (.encode TextEncoder s)
+  ;         length (.-byteLength bytes)]
+  ;     ; may need unique code here, breaking std fressian behavior
+  ;     ; need to test if jvm can still read this
+  ;     (writeCode this codes/STRING)
+  ;     (writeCount this length)
+  ;     (rawOut/writeRawBytes raw-out bytes 0 length))
+  ;   this)
 
   (writeString [this s]
     (if *chunk-strings?*
@@ -479,16 +477,12 @@
         (get handlers tag)
         (get handlers (type obj))))))
 
-(defn Writer
+(defn writer
   "Create a writer that combines userHandlers with the normal type handlers
    built into Fressian."
-  ([](Writer nil nil))
-  ([handlers](Writer nil handlers))
-  ([out handlers]
-   (let [lookup-fn (build-handler-lookup handlers)
-         raw-out (rawOut/raw-output)
-         priorityCache (hop/hopmap)
-         out nil
-         structCache nil
-         stringBuffer nil]
-     (FressianWriter. out raw-out priorityCache structCache stringBuffer lookup-fn))))
+  [out & {:keys [handlers]}]
+  (let [lookup-fn (build-handler-lookup handlers)
+        raw-out (rawOut/raw-output out)
+        priorityCache (hop/hopmap 16)
+        structCache (hop/hopmap 16)]
+    (FressianWriter. out raw-out priorityCache structCache lookup-fn)))

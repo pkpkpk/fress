@@ -5,20 +5,87 @@
             [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
             [fress.writer :as w]
-            [fress.util :as util]
+            [fress.util :as util :refer [byte-array]]
+            [fress.samples :as samples]
             [fress.test-helpers :as helpers :refer [log is= byteseq overflow]]))
 
-(deftest writeBytes-test
-  (testing "(< length ranges/BYTES_PACKED_LENGTH_END)"
+(deftest integer-test
+  (testing "write i16"
+    (let [{:keys [form bytes value rawbytes throw?]} {:form "Short/MIN_VALUE", :value -32768 :bytes [103 -128 0] :rawbytes [103 128 0]}
+          out (byte-array (count bytes))
+          wrt (w/writer out)]
+      (w/writeInt wrt value)
+      (is= out bytes)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (is= out bytes)))
+  (testing "write i32"
+    (let [{:keys [form bytes value rawbytes throw?]} {:form "Integer/MIN_VALUE", :value -2147483648, :bytes [117 -128 0 0 0], :rawbytes [117 128 0 0 0]}
+          out (byte-array (count bytes))
+          wrt (w/writer out)]
+      (w/writeInt wrt value)
+      (is= out bytes)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (is= out bytes)))
+  (testing "write i40"
+    (let [{:keys [form bytes value rawbytes throw?]} {:form "(long -549755813887)", :value -549755813887, :bytes [121 -128 0 0 0 1], :rawbytes [121 128 0 0 0 1]}
+          out (byte-array (count bytes))
+          wrt (w/writer out)]
+      (w/writeInt wrt value)
+      (is= out bytes)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (is= out bytes)))
+  (testing "write i48"
+    (let [{:keys [form bytes value rawbytes throw?]} {:form "(long 1.4073749E14)", :value 140737490000000, :bytes [126 -128 0 0 25 24 -128], :rawbytes [126 128 0 0 25 24 128]}
+          out (byte-array (count bytes))
+          wrt (w/writer out)]
+      (w/writeInt wrt value)
+      (is= out bytes)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (is= out bytes)))
+  (testing "write i64"
+    (let [{:keys [form bytes value rawbytes throw?]} {:form "(long -9007199254740991)", :value -9007199254740991, :bytes [-8 -1 -32 0 0 0 0 0 1],  :rawbytes [248 255 224 0 0 0 0 0 1] :throw? false}
+          out (byte-array (count bytes))
+          wrt (w/writer out)]
+      (w/writeInt wrt value)
+      (is= out bytes)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (is= out bytes)))
+  (testing "unsafe. this shouldn't work  but it does"
+    (let [{:keys [form bytes value rawbytes throw?]} {:form "Long/MAX_VALUE", :value 9223372036854775807,  :bytes [-8 127 -1 -1 -1 -1 -1 -1 -1], :rawbytes [248 127 255 255 255 255 255 255 255] :throw? true}
+          out (byte-array (count bytes))
+          wrt (w/writer out)]
+      (w/writeInt wrt value)
+      (is= out bytes)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (is= out bytes)))
+  (testing "int sampes"
+    (doseq [{:keys [form bytes value rawbytes throw?]} samples/int-samples]
+      (testing form
+        (let [out (byte-array (count bytes))
+              wrt (w/writer out)]
+          (w/writeInt wrt value)
+          (is= out bytes)
+          (rawOut/reset (.-raw-out wrt))
+          (w/writeObject wrt value)
+          (is= out bytes))))))
+
+#_(deftest writeBytes-test
+  #_(testing "(< length ranges/BYTES_PACKED_LENGTH_END)"
     (let [nums (range 0 6)
           bytes (js/Int8Array. (into-array nums))
           wrtr (w/Writer nil {})]
       (is (< (.-byteLength bytes) ranges/BYTES_PACKED_LENGTH_END))
       (w/writeBytes wrtr bytes)
       (is= -42 (w/getByte wrtr 0) (overflow (+ (.-byteLength bytes) codes/BYTES_PACKED_LENGTH_START)))
-      (doseq [n nums]
+      #_(doseq [n nums]
         (is= n (w/getByte wrtr (inc n))))))
-  (testing "ranges/BYTES_PACKED_LENGTH_END < length < ranges/BYTE_CHUNK_SIZE"
+  #_(testing "ranges/BYTES_PACKED_LENGTH_END < length < ranges/BYTE_CHUNK_SIZE"
     (let [nums (range 0 15)
           bytes (js/Int8Array. (into-array nums))
           wrtr (w/Writer nil {})]
@@ -28,7 +95,7 @@
       (is= (w/getByte wrtr 1) (alength bytes))
       (doseq [n nums]
         (is= n (w/getByte wrtr (+ 2 n))))))
-  (testing "ranges/BYTES_PACKED_LENGTH_END < ranges/BYTE_CHUNK_SIZE < length"
+  #_(testing "ranges/BYTES_PACKED_LENGTH_END < ranges/BYTE_CHUNK_SIZE < length"
     (let [n 65537
           chunks (js/Math.floor (/ n ranges/BYTE_CHUNK_SIZE))
           remainder (mod n ranges/BYTE_CHUNK_SIZE)
@@ -55,37 +122,9 @@
         (is= (w/getByte wrtr (+ 6 ranges/BYTE_CHUNK_SIZE)) 99)
         (is= (w/getByte wrtr (+ 7 ranges/BYTE_CHUNK_SIZE)) 99)))))
 
-(deftest writeInt-test
-  (let [wrt (w/Writer nil {})
-        n 300]
-    (w/writeInt wrt n)
-    (is= 81 (w/getByte wrt 0) (+ codes/INT_PACKED_2_ZERO (>>> n 8)))
-    (is= 44 (w/getByte wrt 1) ))
-  (let [wrt (w/Writer nil {})
-        n 3000]
-    (w/writeInt wrt n)
-    (is= 91 (w/getByte wrt 0) (+ codes/INT_PACKED_2_ZERO (>>> n 8)))
-    (is= -72 (w/getByte wrt 1)))
-  (let [wrt (w/Writer nil {})
-        n -300]
-    (w/writeInt wrt n)
-    (is= 78 (w/getByte wrt 0))
-    (is= -44 (w/getByte wrt 1)))
-  (let [wrt (w/Writer nil {})
-        n -3000]
-    (w/writeInt wrt n)
-    (is= 68 (w/getByte wrt 0))
-    (is= 72 (w/getByte wrt 1)))
-  (let [wrt (w/Writer nil {})
-        n -300000]
-    (w/writeInt wrt n)
-    (is= 99  (w/getByte wrt 0))
-    (is= 108 (w/getByte wrt 1))
-    (is= 32  (w/getByte wrt 2))))
-
 (defn getBuf [wrt] (.. wrt -raw-out -memory -buffer))
 
-(deftest writeString-test
+#_(deftest writeString-test
   (testing "small string, count fits in byte"
     (let [wrt (w/Writer nil {})
           s "hello world"
@@ -107,7 +146,7 @@
       (let [tail (js/Uint8Array. (getBuf wrt) 3 (alength bytes))]
         (is= s (.decode util/TextDecoder tail))))))
 
-(deftest float-test
+#_(deftest float-test
   (testing "writeFloat"
     (let [wrt (w/Writer nil {})
           f -99]
@@ -121,7 +160,7 @@
       (is= -6 (w/getByte wrt 0) (overflow codes/DOUBLE))
       (is= (byteseq wrt) [-6 -64 88 -64 0 0 0 0 0]))))
 
-(deftest writeList-test
+#_(deftest writeList-test
   (let [wrt (w/Writer nil {})
         lst []]
     (w/writeList wrt lst)
@@ -157,7 +196,7 @@
     (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
     (is= (byteseq wrt) '(-26 -33 104 101 108 108 111 -33 119 111 114 108 100))))
 
-(deftest writeMap-test
+#_(deftest writeMap-test
   (testing "map count bug"
     (let [wrt (w/Writer)
           tag "map"
@@ -184,7 +223,7 @@
           (is= (byteseq wrt) control))))))
 
 
-(deftest named-test
+#_(deftest named-test
   (let [wrt (w/Writer)
         o :keyword]
     (w/writeObject wrt o)
@@ -195,7 +234,7 @@
     (is= (byteseq wrt) '(-54 -33 110 97 109 101 100 -31 107 101 121 119 111 114 100))))
 
 
-(deftest misc-types-test
+#_(deftest misc-types-test
   (testing "inst"
     (let [wrt (w/Writer)
           t 1527080360072

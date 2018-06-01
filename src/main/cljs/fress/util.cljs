@@ -1,5 +1,14 @@
 (ns fress.util)
 
+(defn log [& args] (.apply js/console.log js/console (into-array args)))
+
+(def ^:dynamic *debug* false)
+
+(defn dbg [& args]
+  (when ^boolean goog.DEBUG
+    (when *debug*
+      (apply log args))))
+
 (def TextEncoder (js/TextEncoder. "utf8"))
 (def TextDecoder (js/TextDecoder. "utf8"))
 

@@ -1,8 +1,6 @@
 (ns fress.impl.hopmap
   (:require-macros [fress.macros :refer [<<]])
-  (:require [fress.util :refer [i32-array]]))
-
-(defn log [& args] (.apply js/console.log js/console (into-array args)))
+  (:require [fress.util :refer [i32-array dbg]]))
 
 ; a hashmap that uses open-addressing,
 ; and the InterleavedIndexHopMap describes how to deal with collisions
@@ -21,12 +19,6 @@
       42
       h)))
 
-(def ^:dynamic *debug* false)
-
-(defn dbg [& args]
-  (when *debug*
-    (apply log args)))
-
 (defn _get
   "@param k, non-null
    @return the integer associated with k, or -1 if not present"
@@ -41,21 +33,23 @@
     (assert (and (int? hash) (int? mask) (int? bkt) (int? bhash)))
     (or
       (and (not= 0 bhash)
-        (let [bhash+1 (aget hopidx (inc (<< bkt 2)))
-              bkey (aget keys bhash+1)]
+        (let [key-index (aget hopidx (inc (<< bkt 2)))
+              bkey (aget keys key-index)]
           (if (and (= hash bhash) (= k bkey))
-            bhash+1
+            key-index
             (let [bkt (atom bkt)
                   increment-bkt #(swap! bkt (fn [n] (bit-and (inc n) mask)))]
-              (loop [bhash (aget hopidx (+ (<< @bkt 2) 2))]
-                (when-not (zero? bhash)
-                  (let [key-index (aget hopidx (+ (<< @bkt 2) 3))
-                        bkey (aget keys key-index)]
-                    (if (and (= hash bhash) (= bkey k))
-                      (aget hopidx (+ (<< @bkt 2) 3))
-                      (do
-                        (increment-bkt)
-                        (recur (aget hopidx (+ (<< @bkt 2) 2))))))))))))
+              (loop [slot (+ (<< @bkt 2) 2)]
+                (let [bhash (aget hopidx slot)]
+                  ; (dbg "   hopidx["slot"]" bhash)
+                  (when-not (zero? bhash)
+                    (let [key-index (aget hopidx (+ (<< @bkt 2) 3))
+                          bkey (aget keys key-index)]
+                      (if (and (= hash bhash) (= bkey k))
+                        (aget hopidx (+ (<< @bkt 2) 3))
+                        (do
+                          (increment-bkt)
+                          (recur (+ (<< @bkt 2) 2))))))))))))
       -1)))
 
 (defn _clear [this]
@@ -90,52 +84,54 @@
   {:pre [(some? k)] :post [int?]}
   (let [hopidx (.-hopidx this)
         keys (.-keys this)
-        cap (.-cap this)
         hash (_hash k)
-        mask (dec cap)
-        bkt (bit-and hash mask)
-        bhash (aget hopidx (<< bkt 2))
+        mask (dec (.-cap this))
+        bkt (atom (bit-and hash mask))
+        bhash (aget hopidx (<< @bkt 2))
         _(assert (int? hash)  (str "hash should be an int, got" (pr-str hash)))
         _(assert (int? mask)  (str "mask should be an int, got" (pr-str mask)))
-        _(assert (int? bkt)   (str "bkt should be an int, got" (pr-str bkt)))
+        _(assert (int? @bkt)   (str "bkt should be an int, got" (pr-str bkt)))
         _(assert (int? bhash) (str "bhash should be an int, got" (pr-str bhash)))
-        slot (atom 0)
-        _(set-validator! slot int?)]
+        slot (atom 0)]
     (when (zero? bhash) ; not found hopidx lookup
-      (reset! slot (<< bkt 2)))
+      (reset! slot (<< @bkt 2)))
     (or
       (when-not (zero? bhash) ; found value at (aget hopidx (<< bkt 2))
         (or
           ;; if hash is identical && stored object is identical
           ;; return key-index of (already) interned object
           (and (== hash bhash)
-            (let [key-index (aget hopidx (inc (<< bkt 2)))]
+            (let [key-index (aget hopidx (inc (<< @bkt 2)))]
               (when (= k (aget keys key-index))
                 key-index)))
-
-          ;; theres is an item found at (aget hopidx (<< bkt 2)) but either:
+          ;; theres is an item found at (aget hopidx (<< bkt 2)). Either:
           ;;   - the hash stored at hopidx[(<< bkt 2)] is not identical to k's hash
           ;;   - the hash is identical but the object is not
           ;; so we shift (bit-and hash mask) until zero, looking up the stored
           ;; object for each to see if we already have interned it
-          (let [bkt (atom bkt)
-                increment-bkt #(swap! bkt (fn [n] (bit-and (inc n) mask)))]
-            (loop [bhash (aget hopidx (+ (<< @bkt 2) 2))]
-              (when-not (zero? bhash)
-                (if (== hash bhash)
-                  (let [key-index (aget hopidx (+ (<< @bkt 2) 3))]
-                    (if (= k (aget keys key-index))
-                      key-index
-                      (do
-                        (increment-bkt)
-                        (recur (aget hopidx (+ (<< @bkt 2) 2))))))
-                  (do
-                    (increment-bkt)
-                    (recur (aget hopidx (+ (<< bkt 2) 2))))))))
+          ;;
+          ;; Along the way we must 'hop' up bkt to get free address if we end
+          ;; up leaving loop and going ahead with internment
+          (let [increment-bkt #(swap! bkt (fn [n] (bit-and (inc n) mask)))]
+            (loop [slot (+ (<< @bkt 2) 2)]
+              (let [bhash (aget hopidx slot)]
+                (when-not (zero? bhash)
+                  ; (dbg "    hopidx["slot"]" bhash)
+                  (if (== hash bhash)
+                    (let [key-index (aget hopidx (+ (<< @bkt 2) 3))]
+                      (if (= k (aget keys key-index))
+                        key-index
+                        (do
+                          (increment-bkt)
+                          (recur (+ (<< @bkt 2) 2)))))
+                    (do
+                      (increment-bkt)
+                      (recur (+ (<< @bkt 2) 2))))))))
           (do
-            (reset! slot (+ 2 (<< bkt 2)))
+            (reset! slot (+ 2 (<< @bkt 2)))
             nil)))
-     (let [i (.-count this)] ;new item
+     ;; unique item, proceed with internment
+     (let [i (.-count this)]
        (aset hopidx @slot hash)
        (aset hopidx (inc @slot) i)
        (aset keys i k)
@@ -182,10 +178,6 @@
           (aset (.-hopidx this) (inc new-slot) (aget oldhops (inc slot)))
           (recur (+ 2 slot)))))))
 
-; cap => int
-; hopidx => int-array
-; keys => object-array
-; count => int 0
 (deftype InterleavedIndexHopMap
   [^number cap ^array hopidx ^array keys ^number count]
   ILookup

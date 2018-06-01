@@ -2,7 +2,8 @@
   (:require-macros [fress.macros :refer [<<]])
   (:require [cljs.test :refer-macros [deftest is testing]]
             [fress.test-helpers :refer [is=]]
-            [fress.impl.hopmap :as hopmap]))
+            [fress.impl.hopmap :as hopmap]
+            [fress.util :as util]))
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
 
@@ -24,17 +25,11 @@
         (testing "try to intern same value"
           (let [idx2 (hopmap/intern hop value)]
             (is= (.-count hop) 1)
-            (is= idx idx2))))))
-  (let [hop (hopmap/hopmap 100)
-        v_38 "38"
-        i_38 (hopmap/intern hop v_38)
-        v_39 "39"
-        i_39 (hopmap/intern hop v_39)]
-    (is= i_38 (get hop v_38))
-    (is= i_39 (get hop v_39))))
+            (is= idx idx2)))))))
 
+;; (bit-and 1023 (hash "70")) (bit-and 1023 (hash "39"))
 (deftest hopmap-test
-  (let [n 50
+  (let [n 200
         stuff (array-list)
         _ (dotimes [i n]
             (.add stuff (str i)))
@@ -42,12 +37,13 @@
         ht (atom {})]
     (dotimes [i n]
       (let [_str (.get stuff i)]
-        (binding [hopmap/*debug* (if (== i 39) true)]
+        (binding [util/*debug* false]
           (let [i (hopmap/intern hop _str)]
-            ; (log "_str:" _str "i:" i)
-            (is (= i (hopmap/intern hop _str))  "interning same value should return same index")))
+            (is (= i (hopmap/intern hop _str))  "interning same value should return same index")
+            (is (= i (hopmap/oldIndex hop _str)))))
         (swap! ht assoc _str i)))
     (dotimes [i n]
      (let [s (.get stuff i)]
-       (is (=  i (get @ht s) (get hop s)) (str "i: " (pr-str i)))))
+       (binding [util/*debug* false]
+         (is (=  i (get @ht s) (get hop s)) (str "i: " (pr-str i))))))
     (is= -1 (get hop "foobar"))))

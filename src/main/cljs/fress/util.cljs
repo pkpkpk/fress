@@ -54,6 +54,7 @@
 (defmethod byte-array js/Array [a] (js/Int8Array. a))
 (defmethod byte-array ArrayList [al] (js/Int8Array. (.toArray al)))
 (defmethod byte-array js/String [s] (.encode TextEncoder s))
+(defmethod byte-array js/Int8Array [a] (js/Int8Array. a))
 
 (def i8-array byte-array)
 

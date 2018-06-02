@@ -388,6 +388,11 @@
   (writeTag wtr "uuid" 1)
   (writeBytes wtr (uuid/uuid->bytes u)))
 
+(defn writeByteArray [wrt bytes]
+  ; (writeTag wtr "uuid" 1)
+  (writeBytes wrt bytes)
+  )
+
 (defn writeIntArray [wtr a]
   (writeTag wtr "int[]" 1)
   (let [length (alength a)]
@@ -422,6 +427,8 @@
     (doseq [b a]
       (writeBoolean wtr b))))
 
+
+
 #_(defn switch-long [l] (- 64 (.getNumBitsAbs l)))
 
 #_(defn writeRawInt64 [this l]
@@ -451,6 +458,7 @@
    js/Array writeList
    js/Date writeInst
    js/RegExp writeRegex
+   js/Int8Array writeByteArray
    js/Int32Array writeIntArray
    js/Float32Array writeFloatArray
    js/Float64Array writeDoubleArray

@@ -9,7 +9,7 @@
             [fress.samples :as samples]
             [fress.test-helpers :as helpers :refer [log is= byteseq overflow]]))
 
-(deftest integer-test
+#_(deftest integer-test
   (testing "write i16"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "Short/MIN_VALUE", :value -32768 :bytes [103 -128 0] :rawbytes [103 128 0]}
           out (byte-array (count bytes))
@@ -75,7 +75,7 @@
           (w/writeObject wrt value)
           (is= out bytes))))))
 
-(deftest floating-points-test
+#_(deftest floating-points-test
   (testing "writeFloat"
     (let [control-bytes [-7 -62 -58 0 0]
           out (byte-array (count control-bytes))
@@ -119,53 +119,45 @@
           (w/writeObject wrt value)
           (is= out bytes))))))
 
-
 #_(deftest writeBytes-test
-  #_(testing "(< length ranges/BYTES_PACKED_LENGTH_END)"
-    (let [nums (range 0 6)
-          bytes (js/Int8Array. (into-array nums))
-          wrtr (w/Writer nil {})]
-      (is (< (.-byteLength bytes) ranges/BYTES_PACKED_LENGTH_END))
-      (w/writeBytes wrtr bytes)
-      (is= -42 (w/getByte wrtr 0) (overflow (+ (.-byteLength bytes) codes/BYTES_PACKED_LENGTH_START)))
-      #_(doseq [n nums]
-        (is= n (w/getByte wrtr (inc n))))))
-  #_(testing "ranges/BYTES_PACKED_LENGTH_END < length < ranges/BYTE_CHUNK_SIZE"
-    (let [nums (range 0 15)
-          bytes (js/Int8Array. (into-array nums))
-          wrtr (w/Writer nil {})]
-      (is (< ranges/BYTES_PACKED_LENGTH_END (alength bytes) ranges/BYTE_CHUNK_SIZE))
-      (w/writeBytes wrtr bytes)
-      (is= (w/getByte wrtr 0) (overflow codes/BYTES))
-      (is= (w/getByte wrtr 1) (alength bytes))
-      (doseq [n nums]
-        (is= n (w/getByte wrtr (+ 2 n))))))
-  #_(testing "ranges/BYTES_PACKED_LENGTH_END < ranges/BYTE_CHUNK_SIZE < length"
-    (let [n 65537
-          chunks (js/Math.floor (/ n ranges/BYTE_CHUNK_SIZE))
-          remainder (mod n ranges/BYTE_CHUNK_SIZE)
-          nums (take n (repeat 99))
-          bytes (js/Int8Array. (into-array nums))
-          wrtr (w/Writer nil {})]
-      (is (< ranges/BYTES_PACKED_LENGTH_END ranges/BYTE_CHUNK_SIZE (alength bytes)))
-      (is= chunks 1)
-      (is= remainder 2)
-      (w/writeBytes wrtr bytes)
-      (testing "write chunk"
-        (is= (w/getByte wrtr 0) (overflow codes/BYTES_CHUNK))
-        (testing "writeCount -> writeInt"
-          (is= (w/getByte wrtr 1) (overflow (+ codes/INT_PACKED_3_ZERO (>>> ranges/BYTE_CHUNK_SIZE 16))) )
-          ; writeRawInt16
-          (is= (w/getByte wrtr 2) (overflow (bit-and (>>> ranges/BYTE_CHUNK_SIZE 8) 0xFF)))
-          (is= (w/getByte wrtr 3) (overflow (bit-and (>>> ranges/BYTE_CHUNK_SIZE 8) 0xFF))))
-        (testing "writeRawBytes"
-          (is= (w/getByte wrtr 4) 99)
-          (is= (w/getByte wrtr (+ 3 ranges/BYTE_CHUNK_SIZE)) 99)))
-      (testing "write remainder bytes"
-        (is= (w/getByte wrtr (+ 4 ranges/BYTE_CHUNK_SIZE)) (overflow codes/BYTES))
-        (is= (w/getByte wrtr (+ 5 ranges/BYTE_CHUNK_SIZE)) 2)
-        (is= (w/getByte wrtr (+ 6 ranges/BYTE_CHUNK_SIZE)) 99)
-        (is= (w/getByte wrtr (+ 7 ranges/BYTE_CHUNK_SIZE)) 99)))))
+  (testing "(< length ranges/BYTES_PACKED_LENGTH_END)"
+    (let [{:keys [bytes input]} {:form "(byte-array [-2 -1 0 1 2])"
+                                 :bytes [-43 -2 -1 0 1 2]
+                                 :footer false
+                                 :rawbytes [213 254 255 0 1 2]
+                                 :input [-2 -1 0 1 2]}
+          out (byte-array (count bytes))
+          wrt (w/writer out)
+          value (byte-array input)]
+      (w/writeBytes wrt value)
+      (is= out bytes)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (is= out bytes)))
+  (testing "ranges/BYTES_PACKED_LENGTH_END < length < ranges/BYTE_CHUNK_SIZE"
+    (let [{:keys [bytes input]} {:form "(byte-array (vec (range -6 7)))",
+                                 :bytes [-39 13 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6]
+                                 :footer false
+                                 :rawbytes [217 13 250 251 252 253 254 255 0 1 2 3 4 5 6]
+                                 :input [-6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6]}
+          out (byte-array (count bytes))
+          wrt (w/writer out)
+          value (byte-array input)]
+      (w/writeBytes wrt value)
+      (is= out bytes)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (is= out bytes)))
+  (testing "ranges/BYTES_PACKED_LENGTH_END < ranges/BYTE_CHUNK_SIZE < length"
+    (let [{:keys [bytes input ]} @samples/chunked_bytes_sample
+          out (byte-array (count bytes))
+          wrt (w/writer out)
+          value (byte-array (vec (take 70000 (repeat 99))))]
+      (w/writeBytes wrt value)
+      (is= out bytes)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (is= out bytes))))
 
 (defn getBuf [wrt] (.. wrt -raw-out -memory -buffer))
 

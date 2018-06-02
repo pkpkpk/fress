@@ -12,7 +12,13 @@
 (defn is=
   ([a b] (is (= a b)))
   ([a b c] (is (= a b c)))
-  ([a b c d] (is (= a b c d))))
+  ([a b c d] (is (= a b c d)-)))
+
+(defn seq=
+  [as bs]
+  (assert (seq as) (seq bs))
+  (and (= (count as) (count bs))
+       (every? true? (map = as bs))))
 
 (defn are-bytes=
   [control-bytes out]
@@ -20,20 +26,20 @@
   (let [out (array-seq out)]
     (if (not= (count control-bytes) (count out))
       (is (= (count control-bytes) (count out)) "bytes are of different lengths")
-      (doseq [[i written-byte] (map-indexed #(vector %1 %2) out)]
-       (let [control-byte (nth control-bytes i)]
-         (is (= control-byte written-byte) (str "i: " i " control-byte: " control-byte " written-byte " written-byte)))))))
+      (if (seq= control-bytes out)
+        (is true) ;;only go use byte by byte assertions when we know theres a problem
+        (doseq [[i written-byte] (map-indexed #(vector %1 %2) out)]
+          (let [control-byte (nth control-bytes i)]
+            (when-not (= control-byte written-byte)
+              (is (= control-byte written-byte)
+                  (str "idx: " i " control-byte: " control-byte " written-byte " written-byte)))))))))
 
 (let [arr (js/Int8Array. 1)]
   (defn overflow [n]
     (aset arr 0 n)
     (aget arr 0)))
 
-(defn seq=
-  [as bs]
-  (assert (seq as) (seq bs))
-  (and (= (count as) (count bs))
-       (every? true? (map = as bs))))
+
 
 ; (defn array= [arr b] )
 

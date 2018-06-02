@@ -121,10 +121,13 @@
         (rawOut/writeRawByte raw (+ codes/INT_PACKED_7_ZERO (>>> n 48)))
         (rawOut/writeRawInt48 raw n))
 
-      :else
+      (js/Number.isSafeInteger n)
       (do
         (writeCode wtr codes/INT)
-        (rawOut/writeRawInt64 raw n)))))
+        (rawOut/writeRawInt64 raw n))
+
+      :else
+      (throw (js/Error. (str "cannot write unsafe integer: " (pr-str n)))))))
 
 (defn internalWriteFooter [wrt ^number length]
   (let [raw-out (.-raw-out wrt)]

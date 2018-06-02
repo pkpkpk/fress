@@ -23,14 +23,20 @@
 
 (defn utf8? [o] (instance? utf8 o))
 
+(def ^:dynamic *write-utf8-tag* false)
+
 (def utf8-writer
   (reify WriteHandler
     (write [_ w u]
       (let [bytes (.getBytes (.-s u) "UTF-8")
             raw-out (w->raw w)
             length (count bytes)]
-        ; (.writeTag w "utf8" 2)
-        (.writeCode w (int 191)) ;<= needs to be picked up by client
+        (println "writing ...." *write-utf8-tag*)
+        (if *write-utf8-tag*
+          (do
+            (println "writing tag!")
+            (.writeTag w "utf8" 2))
+          (.writeCode w (int 191))) ;<= client can read either
         (.writeCount w length)
         (.writeRawBytes raw-out bytes 0 length)))))
 
@@ -148,18 +154,26 @@
      (= c (Class/forName "[Ljava.lang.Object;")))))
 
 (defmacro sample
-  ([form & {:keys [footer] :or {footer false}}]
-   (let [value (eval form)
-         bytes (byteseq value :footer footer)
-         rawbytes (rawbyteseq value :footer footer)
-         value (if (utf8? value) (.-s value)  value)
-         base {:form (pr-str form)
-               :bytes (vec bytes)
-               :footer footer
-               :rawbytes (vec rawbytes)}]
-     (if-not (or (typed-array? value) (bytes? value))
-       (assoc base :value value)
-       (assoc base :input (eval (second form)))))))
+  ([form & {:keys [footer tag-utf8] :or {footer false}}]
+   (binding [*write-utf8-tag* tag-utf8]
+     (let [value (eval form)
+           bytes  (vec (byteseq value :footer footer))
+           rawbytes (vec (rawbyteseq value :footer footer))
+           base {:form (pr-str form)
+                 :bytes bytes
+                 :byte-count (count bytes)
+                 :footer footer
+                 :rawbytes rawbytes
+                 :raw-byte-count (count rawbytes)}]
+       (cond
+         (or (typed-array? value) (bytes? value))
+         (assoc base :input (eval (second form)))
+
+         (utf8? value)
+         (assoc base :tag? *write-utf8-tag* :value (.-s value))
+
+         :else
+         (assoc base :value value))))))
 
 #_(def read-handlers
   (-> (merge {"utf8" utf8-reader} fressian/clojure-read-handlers)

@@ -14,17 +14,35 @@
   ([a b c] (is (= a b c)))
   ([a b c d] (is (= a b c d))))
 
+(defn are-bytes=
+  [control-bytes out]
+  (assert (instance? js/Int8Array out))
+  (let [out (array-seq out)]
+    (if (not= (count control-bytes) (count out))
+      (is (= (count control-bytes) (count out)) "bytes are of different lengths")
+      (doseq [[i written-byte] (map-indexed #(vector %1 %2) out)]
+       (let [control-byte (nth control-bytes i)]
+         (is (= control-byte written-byte) (str "i: " i " control-byte: " control-byte " written-byte " written-byte)))))))
+
 (let [arr (js/Int8Array. 1)]
   (defn overflow [n]
     (aset arr 0 n)
     (aget arr 0)))
 
+(defn seq=
+  [as bs]
+  (assert (seq as) (seq bs))
+  (and (= (count as) (count bs))
+       (every? true? (map = as bs))))
+
+; (defn array= [arr b] )
+
 (extend-type js/Int8Array
-  IEquiv
-  (-equiv [a b]
-          (if (goog.isArrayLike b)
-            (= (array-seq a) (array-seq b))
-            (= (array-seq a (seq b)))))
+  ; IEquiv
+  ; (-equiv [a b]
+  ;         (if (goog.isArrayLike b)
+  ;           (seq= (array-seq a) (array-seq b))
+  ;           (seq= (array-seq a) (seq b))))
   IIndexed
   (-nth
    ([arr n]
@@ -37,8 +55,8 @@
       not-found))))
 
 (extend-type js/Int32Array
-  IEquiv
-  (-equiv [a b] (= (array-seq a) (array-seq b)))
+  ; IEquiv
+  ; (-equiv [a b] (= (array-seq a) (array-seq b)))
   IIndexed
   (-nth
    ([arr n]
@@ -51,8 +69,8 @@
       not-found))))
 
 (extend-type js/Float32Array
-  IEquiv
-  (-equiv [a b] (= (array-seq a) (array-seq b)))
+  ; IEquiv
+  ; (-equiv [a b] (= (array-seq a) (array-seq b)))
   IIndexed
   (-nth
    ([arr n]
@@ -65,8 +83,8 @@
       not-found))))
 
 (extend-type js/Float64Array
-  IEquiv
-  (-equiv [a b] (= (array-seq a) (array-seq b)))
+  ; IEquiv
+  ; (-equiv [a b] (= (array-seq a) (array-seq b)))
   IIndexed
   (-nth
    ([arr n]
@@ -78,9 +96,9 @@
       (aget arr n)
       not-found))))
 
-(extend-type array
-  IEquiv
-  (-equiv [a b] (= (array-seq a) (array-seq b))))
+; (extend-type array
+;   IEquiv
+;   (-equiv [a b] (= (array-seq a) (array-seq b))))
 
 (defn byteseq [wrt]
   (-> (js/Int8Array. (.. wrt -raw-out -memory -buffer) 0 (.. wrt -raw-out -bytesWritten))

@@ -7,7 +7,7 @@
             [fress.writer :as w]
             [fress.util :as util :refer [byte-array]]
             [fress.samples :as samples]
-            [fress.test-helpers :as helpers :refer [log is= byteseq overflow]]))
+            [fress.test-helpers :as helpers :refer [log is= byteseq overflow are-bytes=]]))
 
 #_(deftest integer-test
   (testing "write i16"
@@ -159,29 +159,52 @@
       (w/writeObject wrt value)
       (is= out bytes))))
 
-(defn getBuf [wrt] (.. wrt -raw-out -memory -buffer))
-
 #_(deftest writeString-test
-  (testing "small string, count fits in byte"
-    (let [wrt (w/Writer nil {})
-          s "hello world"
-          bytes (.encode util/TextEncoder s)]
-      (w/writeString wrt s)
-      (is= (w/getByte wrt 0) (overflow codes/STRING))
-      (is= (w/getByte wrt 1) (alength bytes))
-      (let [tail (js/Uint8Array. (getBuf wrt) 2 (alength bytes))]
-        (is= s (.decode util/TextDecoder tail)))))
-  (testing "small string, count larger than byte"
-    (let [wrt (w/Writer nil {})
-          n 300
-          s (.repeat "p" n)
-          bytes (.encode util/TextEncoder s)]
-      (w/writeString wrt s)
-      (is= (w/getByte wrt 0) (overflow codes/STRING))
-      (is= 81 (w/getByte wrt 1) (overflow (+ codes/INT_PACKED_2_ZERO (>>> n 8))))
-      (is= 44 (w/getByte wrt 2) (overflow n))
-      (let [tail (js/Uint8Array. (getBuf wrt) 3 (alength bytes))]
-        (is= s (.decode util/TextDecoder tail))))))
+  (testing "packed string, no chunks"
+    (let [{:keys [bytes value]} {:form "\"hola\"", :bytes [-34 104 111 108 97], :footer false, :rawbytes [222 104 111 108 97], :value "hola"}
+          out (byte-array (count bytes))
+          wrt (w/writer out)]
+      (w/writeString wrt value)
+      (are-bytes= bytes out)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (are-bytes= bytes out)))
+  (testing "string, no packing, no chunks"
+    (let [{:keys [bytes value]} {:form "\"I'm a reasonable man, get off my case\"", :bytes [-29 37 73 39 109 32 97 32 114 101 97 115 111 110 97 98 108 101 32 109 97 110 44 32 103 101 116 32 111 102 102 32 109 121 32 99 97 115 101], :footer false, :rawbytes [227 37 73 39 109 32 97 32 114 101 97 115 111 110 97 98 108 101 32 109 97 110 44 32 103 101 116 32 111 102 102 32 109 121 32 99 97 115 101], :value "I'm a reasonable man, get off my case"}
+          out (byte-array (count bytes))
+          wrt (w/writer out)]
+      (w/writeString wrt value)
+      (are-bytes= bytes out)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (are-bytes= bytes out)))
+  (testing "chunked string"
+    (let [{:keys [bytes value]} @samples/chunked_string_sample
+          out (byte-array (count bytes))
+          wrt (w/writer out)]
+      (w/writeString wrt value)
+      (are-bytes= bytes out)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (are-bytes= bytes out))))
+
+#_(deftest writeRawUTF8-test
+  (doseq [{:keys [form bytes value tag? byte-count]} samples/utf8-samples]
+    (testing form
+      (let [out (byte-array (or byte-count (count bytes)))
+            wrt (w/writer out)]
+        (binding [w/*write-raw-utf8* true
+                  w/*write-utf8-tag* tag?]
+          (w/writeString wrt value))
+        (are-bytes= bytes out)
+        (rawOut/reset (.-raw-out wrt))
+        (w/clearCaches wrt)
+        (is (zero? (rawOut/getBytesWritten (.-raw-out wrt))))
+        (binding [w/*write-raw-utf8* true
+                  w/*write-utf8-tag* tag?]
+          (w/writeObject wrt value))
+        (are-bytes= bytes out)))))
+
 
 
 #_(deftest writeList-test

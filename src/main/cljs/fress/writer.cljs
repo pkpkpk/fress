@@ -133,7 +133,44 @@
     (rawOut/writeRawInt32 raw-out (rawOut/getChecksum raw-out))
     (rawOut/reset raw-out)))
 
-; (def ^:dynamic *chunk-strings?* true)
+(def ^:dynamic *write-raw-utf8* false)
+(def ^:dynamic *write-utf8-tag* false)
+
+(defn writeRawUTF8
+  "We can use native TextEncoder to remove some dirty work, also chunking is
+   pointless for WASM."
+  [this ^string s]
+  (assert (string? s))
+  (let [bytes (.encode util/TextEncoder s)
+        length (.-byteLength bytes)]
+    ; may need unique code here, breaking std fressian behavior
+    ; need to test if jvm can still read this
+    (if *write-utf8-tag*
+      ;; needs to be picked up server-side by a registered "utf8" reader
+      ;; we do this because we cant modify codes serverside but still prefer them
+      ;; client side because its a simple int dispatch instead of reading the tag
+      (writeTag this "utf8" 2); writeCount + rawbytes ?
+      (writeCode this codes/UTF8))
+    (writeCount this length)
+    (rawOut/writeRawBytes (.-raw-out this) bytes 0 length))
+  this)
+
+(defn defaultWriteString [this s]
+  (let [max-buf-needed (min (* (count s) 3) 65536) ;;
+        string-buffer (js/Int8Array. (js/ArrayBuffer. max-buf-needed))]
+    (loop [[string-pos buf-pos] (buffer-string-chunk-utf8 s 0 string-buffer)]
+      (if (< buf-pos ranges/STRING_PACKED_LENGTH_END)
+        (writeCode this (+ codes/STRING_PACKED_LENGTH_START buf-pos))
+        (if (= string-pos (count s))
+          (do
+            (writeCode this codes/STRING)
+            (writeCount this buf-pos))
+          (do
+            (writeCode this codes/STRING_CHUNK)
+            (writeInt this buf-pos))))
+      (rawOut/writeRawBytes (.-raw-out this) string-buffer 0 buf-pos)
+      (when (< string-pos (count s))
+        (recur (buffer-string-chunk-utf8 s string-pos string-buffer))))))
 
 (deftype FressianWriter [out raw-out priorityCache structCache ^fn lookup]
   IFressianWriter
@@ -206,41 +243,10 @@
             (rawOut/writeRawBytes raw-out bytes off len)))))
     this)
 
-  (writeString- [this ^string s] ;empty string?
-   (let [max-buf-needed (min (* (count s) 3) 65536) ;;
-         string-buffer (js/Int8Array. (js/ArrayBuffer. max-buf-needed))]
-     (loop [[string-pos buf-pos] (buffer-string-chunk-utf8 s 0 string-buffer)]
-       (if (< buf-pos ranges/STRING_PACKED_LENGTH_END)
-         (writeCode this (+ codes/STRING_PACKED_LENGTH_START buf-pos))
-         (if (= string-pos (count s))
-           (do
-             (writeCode this codes/STRING)
-             (writeCount this buf-pos))
-           (do
-             (writeCode this codes/STRING_CHUNK)
-             (writeInt this buf-pos))))
-       (rawOut/writeRawBytes raw-out string-buffer 0 buf-pos)
-       (when (< string-pos (count s))
-         (recur (buffer-string-chunk-utf8 s string-pos string-buffer))))))
-
-  ; (writeStringNoChunk- [this ^string s]
-  ;   (assert (string? s))
-  ;   ; breaking from fressian because we can use native TextEncoder to remove
-  ;   ; some dirty work, also chunking is pointless for WASM
-  ;   (let [bytes (.encode TextEncoder s)
-  ;         length (.-byteLength bytes)]
-  ;     ; may need unique code here, breaking std fressian behavior
-  ;     ; need to test if jvm can still read this
-  ;     (writeCode this codes/STRING)
-  ;     (writeCount this length)
-  ;     (rawOut/writeRawBytes raw-out bytes 0 length))
-  ;   this)
-
   (writeString [this s]
-    (if *chunk-strings?*
-      (writeString- this s)
-      (writeStringNoChunk- this s)))
-  ; (writeString [this s chunk?])
+    (if ^boolean *write-raw-utf8*
+      (writeRawUTF8 this s)
+      (defaultWriteString this s)))
 
   (writeObject [this o] (writeAs this nil o))
   (writeObject [this o cache?] (writeAs this nil o cache?))
@@ -327,8 +333,9 @@
         (cond
           (== index -1)
           (do
+            (assert (string? tag) "tag needs to be a string")
             (writeCode this codes/STRUCTTYPE)
-            (writeObject this tag)
+            (defaultWriteString this tag)
             (writeInt this component-count))
 
           (< index ranges/STRUCT_CACHE_PACKED_END)

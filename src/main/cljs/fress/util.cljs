@@ -27,9 +27,10 @@
 (def ^:const I32_MIN_VALUE -2147483648)
 
 (def ^:const F32_MIN_NORMAL 1.17549435E-38)
+(def ^:const F32_MIN_VALUE 1.4E-45)
 (def ^:const F32_MAX_VALUE 3.4028235E38)
 
-(def isBigEndian
+(defonce isBigEndian
   (-> (.-buffer (js/Uint32Array. #js[0x12345678]))
     (js/Uint8Array. )
     (aget 0)

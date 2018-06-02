@@ -4,10 +4,8 @@
             [fress.impl.ranges :as ranges]
             [fress.impl.raw-output :as rawOut]
             [fress.impl.uuid :as uuid]
-            [fress.impl.hopmap :as hop]))
-
-(defn log [& args]
-  (.apply js/console.log js/console (into-array args)))
+            [fress.impl.hopmap :as hop]
+            [fress.util :as util :refer [log dbg]]))
 
 (defn utf8-encoding-size
   "src/org/fressian/impl/Fns.java:117:4"
@@ -353,7 +351,7 @@
 (defn writeNumber [this ^number n]
   (if (int? n)
     (writeInt this n)
-    (if (< (.pow js/Math 2 -126) n (.pow js/Math 2 128))
+    (if (<= util/F32_MIN_VALUE n util/F32_MAX_VALUE)
       (writeFloat this n)
       (writeDouble this n)))
   this)

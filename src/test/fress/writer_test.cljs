@@ -64,7 +64,7 @@
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
       (is= out bytes)))
-  (testing "int sampes"
+  (testing "int samples"
     (doseq [{:keys [form bytes value rawbytes throw?]} samples/int-samples]
       (testing form
         (let [out (byte-array (count bytes))
@@ -74,6 +74,51 @@
           (rawOut/reset (.-raw-out wrt))
           (w/writeObject wrt value)
           (is= out bytes))))))
+
+(deftest floating-points-test
+  (testing "writeFloat"
+    (let [control-bytes [-7 -62 -58 0 0]
+          out (byte-array (count control-bytes))
+          wrt (w/writer out)
+          f -99]
+      (w/writeFloat wrt f)
+      (is= -7 (w/getByte wrt 0) (overflow codes/FLOAT))
+      (is= out control-bytes)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (is= out control-bytes)))
+  (testing "writeDouble"
+    (let [control-bytes [-6 -64 88 -64 0 0 0 0 0]
+          out (byte-array (count control-bytes))
+          wrt (w/writer out)
+          f -99]
+      (w/writeDouble wrt f)
+      (is= -6 (w/getByte wrt 0) (overflow codes/DOUBLE))
+      (is= out control-bytes)
+      (rawOut/reset (.-raw-out wrt))
+      (w/writeObject wrt value)
+      (is= out control-bytes)))
+  (testing "floats"
+    (doseq [{:keys [form bytes value rawbytes throw?]} samples/float-samples]
+      (testing form
+        (let [out (byte-array (count bytes))
+              wrt (w/writer out)]
+          (w/writeFloat wrt value)
+          (is= out bytes)
+          (rawOut/reset (.-raw-out wrt))
+          (w/writeObject wrt value)
+          (is= out bytes)))))
+  (testing "doubles"
+    (doseq [{:keys [form bytes value rawbytes throw?]} samples/double-samples]
+      (testing form
+        (let [out (byte-array (count bytes))
+              wrt (w/writer out)]
+          (w/writeDouble wrt value)
+          (is= out bytes)
+          (rawOut/reset (.-raw-out wrt))
+          (w/writeObject wrt value)
+          (is= out bytes))))))
+
 
 #_(deftest writeBytes-test
   #_(testing "(< length ranges/BYTES_PACKED_LENGTH_END)"
@@ -146,19 +191,6 @@
       (let [tail (js/Uint8Array. (getBuf wrt) 3 (alength bytes))]
         (is= s (.decode util/TextDecoder tail))))))
 
-#_(deftest float-test
-  (testing "writeFloat"
-    (let [wrt (w/Writer nil {})
-          f -99]
-      (w/writeFloat wrt f)
-      (is= -7 (w/getByte wrt 0) (overflow codes/FLOAT))
-      (is= (byteseq wrt) [-7 -62 -58 0 0])))
-  (testing "writeDouble"
-    (let [wrt (w/Writer nil {})
-          f -99]
-      (w/writeDouble wrt f)
-      (is= -6 (w/getByte wrt 0) (overflow codes/DOUBLE))
-      (is= (byteseq wrt) [-6 -64 88 -64 0 0 0 0 0]))))
 
 #_(deftest writeList-test
   (let [wrt (w/Writer nil {})

@@ -209,43 +209,27 @@
           (w/writeObject wrt value))
         (are-bytes= bytes out)))))
 
-
+#_(deftest named-test
+  (doseq [{:keys [form bytes value tag? byte-count]} samples/named-samples]
+    (testing form
+      (let [out (byte-array (or byte-count (count bytes)))
+            wrt (w/writer out)]
+        (w/writeObject wrt value)
+        (are-bytes= bytes out)))))
 
 #_(deftest writeList-test
-  (let [wrt (w/Writer nil {})
-        lst []]
-    (w/writeList wrt lst)
-    (is= (byteseq wrt) [-28]))
-  (let [wrt (w/Writer nil {})
-        lst '(1 2 3)]
-    (w/writeList wrt lst)
-    (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
-    (is= (byteseq wrt) [-25 1 2 3]))
-  (let [wrt (w/Writer nil {})
-        lst [true]]
-    (w/writeList wrt lst)
-    (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
-    (is= (byteseq wrt) [-27 -11 ]))
-  (let [wrt (w/Writer nil {})
-        lst [nil]]
-    (w/writeList wrt lst)
-    (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
-    (is= (byteseq wrt) [-27 -9 ]))
-  (let [wrt (w/Writer nil {})
-        lst [true nil]]
-    (w/writeList wrt lst)
-    (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
-    (is= (byteseq wrt) [-26 -11 -9]))
-  (let [wrt (w/Writer nil {})
-        lst '("a")]
-    (w/writeList wrt lst)
-    (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
-    (is= (byteseq wrt) [-27 -37 97]))
-  (let [wrt (w/Writer nil {})
-        lst ["hello" "world"]]
-    (w/writeList wrt lst)
-    (is= (w/getByte wrt 0) (overflow (+ (count lst) codes/LIST_PACKED_LENGTH_START)))
-    (is= (byteseq wrt) '(-26 -33 104 101 108 108 111 -33 119 111 114 108 100))))
+  (doseq [{:keys [form bytes value tag? byte-count]} samples/list-samples]
+    (let [out (byte-array (or byte-count (count bytes)))
+          wrt (w/writer out)]
+      (w/writeList wrt value)
+      (are-bytes= bytes out)
+      (rawOut/reset (.-raw-out wrt))
+      (w/clearCaches wrt)
+      (w/writeObject wrt value)
+      (are-bytes= bytes out))))
+
+
+
 
 #_(deftest writeMap-test
   (testing "map count bug"
@@ -272,18 +256,6 @@
         (let [wrt (w/Writer)]
           (w/writeObject wrt m)
           (is= (byteseq wrt) control))))))
-
-
-#_(deftest named-test
-  (let [wrt (w/Writer)
-        o :keyword]
-    (w/writeObject wrt o)
-    (is= (byteseq wrt) '(-54 -9 -31 107 101 121 119 111 114 100)))
-  (let [wrt (w/Writer)
-        o :named/keyword]
-    (w/writeObject wrt o)
-    (is= (byteseq wrt) '(-54 -33 110 97 109 101 100 -31 107 101 121 119 111 114 100))))
-
 
 #_(deftest misc-types-test
   (testing "inst"

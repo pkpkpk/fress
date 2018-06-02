@@ -287,12 +287,12 @@
   (doWrite- [this tag o handler cache?]
     (if ^boolean cache?
       (if ^boolean (shouldSkipCache- this o)
-        (doWrite this tag o handler false)
+        (doWrite- this tag o handler false)
         (let [index (hop/oldIndex (getPriorityCache this) o)]
           (if (= index -1)
             (do
               (writeCode this codes/PUT_PRIORITY_CACHE)
-              (doWrite this tag o handler false))
+              (doWrite- this tag o handler false))
             (if (< index ranges/PRIORITY_CACHE_PACKED_END)
               (writeCode this (+ codes/PRIORITY_CACHE_PACKED_START index))
               (do
@@ -372,11 +372,8 @@
 
 (defn- writeNamed [tag wtr s]
   (writeTag wtr tag 2)
-  ; (writeObject wtr (namespace s) true)
-  (writeObject wtr (namespace s))
-  ; (writeObject wtr (name s) true)
-  (writeObject wtr (name s))
-  )
+  (writeObject wtr (namespace s) true)
+  (writeObject wtr (name s) true))
 
 (defn writeSet [wtr s]
   (writeTag wtr "set" 1)
@@ -499,6 +496,6 @@
   [out & {:keys [handlers]}]
   (let [lookup-fn (build-handler-lookup handlers)
         raw-out (rawOut/raw-output out)
-        priorityCache (hop/hopmap 16)
-        structCache (hop/hopmap 16)]
+        priorityCache nil ;added when needed
+        structCache nil]
     (FressianWriter. out raw-out priorityCache structCache lookup-fn)))

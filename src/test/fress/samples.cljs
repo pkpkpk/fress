@@ -83,6 +83,20 @@
      :tag? false
      :value "I'm a reasonable man, get off my case"}])
 
+(def named-samples
+  [{:form ":keyword", :bytes [-54 -9 -51 -31 107 101 121 119 111 114 100], :byte-count 11, :footer false, :rawbytes [202 247 205 225 107 101 121 119 111 114 100], :raw-byte-count 11, :value :keyword}
+   {:form ":namespaced/keyword", :bytes [-54 -51 -29 10 110 97 109 101 115 112 97 99 101 100 -51 -31 107 101 121 119 111 114 100], :byte-count 23, :footer false, :rawbytes [202 205 227 10 110 97 109 101 115 112 97 99 101 100 205 225 107 101 121 119 111 114 100], :raw-byte-count 23, :value :namespaced/keyword}
+   {:form 'foo, :bytes [-55 -9 -51 -35 102 111 111], :byte-count 7, :footer false, :rawbytes [201 247 205 221 102 111 111], :raw-byte-count 7, :value (quote foo)}
+   {:form 'foo/bar, :bytes [-55 -51 -35 102 111 111 -51 -35 98 97 114], :byte-count 11, :footer false, :rawbytes [201 205 221 102 111 111 205 221 98 97 114], :raw-byte-count 11, :value (quote foo/bar)}
+   {:form 'foo/bar.baz, :bytes [-55 -51 -35 102 111 111 -51 -31 98 97 114 46 98 97 122], :byte-count 15, :footer false, :rawbytes [201 205 221 102 111 111 205 225 98 97 114 46 98 97 122], :raw-byte-count 15, :value (quote foo/bar.baz)}])
+
+(def list-samples
+  [{:form "[]", :bytes [-28], :byte-count 1, :footer false, :rawbytes [228], :raw-byte-count 1, :value []}
+   {:form "[\"\"]", :bytes [-27 -38], :byte-count 2, :footer false, :rawbytes [229 218], :raw-byte-count 2, :value [""]}
+   {:form "[\"\" true false nil]", :bytes [-24 -38 -11 -10 -9], :byte-count 5, :footer false, :rawbytes [232 218 245 246 247], :raw-byte-count 5, :value ["" true false nil]}
+   {:form "[\"\" true false nil [-1 0 1]]", :bytes [-23 -38 -11 -10 -9 -25 -1 0 1], :byte-count 9, :footer false, :rawbytes [233 218 245 246 247 231 255 0 1], :raw-byte-count 9, :value ["" true false nil [-1 0 1]]}
+   {:form "[\"\" true false nil [-1 0 1 [\"bonjour\"]]]", :bytes [-23 -38 -11 -10 -9 -24 -1 0 1 -27 -31 98 111 110 106 111 117 114], :byte-count 18, :footer false, :rawbytes [233 218 245 246 247 232 255 0 1 229 225 98 111 110 106 111 117 114], :raw-byte-count 18, :value ["" true false nil [-1 0 1 ["bonjour"]]]}])
+
 (def typed-array-samples
   [{:form "(byte-array [7 11 13 17])", :bytes [-44 7 11 13 17], :rawbytes [212 7 11 13 17], :input [7 11 13 17]}
    {:form "(int-array [7 11 13 17])", :bytes [-77 4 7 11 13 17], :rawbytes [179 4 7 11 13 17], :input [7 11 13 17]}

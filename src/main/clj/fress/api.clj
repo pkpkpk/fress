@@ -156,7 +156,7 @@
 (defmacro sample
   ([form & {:keys [footer tag-utf8] :or {footer false}}]
    (binding [*write-utf8-tag* tag-utf8]
-     (let [value (eval form)
+     (let [value  (if (symbol? form) form (eval form))
            bytes  (vec (byteseq value :footer footer))
            rawbytes (vec (rawbyteseq value :footer footer))
            base {:form (pr-str form)
@@ -169,8 +169,13 @@
          (or (typed-array? value) (bytes? value))
          (assoc base :input (eval (second form)))
 
-         (utf8? value)
+         (utf8? value) ;need tree-seq with value transform for nested
          (assoc base :tag? *write-utf8-tag* :value (.-s value))
+
+         (symbol? value)
+         `(assoc ~base
+                 :value '(quote ~value)
+                 :form (quote ~form) #_(str "'" (name (quote ~value))))
 
          :else
          (assoc base :value value))))))

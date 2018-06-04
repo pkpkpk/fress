@@ -255,7 +255,7 @@
 (defn utf8+code-benchmark [] (utf8-benchmark utf8+code-sample n))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#_(deftest named-test
+(deftest named-test
   (doseq [{:keys [form bytes value tag? byte-count]} samples/named-samples]
     (testing form
       (let [out (byte-array bytes)

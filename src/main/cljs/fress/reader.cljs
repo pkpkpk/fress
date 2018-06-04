@@ -614,6 +614,12 @@
     (.setTime date time)
     date))
 
+(defn readKeyword [rdr _ _]
+  (keyword (readObject rdr) (readObject rdr)))
+
+(defn readSymbol [rdr _ _]
+  (symbol (readObject rdr) (readObject rdr)))
+
 (def default-read-handlers
   {"list" (fn [objectArray] (vec objectArray)) ;;diff sig, called by internalReadList
    "utf8" #(readUTF8 %1) ;<= for tagged use, but default is still code
@@ -629,8 +635,11 @@
    "uuid" readUUID
    "regex" readRegex
    "uri" readUri
-   "inst" readInst})
+   "inst" readInst
+   "key" readKeyword
+   "sym" readSymbol})
 
+; ratio, char
 ;no bigint, bigdec
 
 (defn build-lookup

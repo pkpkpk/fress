@@ -97,6 +97,13 @@
    {:form "[\"\" true false nil [-1 0 1]]", :bytes [-23 -38 -11 -10 -9 -25 -1 0 1], :byte-count 9, :footer false, :rawbytes [233 218 245 246 247 231 255 0 1], :raw-byte-count 9, :value ["" true false nil [-1 0 1]]}
    {:form "[\"\" true false nil [-1 0 1 [\"bonjour\"]]]", :bytes [-23 -38 -11 -10 -9 -24 -1 0 1 -27 -31 98 111 110 106 111 117 114], :byte-count 18, :footer false, :rawbytes [233 218 245 246 247 232 255 0 1 229 225 98 111 110 106 111 117 114], :raw-byte-count 18, :value ["" true false nil [-1 0 1 ["bonjour"]]]}])
 
+(def map-samples
+  [{:form "{}", :bytes [-64 -28], :byte-count 2, :footer false, :rawbytes [192 228], :raw-byte-count 2, :value {}}
+   {:form "{:a nil}", :bytes [-64 -26 -54 -9 -51 -37 97 -9], :byte-count 8, :footer false, :rawbytes [192 230 202 247 205 219 97 247], :raw-byte-count 8, :value {:a nil}}
+   {:form "#:foo{:bar {}}", :bytes [-64 -26 -54 -51 -35 102 111 111 -51 -35 98 97 114 -64 -28], :byte-count 15, :footer false, :rawbytes [192 230 202 205 221 102 111 111 205 221 98 97 114 192 228], :raw-byte-count 15, :value #:foo{:bar {}}}
+
+   ])
+
 (def typed-array-samples
   [{:form "(byte-array [7 11 13 17])", :bytes [-44 7 11 13 17], :rawbytes [212 7 11 13 17], :input [7 11 13 17]}
    {:form "(int-array [7 11 13 17])", :bytes [-77 4 7 11 13 17], :rawbytes [179 4 7 11 13 17], :input [7 11 13 17]}

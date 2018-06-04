@@ -7,7 +7,7 @@
             [fress.writer :as w]
             [fress.util :as util :refer [byte-array]]
             [fress.samples :as samples]
-            [fress.test-helpers :as helpers :refer [log is= byteseq overflow are-bytes=]]))
+            [fress.test-helpers :as helpers :refer [log is= byteseq overflow are-nums=]]))
 
 #_(deftest integer-test
   (testing "write i16"
@@ -15,46 +15,46 @@
           out (byte-array (count bytes))
           wrt (w/writer out)]
       (w/writeInt wrt value)
-      (are-bytes= bytes out)
+      (are-nums= bytes out)
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
-      (are-bytes= bytes out)))
+      (are-nums= bytes out)))
   (testing "write i32"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "Integer/MIN_VALUE", :value -2147483648, :bytes [117 -128 0 0 0], :rawbytes [117 128 0 0 0]}
           out (byte-array (count bytes))
           wrt (w/writer out)]
       (w/writeInt wrt value)
-      (are-bytes= bytes out)
+      (are-nums= bytes out)
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
-      (are-bytes= bytes out)))
+      (are-nums= bytes out)))
   (testing "write i40"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "(long -549755813887)", :value -549755813887, :bytes [121 -128 0 0 0 1], :rawbytes [121 128 0 0 0 1]}
           out (byte-array (count bytes))
           wrt (w/writer out)]
       (w/writeInt wrt value)
-      (are-bytes= bytes out)
+      (are-nums= bytes out)
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
-      (are-bytes= bytes out)))
+      (are-nums= bytes out)))
   (testing "write i48"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "(long 1.4073749E14)", :value 140737490000000, :bytes [126 -128 0 0 25 24 -128], :rawbytes [126 128 0 0 25 24 128]}
           out (byte-array (count bytes))
           wrt (w/writer out)]
       (w/writeInt wrt value)
-      (are-bytes= bytes out)
+      (are-nums= bytes out)
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
-      (are-bytes= bytes out)))
+      (are-nums= bytes out)))
   (testing "write i64"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "(long -9007199254740991)", :value -9007199254740991, :bytes [-8 -1 -32 0 0 0 0 0 1],  :rawbytes [248 255 224 0 0 0 0 0 1] :throw? false}
           out (byte-array (count bytes))
           wrt (w/writer out)]
       (w/writeInt wrt value)
-      (are-bytes= bytes out)
+      (are-nums= bytes out)
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
-      (are-bytes= bytes out)))
+      (are-nums= bytes out)))
   (testing "unsafe."
     (let [{:keys [form bytes value rawbytes throw?]} {:form "Long/MAX_VALUE", :value 9223372036854775807,  :bytes [-8 127 -1 -1 -1 -1 -1 -1 -1], :rawbytes [248 127 255 255 255 255 255 255 255] :throw? true}
           out (byte-array (count bytes))
@@ -74,10 +74,10 @@
               (is (thrown? js/Error (w/writeObject wrt value))))
             (do
               (w/writeInt wrt value)
-              (are-bytes= bytes out)
+              (are-nums= bytes out)
               (rawOut/reset (.-raw-out wrt))
               (w/writeObject wrt value)
-              (are-bytes= bytes out))))))))
+              (are-nums= bytes out))))))))
 
 #_(deftest floating-points-test
   (testing "writeFloat"
@@ -90,7 +90,7 @@
       (is= out control-bytes)
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
-      (are-bytes= control-bytes out)))
+      (are-nums= control-bytes out)))
   (testing "writeDouble"
     (let [control-bytes [-6 -64 88 -64 0 0 0 0 0]
           out (byte-array (count control-bytes))
@@ -98,30 +98,30 @@
           f -99]
       (w/writeDouble wrt f)
       (is= -6 (w/getByte wrt 0) (overflow codes/DOUBLE))
-      (are-bytes= bytes out)
+      (are-nums= bytes out)
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
-      (are-bytes= control-bytes out)))
+      (are-nums= control-bytes out)))
   (testing "floats"
     (doseq [{:keys [form bytes value rawbytes throw?]} samples/float-samples]
       (testing form
         (let [out (byte-array (count bytes))
               wrt (w/writer out)]
           (w/writeFloat wrt value)
-          (are-bytes= bytes out)
+          (are-nums= bytes out)
           (rawOut/reset (.-raw-out wrt))
           (w/writeObject wrt value)
-          (are-bytes= bytes out)))))
+          (are-nums= bytes out)))))
   (testing "doubles"
     (doseq [{:keys [form bytes value rawbytes throw?]} samples/double-samples]
       (testing form
         (let [out (byte-array (count bytes))
               wrt (w/writer out)]
           (w/writeDouble wrt value)
-          (are-bytes= bytes out)
+          (are-nums= bytes out)
           (rawOut/reset (.-raw-out wrt))
           (w/writeObject wrt value)
-          (are-bytes= bytes out))))))
+          (are-nums= bytes out))))))
 
 #_(deftest writeBytes-test
   (testing "(< length ranges/BYTES_PACKED_LENGTH_END)"
@@ -134,10 +134,10 @@
           wrt (w/writer out)
           value (byte-array input)]
       (w/writeBytes wrt value)
-      (are-bytes= bytes out)
+      (are-nums= bytes out)
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
-      (are-bytes= bytes out)))
+      (are-nums= bytes out)))
   (testing "ranges/BYTES_PACKED_LENGTH_END < length < ranges/BYTE_CHUNK_SIZE"
     (let [{:keys [bytes input]} {:form "(byte-array (vec (range -6 7)))",
                                  :bytes [-39 13 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5 6]
@@ -148,20 +148,20 @@
           wrt (w/writer out)
           value (byte-array input)]
       (w/writeBytes wrt value)
-      (are-bytes= bytes out)
+      (are-nums= bytes out)
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
-      (are-bytes= bytes out)))
+      (are-nums= bytes out)))
   (testing "ranges/BYTES_PACKED_LENGTH_END < ranges/BYTE_CHUNK_SIZE < length"
     (let [{:keys [bytes input ]} @samples/chunked_bytes_sample
           out (byte-array (count bytes))
           wrt (w/writer out)
           value (byte-array (vec (take 70000 (repeat 99))))]
       (w/writeBytes wrt value)
-      (are-bytes= bytes out)
+      (are-nums= bytes out)
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
-      (are-bytes= bytes out))))
+      (are-nums= bytes out))))
 
 #_(deftest writeString-test
   (testing "packed string, no chunks"
@@ -169,28 +169,28 @@
           out (byte-array (count bytes))
           wrt (w/writer out)]
       (w/writeString wrt value)
-      (are-bytes= bytes out)
+      (are-nums= bytes out)
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
-      (are-bytes= bytes out)))
+      (are-nums= bytes out)))
   (testing "string, no packing, no chunks"
     (let [{:keys [bytes value]} {:form "\"I'm a reasonable man, get off my case\"", :bytes [-29 37 73 39 109 32 97 32 114 101 97 115 111 110 97 98 108 101 32 109 97 110 44 32 103 101 116 32 111 102 102 32 109 121 32 99 97 115 101], :footer false, :rawbytes [227 37 73 39 109 32 97 32 114 101 97 115 111 110 97 98 108 101 32 109 97 110 44 32 103 101 116 32 111 102 102 32 109 121 32 99 97 115 101], :value "I'm a reasonable man, get off my case"}
           out (byte-array (count bytes))
           wrt (w/writer out)]
       (w/writeString wrt value)
-      (are-bytes= bytes out)
+      (are-nums= bytes out)
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
-      (are-bytes= bytes out)))
+      (are-nums= bytes out)))
   (testing "chunked string"
     (let [{:keys [bytes value]} @samples/chunked_string_sample
           out (byte-array (count bytes))
           wrt (w/writer out)]
       (w/writeString wrt value)
-      (are-bytes= bytes out)
+      (are-nums= bytes out)
       (rawOut/reset (.-raw-out wrt))
       (w/writeObject wrt value)
-      (are-bytes= bytes out))))
+      (are-nums= bytes out))))
 
 #_(deftest writeRawUTF8-test
   (doseq [{:keys [form bytes value tag? byte-count]} samples/utf8-samples]
@@ -200,14 +200,14 @@
         (binding [w/*write-raw-utf8* true
                   w/*write-utf8-tag* tag?]
           (w/writeString wrt value))
-        (are-bytes= bytes out)
+        (are-nums= bytes out)
         (rawOut/reset (.-raw-out wrt))
         (w/clearCaches wrt)
         (is (zero? (rawOut/getBytesWritten (.-raw-out wrt))))
         (binding [w/*write-raw-utf8* true
                   w/*write-utf8-tag* tag?]
           (w/writeObject wrt value))
-        (are-bytes= bytes out)))))
+        (are-nums= bytes out)))))
 
 #_(deftest named-test
   (doseq [{:keys [form bytes value tag? byte-count]} samples/named-samples]
@@ -215,20 +215,25 @@
       (let [out (byte-array (or byte-count (count bytes)))
             wrt (w/writer out)]
         (w/writeObject wrt value)
-        (are-bytes= bytes out)))))
+        (are-nums= bytes out)))))
 
 #_(deftest writeList-test
   (doseq [{:keys [form bytes value tag? byte-count]} samples/list-samples]
     (let [out (byte-array (or byte-count (count bytes)))
           wrt (w/writer out)]
       (w/writeList wrt value)
-      (are-bytes= bytes out)
+      (are-nums= bytes out)
       (rawOut/reset (.-raw-out wrt))
       (w/clearCaches wrt)
       (w/writeObject wrt value)
-      (are-bytes= bytes out))))
+      (are-nums= bytes out))))
 
-
+(deftest map-test
+  (doseq [{:keys [form bytes value tag? byte-count]} samples/map-samples]
+    (let [out (byte-array (or byte-count (count bytes)))
+          wrt (w/writer out)]
+      (w/writeObject wrt value)
+      (are-nums= bytes out))))
 
 
 #_(deftest writeMap-test

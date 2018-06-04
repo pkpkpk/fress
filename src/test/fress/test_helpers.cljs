@@ -20,16 +20,27 @@
   (and (= (count as) (count bs))
        (every? true? (map = as bs))))
 
-(defn are-bytes=
-  [control-bytes out]
-  (assert (instance? js/Int8Array out))
-  (let [out (array-seq out)]
-    (if (not= (count control-bytes) (count out))
-      (is (= (count control-bytes) (count out)) "bytes are of different lengths")
-      (if (seq= control-bytes out)
-        (is true) ;;only go use byte by byte assertions when we know theres a problem
+(defn _seq [coll]
+  (if (goog.isArrayLike coll)
+    (array-seq coll)
+    (seq coll)))
+
+(defn are-nums=
+  "type flexible assertion that accepts two sequences of numbers
+   and checks they are all the same. shortcuts when different length.
+   convention is to put control bytes etc in first position"
+  [control out]
+  (let [control (_seq control)
+        out (_seq out)]
+    (assert (every? number? control) "every value must be a number")
+    (assert (every? number? out) "every value must be a number")
+    (if (not= (count control) (count out))
+      (is (= (count control) (count out))
+          (str "args are of different lengths : (count control) " (count control) " (count out) " (count out)))
+      (if (seq= control out)
+        (is true) ;;only go use index assertions when we know theres a problem
         (doseq [[i written-byte] (map-indexed #(vector %1 %2) out)]
-          (let [control-byte (nth control-bytes i)]
+          (let [control-byte (nth control i)]
             (when-not (= control-byte written-byte)
               (is (= control-byte written-byte)
                   (str "idx: " i " control-byte: " control-byte " written-byte " written-byte)))))))))

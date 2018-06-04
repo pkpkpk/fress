@@ -262,6 +262,13 @@
             rdr (r/reader out)]
         (is= value (r/readObject rdr))))))
 
+(deftest map-test
+  (doseq [{:keys [form bytes value tag? byte-count]} samples/map-samples]
+    (testing form
+      (let [out (byte-array bytes)
+            rdr (r/reader out)]
+        (is= value (r/readObject rdr))))))
+
 (deftest inst-test
   (doseq [{:keys [form bytes value rawbytes throw?]} samples/inst-samples]
     (let [rdr (r/reader (byte-array bytes))

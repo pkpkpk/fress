@@ -101,8 +101,7 @@
   [{:form "{}", :bytes [-64 -28], :byte-count 2, :footer false, :rawbytes [192 228], :raw-byte-count 2, :value {}}
    {:form "{:a nil}", :bytes [-64 -26 -54 -9 -51 -37 97 -9], :byte-count 8, :footer false, :rawbytes [192 230 202 247 205 219 97 247], :raw-byte-count 8, :value {:a nil}}
    {:form "#:foo{:bar {}}", :bytes [-64 -26 -54 -51 -35 102 111 111 -51 -35 98 97 114 -64 -28], :byte-count 15, :footer false, :rawbytes [192 230 202 205 221 102 111 111 205 221 98 97 114 192 228], :raw-byte-count 15, :value #:foo{:bar {}}}
-
-   ])
+   {:form "{:a 0, :b \"1\", :user/c {[1 2 3] :user/kw}}", :bytes [-64 -22 -54 -9 -51 -37 97 0 -54 -9 -51 -37 98 -37 49 -54 -51 -34 117 115 101 114 -51 -37 99 -64 -26 -25 1 2 3 -54 -126 -51 -36 107 119], :byte-count 37, :footer false, :rawbytes [192 234 202 247 205 219 97 0 202 247 205 219 98 219 49 202 205 222 117 115 101 114 205 219 99 192 230 231 1 2 3 202 130 205 220 107 119], :raw-byte-count 37, :value {:a 0, :b "1", :user/c {[1 2 3] :user/kw}}}])
 
 (def typed-array-samples
   [{:form "(byte-array [7 11 13 17])", :bytes [-44 7 11 13 17], :rawbytes [212 7 11 13 17], :input [7 11 13 17]}

@@ -7,7 +7,8 @@
             [fress.reader :as r]
             [fress.samples :as samples]
             [fress.util :refer [byte-array] :as util]
-            [fress.test-helpers :refer [log is= byteseq rawbyteseq overflow precision= float=]]))
+            [fress.test-helpers :refer [log is= byteseq rawbyteseq are-nums=
+                                        overflow precision= float=]]))
 
 (deftest readInt-test
   (testing "readRawInt40"
@@ -46,7 +47,7 @@
                                                :rawbytes [248 0 31 255 255 255 255 255 255]}
           rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset (:raw-in rdr))
       (testing "by component"
         (is= 248 (r/readNextCode rdr) codes/INT)
@@ -69,7 +70,7 @@
     (doseq [{:keys [form bytes value rawbytes throw?]} samples/int-samples]
       (testing form
         (let [rdr (r/reader (byte-array bytes))]
-          (is= rawbytes (rawbyteseq rdr))
+          (are-nums= rawbytes (rawbyteseq rdr))
           (rawIn/reset (:raw-in rdr))
           (if throw?
             (is (thrown? js/Error (r/readInt rdr)))
@@ -86,7 +87,7 @@
                                                       :rawbytes [249 127 127 255 255]}
           rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= 249 (rawIn/readRawByte raw))
       (is (precision= value (rawIn/readRawFloat raw) 8))
@@ -99,7 +100,7 @@
       (testing form
         (let [rdr (r/reader (byte-array bytes))
               raw (:raw-in rdr)]
-          (is= rawbytes (rawbyteseq rdr))
+          (are-nums= rawbytes (rawbyteseq rdr))
           (rawIn/reset raw)
           (is (float= value (r/readFloat rdr)))
           (rawIn/reset raw)
@@ -113,7 +114,7 @@
                                                       :rawbytes [250 127 239 255 255 255 255 255 255]}
           rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is (precision= value (r/readDouble rdr) 16))
       (rawIn/reset raw)
@@ -123,7 +124,7 @@
       (testing form
         (let [rdr (r/reader (byte-array bytes))
               raw (:raw-in rdr)]
-          (is= rawbytes (rawbyteseq rdr))
+          (are-nums= rawbytes (rawbyteseq rdr))
           (rawIn/reset raw)
           (is (float= value (r/readDouble rdr))))))))
 
@@ -135,11 +136,11 @@
           rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)
           input (second (read-string form))]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= (r/readNextCode rdr) (+ (count input) codes/BYTES_PACKED_LENGTH_START))
       (rawIn/reset raw)
-      (is= (byte-array input) (r/readObject rdr))))
+      (are-nums= (byte-array input) (r/readObject rdr))))
   (testing "not packed, no chunks"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "(byte-array [-4 -3 -2 -1 0 1 2 3 4])",
                                                       :bytes [-39 9 -4 -3 -2 -1 0 1 2 3 4],
@@ -147,24 +148,24 @@
           rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)
           input (second (read-string form))]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= (r/readNextCode rdr) codes/BYTES)
       (is= (r/readNextCode rdr) (count input))
       (rawIn/reset raw)
-      (is= (byte-array input) (r/readObject rdr))))
+      (are-nums= (byte-array input) (r/readObject rdr))))
   (testing "chunked"
     (let [{:keys [form bytes value rawbytes throw?]} @samples/chunked_bytes_sample
           rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)
           input (vec (take 70000 (repeat 99)))]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= (r/readNextCode rdr) codes/BYTES_CHUNK)
       (is= (r/readCount- rdr) ranges/BYTE_CHUNK_SIZE)
       (is= (rawIn/readRawByte (:raw-in rdr)) 99)
       (rawIn/reset raw)
-      (is= (byte-array input) (r/readObject rdr)))))
+      (are-nums= (byte-array input) (r/readObject rdr)))))
 
 (deftest string-test
   (testing "packed string"
@@ -174,7 +175,7 @@
                                                       :value "hola"}
           rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= (r/readNextCode rdr) (+ codes/STRING_PACKED_LENGTH_START (count value)))
       (is= (rawIn/readRawByte raw) (.charCodeAt "h" 0))
@@ -187,7 +188,7 @@
     (let [{:keys [form bytes value rawbytes throw?]} {:form "(apply str (take 20 (repeat \\A)))", :bytes [-29 20 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65], :rawbytes [227 20 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65], :value "AAAAAAAAAAAAAAAAAAAA"}
           rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= (r/readNextCode rdr) codes/STRING)
       (is= (r/readCount- rdr) (count value))
@@ -197,7 +198,7 @@
     (let [{:keys [form bytes value rawbytes throw?]} @samples/chunked_string_sample
           rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= (r/readNextCode rdr) codes/STRING_CHUNK)
       (is= (r/readCount- rdr) (inc util/U16_MAX_VALUE))
@@ -211,7 +212,7 @@
                                                      :value "😉 😎 🤔 😐 🙄"}
           rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= 227 (r/readNextCode rdr) codes/STRING)
       (rawIn/reset raw)
@@ -221,7 +222,7 @@
   (doseq [{:keys [form bytes value rawbytes throw?]} samples/utf8-samples]
     (let [rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= value (r/readObject rdr)))))
 
@@ -254,11 +255,18 @@
 (defn utf8+code-benchmark [] (utf8-benchmark utf8+code-sample n))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+#_(deftest named-test
+  (doseq [{:keys [form bytes value tag? byte-count]} samples/named-samples]
+    (testing form
+      (let [out (byte-array bytes)
+            rdr (r/reader out)]
+        (is= value (r/readObject rdr))))))
+
 (deftest inst-test
   (doseq [{:keys [form bytes value rawbytes throw?]} samples/inst-samples]
     (let [rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= value (r/readObject rdr)))))
 
@@ -266,7 +274,7 @@
   (doseq [{:keys [form bytes value rawbytes throw?]} samples/uuid-samples]
     (let [rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= value (r/readObject rdr)))))
 
@@ -274,7 +282,7 @@
   (doseq [{:keys [form bytes value rawbytes throw?]} samples/misc-samples]
     (let [rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (is= (read-string form) (r/readObject rdr)))))
 
@@ -291,9 +299,11 @@
     (let [rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)
           value ((sym->fn (first (read-string form))) input)]
-      (is= rawbytes (rawbyteseq rdr))
+      (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
-      (is= value (r/readObject rdr)))))
+      (let [o (r/readObject rdr)]
+        (is= (type value) (type o))
+        (are-nums=  value o)))))
 
 (deftest footer-test
   (doseq [{:keys [form bytes input rawbytes throw? footer value]} samples/footer-samples]
@@ -301,9 +311,11 @@
       (let [rdr (r/reader (byte-array bytes) :validateAdler? true)
             raw (:raw-in rdr)
             value (or value ((sym->fn (first (read-string form))) input))]
-        (is= rawbytes (rawbyteseq rdr))
+        (are-nums= rawbytes (rawbyteseq rdr))
         (rawIn/reset raw)
-        (is= value (r/readObject rdr))
+        (if input
+          (are-nums= value (r/readObject rdr))
+          (is= value (r/readObject rdr)))
         (is (nil? (r/validateFooter rdr)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

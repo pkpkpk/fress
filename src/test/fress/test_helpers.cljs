@@ -39,27 +39,18 @@
           (str "args are of different lengths : (count control) " (count control) " (count out) " (count out)))
       (if (seq= control out)
         (is true) ;;only go use index assertions when we know theres a problem
-        (doseq [[i written-byte] (map-indexed #(vector %1 %2) out)]
-          (let [control-byte (nth control i)]
-            (when-not (= control-byte written-byte)
-              (is (= control-byte written-byte)
-                  (str "idx: " i " control-byte: " control-byte " written-byte " written-byte)))))))))
+        (doseq [[i out_i] (map-indexed #(vector %1 %2) out)]
+          (let [control_i (nth control i)]
+            (when-not (= control_i out_i)
+              (is (= control_i out_i)
+                  (str "idx: " i " control["i"]: " control_i " out["i"] " out_i)))))))))
 
 (let [arr (js/Int8Array. 1)]
   (defn overflow [n]
     (aset arr 0 n)
     (aget arr 0)))
 
-
-
-; (defn array= [arr b] )
-
 (extend-type js/Int8Array
-  ; IEquiv
-  ; (-equiv [a b]
-  ;         (if (goog.isArrayLike b)
-  ;           (seq= (array-seq a) (array-seq b))
-  ;           (seq= (array-seq a) (seq b))))
   IIndexed
   (-nth
    ([arr n]
@@ -72,8 +63,6 @@
       not-found))))
 
 (extend-type js/Int32Array
-  ; IEquiv
-  ; (-equiv [a b] (= (array-seq a) (array-seq b)))
   IIndexed
   (-nth
    ([arr n]
@@ -86,8 +75,6 @@
       not-found))))
 
 (extend-type js/Float32Array
-  ; IEquiv
-  ; (-equiv [a b] (= (array-seq a) (array-seq b)))
   IIndexed
   (-nth
    ([arr n]
@@ -100,8 +87,6 @@
       not-found))))
 
 (extend-type js/Float64Array
-  ; IEquiv
-  ; (-equiv [a b] (= (array-seq a) (array-seq b)))
   IIndexed
   (-nth
    ([arr n]
@@ -112,10 +97,6 @@
     (if (and (<= 0 n) (< n (.-length arr)))
       (aget arr n)
       not-found))))
-
-; (extend-type array
-;   IEquiv
-;   (-equiv [a b] (= (array-seq a) (array-seq b))))
 
 (defn byteseq [wrt]
   (-> (js/Int8Array. (.. wrt -raw-out -memory -buffer) 0 (.. wrt -raw-out -bytesWritten))

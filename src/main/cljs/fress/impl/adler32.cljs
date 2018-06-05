@@ -3,7 +3,6 @@
 (defprotocol Adler32Protocol
   (update! [this byte]
            [this bytes offset length])
-  (get-value [this])
   (reset [this]))
 
 (def ^:const adler32-base 65521)

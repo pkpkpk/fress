@@ -26,7 +26,7 @@
 
 (deftype RawOutput [out checksum]
   IRawOutput
-  (getChecksum [this] (adler/get-value checksum))
+  (getChecksum [this] @checksum)
 
   (reset [this]
     (buf/reset out)

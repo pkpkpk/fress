@@ -314,4 +314,13 @@
           (w/writeObject wrt value)
           (are-nums= bytes out))))))
 
+(deftest writeFooter-test
+  (doseq [{:keys [form bytes input value byte-count]} samples/footer-samples]
+    (let [out (byte-array (or byte-count (count bytes)))
+          wrt (w/writer out)
+          value (or value (byte-array input))]
+      (w/writeObject wrt value)
+      (w/writeFooter wrt)
+      (are-nums= bytes out))))
+
 ; struct, caching, userHandlers + custom tags

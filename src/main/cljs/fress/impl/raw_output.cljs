@@ -1,10 +1,8 @@
 (ns fress.impl.raw-output
   (:require-macros [fress.macros :refer [>>>]])
-  (:require [fress.impl.adler32 :as adler]
-            [fress.util :refer [isBigEndian log dbg]]
-            [fress.impl.buffer :as buf]
+  (:require [fress.util :refer [isBigEndian log dbg]]
             [fress.impl.adler32 :as adler]
-            [goog.string :as gstring]))
+            [fress.impl.buffer :as buf]))
 
 (defprotocol IRawOutput
   (getByte [this index])
@@ -80,19 +78,15 @@
     (writeRawByte this (bit-and (>>> i 8) 0xFF))
     (writeRawByte this (bit-and i 0xFF)))
 
-  ; (writeRawInt64 [this i]
-  ;   (writeRawByte this (bit-and (>>> i 56) 0xFF))
-  ;   (writeRawByte this (bit-and (>>> i 48) 0xFF))
-  ;   (writeRawByte this (bit-and (>>> i 40) 0xFF))
-  ;   (writeRawByte this (bit-and (>>> i 32) 0xFF))
-  ;   (writeRawByte this (bit-and (>>> i 24) 0xFF))
-  ;   (writeRawByte this (bit-and (>>> i 16) 0xFF))
-  ;   (writeRawByte this (bit-and (>>> i 8) 0xFF))
-  ;   (writeRawByte this (bit-and i 0xFF)))
-
   (writeRawInt64 [this i]
-    (dotimes [x 8]
-      (writeRawByte this (>>> i (* (- 7 x) 8)))))
+    (writeRawByte this (bit-and (>>> i 56) 0xFF))
+    (writeRawByte this (bit-and (>>> i 48) 0xFF))
+    (writeRawByte this (bit-and (>>> i 40) 0xFF))
+    (writeRawByte this (bit-and (>>> i 32) 0xFF))
+    (writeRawByte this (bit-and (>>> i 24) 0xFF))
+    (writeRawByte this (bit-and (>>> i 16) 0xFF))
+    (writeRawByte this (bit-and (>>> i 8) 0xFF))
+    (writeRawByte this (bit-and i 0xFF)))
 
   (writeRawFloat [this f]
     (let [f32array (js/Float32Array. 1)]
@@ -114,13 +108,7 @@
   ([](raw-output nil ))
   ([out] (raw-output out 0))
   ([out offset]
-   (let [
-          ; out (if (nil? out)
-          ;      (buf/writable-buffer)
-          ;      (if (implements? buf/IWritableBuffer out)
-          ;        out
-          ;        (buf/writable-buffer out offset)))
-         out (buf/writable-buffer out offset)
+   (let [out (buf/writable-buffer out offset)
          checksum (adler/adler32)]
      (RawOutput. out checksum))))
 

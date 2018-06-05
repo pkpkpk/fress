@@ -375,8 +375,7 @@
         (is= (r/readObject rdr) (Person. "thom" "yorke"))))))
 
 #_(deftest read-cached-test
-  (let [bytes [-51 -63 -23 -33 104 101 108 108 111 1 79 -42 -10 -56 123 99 -79 -33 -94 -3 -128]
-        value #{"hello" 1 -42 false #inst "2018-05-30T16:26:53.565-00:00"}
+  (let [{:keys [bytes value]} samples/cached-sample
         rdr (r/reader (byte-array bytes))
         raw (:raw-in rdr)]
     (testing "by component"

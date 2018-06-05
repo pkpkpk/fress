@@ -314,7 +314,7 @@
           (w/writeObject wrt value)
           (are-nums= bytes out))))))
 
-(deftest writeFooter-test
+#_(deftest writeFooter-test
   (doseq [{:keys [form bytes input value byte-count]} samples/footer-samples]
     (let [out (byte-array (or byte-count (count bytes)))
           wrt (w/writer out)
@@ -323,4 +323,35 @@
       (w/writeFooter wrt)
       (are-nums= bytes out))))
 
-; struct, caching, userHandlers + custom tags
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(deftype Person [firstName lastName]
+  IEquiv
+  (-equiv [this that]
+    (and (= (type this) (type that))
+         (= firstName (.-firstName that))
+         (= lastName (.-lastName that)))))
+
+(defn writePerson
+  [wrt person]
+  (w/writeTag wrt "org.fressian.Examples.Person" 2)
+  (w/writeObject wrt (.-firstName person))
+  (w/writeObject wrt (.-lastName person)))
+
+(deftest write-person-test
+  (let [bytes [-17 -29 28 111 114 103 46 102 114 101 115 115 105 97 110 46 69 120 97 109 112 108 101 115 46 80 101 114 115 111 110 2 -33 106 111 110 110 121 -29 9 103 114 101 101 110 119 111 111 100 -96 -34 116 104 111 109 -33 121 111 114 107 101]
+        tag "org.fressian.Examples.Person"]
+    (testing "write person with write-handler"
+      (let [out (byte-array (count bytes))
+            wrt (w/writer out :handlers {Person writePerson})]
+        (w/writeObject wrt (->Person "jonny" "greenwood")) ;<= triggers struct caching
+        (w/writeObject wrt (->Person "thom" "yorke"))
+        (are-nums= bytes out)))))
+
+(deftest cached-test
+  (let [{:keys [value bytes]} samples/cached-sample
+        out (byte-array (count bytes))
+        wrt (w/writer out)]
+    (w/writeObject wrt value true)
+    (w/writeObject wrt value true)
+    (are-nums= bytes out)))

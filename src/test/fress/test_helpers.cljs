@@ -50,6 +50,21 @@
     (aset arr 0 n)
     (aget arr 0)))
 
+(def typed-array-sym->fn
+  {'byte-array   util/byte-array
+   'int-array    util/i32-array
+   'float-array  util/f32-array
+   'double-array util/f64-array
+   'object-array into-array
+   'long-array into-array
+   'boolean-array into-array})
+
+(def type->typed-array-sym
+  {js/Int8Array 'byte-array
+   js/Int32Array 'int-array
+   js/Float32Array 'float-array
+   js/Float64Array 'double-array})
+
 (extend-type js/Int8Array
   IIndexed
   (-nth

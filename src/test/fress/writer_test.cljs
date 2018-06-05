@@ -1,6 +1,7 @@
 (ns fress.writer-test
   (:require-macros [fress.macros :refer [>>>]])
   (:require [cljs.test :refer-macros [deftest is testing async]]
+            [cljs.tools.reader :refer [read-string]]
             [fress.impl.raw-output :as rawOut]
             [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
@@ -228,39 +229,38 @@
       (w/writeObject wrt value)
       (are-nums= bytes out))))
 
-(deftest map-test
+#_(deftest map-test
   (doseq [{:keys [form bytes value tag? byte-count]} samples/map-samples]
     (let [out (byte-array (or byte-count (count bytes)))
           wrt (w/writer out)]
       (w/writeObject wrt value)
       (are-nums= bytes out))))
 
+(def typed-array-sym->writer
+  {'byte-array   w/writeByteArray
+   'int-array    w/writeIntArray
+   'float-array  w/writeFloatArray
+   'double-array w/writeDoubleArray
+   'long-array   w/writeLongArray
+   'object-array w/writeObjectArray
+   'boolean-array w/writeBooleanArray})
 
-#_(deftest writeMap-test
-  (testing "map count bug"
-    (let [wrt (w/Writer)
-          tag "map"
-          code (codes/tag->code tag)
-          m {"a" []}
-          cnt (count (mapcat identity (seq m)))
-          control '(-64 -26 -37 97 -28)]
-      (w/writeObject wrt m)
-      (is= -64 (w/getByte wrt 0) (overflow code))
-      (is= -26 (w/getByte wrt 1) (overflow (+ cnt codes/LIST_PACKED_LENGTH_START)))
-      (is= (byteseq wrt) control)))
-  (testing "writeMap"
-    (let [samples [[{} [-64 -28]]
-                   [{"a" nil} '(-64 -26 -37 97 -9)]
-                   [["a" []] '(-26 -37 97 -28)]
-                   [{"a" []} '(-64 -26 -37 97 -28)]
-                   [{"a" [1]} '(-64 -26 -37 97 -27 1)]
-                   [{"a" [1 2 3]} '(-64 -26 -37 97 -25 1 2 3)]
-                   [{"a" "b"} '(-64 -26 -37 97 -37 98)]
-                   [{"a" #{}} '(-64 -26 -37 97 -63 -28)]]]
-      (doseq [[m control] samples]
-        (let [wrt (w/Writer)]
-          (w/writeObject wrt m)
-          (is= (byteseq wrt) control))))))
+(deftest typed-array-test
+  (doseq [{:keys [form bytes value input byte-count]} samples/typed-array-samples]
+    (testing form
+      (let [out (byte-array (or byte-count (count bytes)))
+            wrt (w/writer out)
+            sym (first (read-string form))
+            value ((helpers/typed-array-sym->fn sym) input)]
+        ((typed-array-sym->writer sym) wrt value)
+        (are-nums= bytes out)
+        (when-let [t (helpers/type->typed-array-sym (type value))]
+          (testing (str form " writeObject dispatch type->tag->code")
+            (rawOut/reset (.-raw-out wrt))
+            (w/writeObject wrt value)
+            (are-nums= bytes out)))))))
+
+
 
 #_(deftest misc-types-test
   (testing "inst"

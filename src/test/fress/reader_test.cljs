@@ -7,8 +7,8 @@
             [fress.reader :as r]
             [fress.samples :as samples]
             [fress.util :refer [byte-array] :as util]
-            [fress.test-helpers :refer [log is= byteseq rawbyteseq are-nums=
-                                        overflow precision= float=]]))
+            [fress.test-helpers :as helpers :refer 
+             [log is= byteseq rawbyteseq are-nums= overflow precision= float=]]))
 
 (deftest readInt-test
   (testing "readRawInt40"
@@ -293,19 +293,11 @@
       (rawIn/reset raw)
       (is= (read-string form) (r/readObject rdr)))))
 
-(def sym->fn
-  {'byte-array   util/byte-array
-   'int-array    util/i32-array
-   'float-array  util/f32-array
-   'double-array util/f64-array
-   'object-array into-array
-   'long-array into-array})
-
 (deftest typed-array-test
   (doseq [{:keys [form bytes input rawbytes throw?]} samples/typed-array-samples]
     (let [rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)
-          value ((sym->fn (first (read-string form))) input)]
+          value ((helpers/typed-array-sym->fn (first (read-string form))) input)]
       (are-nums= rawbytes (rawbyteseq rdr))
       (rawIn/reset raw)
       (let [o (r/readObject rdr)]

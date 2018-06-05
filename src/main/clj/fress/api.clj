@@ -145,6 +145,7 @@
 (defn typed-array? [o]
   (let [c (class o)]
     (or
+     (= c (Class/forName "[Z")) ;=> BOOLEAN_ARRAY
      (= c (Class/forName "[B"))
      (= c (Class/forName "[S"))
      (= c (Class/forName "[I"))

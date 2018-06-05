@@ -358,6 +358,8 @@
     (clearCaches this)
     this))
 
+
+
 (defn writeNumber [this ^number n]
   (if (int? n)
     (writeInt this n)
@@ -396,9 +398,7 @@
   (writeBytes wtr (uuid/uuid->bytes u)))
 
 (defn writeByteArray [wrt bytes]
-  ; (writeTag wtr "uuid" 1)
-  (writeBytes wrt bytes)
-  )
+  (writeBytes wrt bytes))
 
 (defn writeIntArray [wtr a]
   (writeTag wtr "int[]" 1)
@@ -434,28 +434,20 @@
     (doseq [b a]
       (writeBoolean wtr b))))
 
+; goog.math.Long writeLong
+; (defn writeLong [])
 
-
-#_(defn switch-long [l] (- 64 (.getNumBitsAbs l)))
-
-#_(defn writeRawInt64 [this l]
-  (dotimes [x 8]
-     (writeRawByte this (.shiftRight l (* (- 7 x) 8)))))
-
-#_(defn writeLong [wtr l]
-  (let [s (switch-long l)]
-    wtr))
-
-#_(defn writeLongArray [wtr a]
-  (let [length (count a)]
+(defn writeLongArray [wtr arr]
+  (let [length (count arr)]
     (writeTag wtr "long[]" 2)
     (writeInt wtr length)
-    (doseq [l a]
-      (writeLong wtr l))))
+    (doseq [l arr] (writeInt wtr l))))
 
-; goog.math.Long writeLong
-; "long[]" writeLongArray
-; object[]
+(defn writeObjectArray [wtr arr]
+  (let [length (alength arr)]
+    (writeTag wtr "Object[]" 2)
+    (writeInt wtr length)
+    (doseq [o arr] (writeObject wtr o))))
 
 (def default-write-handlers
   {js/Number writeNumber
@@ -480,7 +472,9 @@
    cljs.core/PersistentHashSet writeSet
    cljs.core/Keyword #(writeNamed "key" %1 %2)
    cljs.core/Symbol #(writeNamed "sym" %1 %2)
-   "boolean[]" writeBooleanArray})
+   "boolean[]" writeBooleanArray
+   "long[]" writeLongArray
+   "Object[]" writeObjectArray})
 
 (defn build-handler-lookup
   [user-handlers]

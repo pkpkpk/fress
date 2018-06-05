@@ -9,6 +9,7 @@
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
 
+
 (defn is=
   ([a b] (is (= a b)))
   ([a b c] (is (= a b c)))
@@ -112,6 +113,13 @@
     (if (and (<= 0 n) (< n (.-length arr)))
       (aget arr n)
       not-found))))
+
+(extend-type js/RegExp
+  IEquiv
+  (-equiv [this o]
+    (and (= (type this) (type o))
+         (= (.-source this) (.-source o))
+         (= (.-flags this) (.-flags o)))))
 
 (defn byteseq [wrt]
   (-> (js/Int8Array. (.. wrt -raw-out -memory -buffer) 0 (.. wrt -raw-out -bytesWritten))

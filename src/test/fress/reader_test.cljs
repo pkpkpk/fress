@@ -7,10 +7,10 @@
             [fress.reader :as r]
             [fress.samples :as samples]
             [fress.util :refer [byte-array] :as util]
-            [fress.test-helpers :as helpers :refer 
+            [fress.test-helpers :as helpers :refer
              [log is= byteseq rawbyteseq are-nums= overflow precision= float=]]))
 
-(deftest readInt-test
+#_(deftest readInt-test
   (testing "readRawInt40"
     (let [{:keys [form bytes value rawbytes]} {:form "(long -549755813887)"
                                                :value -549755813887
@@ -79,7 +79,7 @@
               (rawIn/reset (:raw-in rdr))
               (is= value (r/readObject rdr)))))))))
 
-(deftest read-floats-test
+#_(deftest read-floats-test
   (testing "Float/MAX_VALUE"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "Float/MAX_VALUE",
                                                       :value 3.4028235E38,
@@ -106,7 +106,7 @@
           (rawIn/reset raw)
           (is (float= value (r/readObject rdr))))))))
 
-(deftest read-double-test
+#_(deftest read-double-test
   (testing "Double/MAX_VALUE"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "Double/MAX_VALUE",
                                                       :value 1.7976931348623157E308
@@ -128,7 +128,7 @@
           (rawIn/reset raw)
           (is (float= value (r/readDouble rdr))))))))
 
-(deftest bytes-test
+#_(deftest bytes-test
   (testing "packed bytes"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "(byte-array [-1 -2 -3 0 1 2 3])"
                                                       :bytes [-41 -1 -2 -3 0 1 2 3]
@@ -167,7 +167,7 @@
       (rawIn/reset raw)
       (are-nums= (byte-array input) (r/readObject rdr)))))
 
-(deftest string-test
+#_(deftest string-test
   (testing "packed string"
     (let [{:keys [form bytes value rawbytes throw?]} {:form "\"hola\"",
                                                       :bytes [-34 104 111 108 97],
@@ -218,7 +218,7 @@
       (rawIn/reset raw)
       (is= value (r/readObject rdr)))))
 
-(deftest utf8-type-test
+#_(deftest utf8-type-test
   (doseq [{:keys [form bytes value rawbytes throw?]} samples/utf8-samples]
     (let [rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)]
@@ -255,45 +255,21 @@
 (defn utf8+code-benchmark [] (utf8-benchmark utf8+code-sample n))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(deftest named-test
+#_(deftest named-test
   (doseq [{:keys [form bytes value tag? byte-count]} samples/named-samples]
     (testing form
       (let [out (byte-array bytes)
             rdr (r/reader out)]
         (is= value (r/readObject rdr))))))
 
-(deftest map-test
+#_(deftest map-test
   (doseq [{:keys [form bytes value tag? byte-count]} samples/map-samples]
     (testing form
       (let [out (byte-array bytes)
             rdr (r/reader out)]
         (is= value (r/readObject rdr))))))
 
-(deftest inst-test
-  (doseq [{:keys [form bytes value rawbytes throw?]} samples/inst-samples]
-    (let [rdr (r/reader (byte-array bytes))
-          raw (:raw-in rdr)]
-      (are-nums= rawbytes (rawbyteseq rdr))
-      (rawIn/reset raw)
-      (is= value (r/readObject rdr)))))
-
-(deftest uuid-test
-  (doseq [{:keys [form bytes value rawbytes throw?]} samples/uuid-samples]
-    (let [rdr (r/reader (byte-array bytes))
-          raw (:raw-in rdr)]
-      (are-nums= rawbytes (rawbyteseq rdr))
-      (rawIn/reset raw)
-      (is= value (r/readObject rdr)))))
-
-(deftest misc-types
-  (doseq [{:keys [form bytes value rawbytes throw?]} samples/misc-samples]
-    (let [rdr (r/reader (byte-array bytes))
-          raw (:raw-in rdr)]
-      (are-nums= rawbytes (rawbyteseq rdr))
-      (rawIn/reset raw)
-      (is= (read-string form) (r/readObject rdr)))))
-
-(deftest typed-array-test
+#_(deftest typed-array-test
   (doseq [{:keys [form bytes input rawbytes throw?]} samples/typed-array-samples]
     (let [rdr (r/reader (byte-array bytes))
           raw (:raw-in rdr)
@@ -302,9 +278,43 @@
       (rawIn/reset raw)
       (let [o (r/readObject rdr)]
         (is= (type value) (type o))
-        (are-nums=  value o)))))
+        (when-let [t (helpers/type->typed-array-sym (type value))]
+          (are-nums=  value o))))))
 
-(deftest footer-test
+#_(deftest misc-test
+  (testing "inst"
+    (doseq [{:keys [form bytes value input byte-count]} samples/inst-samples]
+      (testing form
+        (let [out (byte-array bytes)
+              rdr (r/reader out)]
+          (is= value (r/readObject rdr))))))
+  (testing "uri"
+    (doseq [{:keys [form bytes value input byte-count]} samples/uri-samples]
+      (testing form
+        (let [out (byte-array bytes)
+              rdr (r/reader out)
+              value (goog.Uri. input)]
+          (is= (.toString  value) (.toString (r/readObject rdr)))))))
+  (testing "uuid"
+    (doseq [{:keys [form bytes value input byte-count]} samples/uuid-samples]
+      (testing form
+        (let [out (byte-array bytes)
+              rdr (r/reader out)]
+          (is= value (r/readObject rdr))))))
+  (testing "regex"
+    (doseq [{:keys [form bytes value input byte-count]} samples/regex-samples]
+      (testing form
+        (let [out (byte-array bytes)
+              rdr (r/reader out)]
+          (is= value (r/readObject rdr))))))
+  (testing "sets"
+    (doseq [{:keys [form bytes value input byte-count]} samples/set-samples]
+      (testing form
+        (let [out (byte-array bytes)
+              rdr (r/reader out)]
+          (is= value (r/readObject rdr)))))))
+
+#_(deftest footer-test
   (doseq [{:keys [form bytes input rawbytes throw? footer value]} samples/footer-samples]
     (testing form
       (let [rdr (r/reader (byte-array bytes) :validateAdler? true)
@@ -330,7 +340,7 @@
 (defn readPerson [rdr tag fields]
   (Person. (r/readObject rdr) (r/readObject rdr)))
 
-(deftest read-person-test
+#_(deftest read-person-test
   (let [bytes [-17 -29 28 111 114 103 46 102 114 101 115 115 105 97 110 46 69 120 97 109 112 108 101 115 46 80 101 114 115 111 110 2 -33 106 111 110 110 121 -29 9 103 114 101 101 110 119 111 111 100 -96 -34 116 104 111 109 -33 121 111 114 107 101]
         tag "org.fressian.Examples.Person"]
     (testing "reading without handler"
@@ -364,7 +374,7 @@
         (is= (r/readObject rdr) (Person. "jonny" "greenwood"))
         (is= (r/readObject rdr) (Person. "thom" "yorke"))))))
 
-(deftest read-cached-test
+#_(deftest read-cached-test
   (let [bytes [-51 -63 -23 -33 104 101 108 108 111 1 79 -42 -10 -56 123 99 -79 -33 -94 -3 -128]
         value #{"hello" 1 -42 false #inst "2018-05-30T16:26:53.565-00:00"}
         rdr (r/reader (byte-array bytes))

@@ -260,7 +260,7 @@
             (w/writeObject wrt value)
             (are-nums= bytes out)))))))
 
-(deftest misc-test
+#_(deftest misc-test
   (testing "inst"
     (doseq [{:keys [form bytes value input byte-count]} samples/inst-samples]
       (testing form

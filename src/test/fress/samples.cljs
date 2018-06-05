@@ -157,6 +157,3 @@
     :rawbytes [231 1 2 3 207 207 207 207 0 0 0 4 32 36 4 46],
     :value [1 2 3]}])
 
-(def misc-samples
-  [{:form "[1 2 3]", :value [1 2 3], :bytes [-25 1 2 3], :rawbytes [231 1 2 3]}
-   {:form "[true false [nil]]", :value [true false [nil]], :bytes [-25 -11 -10 -27 -9], :rawbytes [231 245 246 229 247]}])

@@ -178,6 +178,9 @@
                  :value '(quote ~value)
                  :form (quote ~form) #_(str "'" (name (quote ~value))))
 
+         (instance? java.net.URI value)
+         (assoc base :input (.toString value))
+
          :else
          (assoc base :value value))))))
 

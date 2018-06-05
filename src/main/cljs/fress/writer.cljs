@@ -434,9 +434,6 @@
     (doseq [b a]
       (writeBoolean wtr b))))
 
-; goog.math.Long writeLong
-; (defn writeLong [])
-
 (defn writeLongArray [wtr arr]
   (let [length (count arr)]
     (writeTag wtr "long[]" 2)
@@ -468,6 +465,8 @@
    cljs.core/PersistentArrayMap writeMap
    cljs.core/ObjMap writeMap
    cljs.core/PersistentVector writeList
+   cljs.core/EmptyList writeList
+   cljs.core/List writeList
    cljs.core/ChunkedSeq writeList
    cljs.core/PersistentHashSet writeSet
    cljs.core/Keyword #(writeNamed "key" %1 %2)

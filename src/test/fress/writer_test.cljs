@@ -245,7 +245,7 @@
    'object-array w/writeObjectArray
    'boolean-array w/writeBooleanArray})
 
-(deftest typed-array-test
+#_(deftest typed-array-test
   (doseq [{:keys [form bytes value input byte-count]} samples/typed-array-samples]
     (testing form
       (let [out (byte-array (or byte-count (count bytes)))
@@ -260,79 +260,58 @@
             (w/writeObject wrt value)
             (are-nums= bytes out)))))))
 
-
-
-#_(deftest misc-types-test
+(deftest misc-test
   (testing "inst"
-    (let [wrt (w/Writer)
-          t 1527080360072
-          date (js/Date. t)
-          control '(-56 123 99 -115 21 24 -120)]
-      (w/writeObject wrt date)
-      (is= (byteseq wrt) control)))
+    (doseq [{:keys [form bytes value input byte-count]} samples/inst-samples]
+      (testing form
+        (let [out (byte-array (or byte-count (count bytes)))
+              wrt (w/writer out)]
+          (w/writeInst wrt value)
+          (are-nums= bytes out)
+          (rawOut/reset (.-raw-out wrt))
+          (w/writeObject wrt value)
+          (are-nums= bytes out)))))
   (testing "uri"
-    (let [wrt (w/Writer)
-          uri (goog.Uri. "https://clojurescript.org")
-          control '(-59 -29 25 104 116 116 112 115 58 47 47 99 108 111 106 117 114 101 115 99 114 105 112 116 46 111 114 103)]
-      (w/writeObject wrt uri)
-      (is= (byteseq wrt) control)))
-  (testing "regex"
-    (let [wrt (w/Writer)
-          re #"\n"
-          control '(-60 -36 92 110)]
-      (w/writeObject wrt re)
-      (is= (byteseq wrt) control)))
+    (doseq [{:keys [form bytes value input byte-count]} samples/uri-samples]
+      (testing form
+        (let [out (byte-array (or byte-count (count bytes)))
+              wrt (w/writer out)
+              value (goog.Uri. input)]
+          (w/writeUri wrt value)
+          (are-nums= bytes out)
+          (rawOut/reset (.-raw-out wrt))
+          (w/writeObject wrt value)
+          (are-nums= bytes out)))))
   (testing "uuid"
-    (let [wrt (w/Writer)
-          u #uuid "0d6a32ef-1012-470b-92d2-45e25db8d09d"
-          control '(-61 -39 16 13 106 50 -17 16 18 71 11 -110 -46 69 -30 93 -72 -48 -99)]
-      (w/writeObject wrt u)
-      (is= (byteseq wrt) control)))
-  (testing "int[]"
-    (let [wrt (w/Writer)
-          a (js/Int32Array. #js[0 1 2 3 4 5])
-          control '(-77 6 0 1 2 3 4 5)]
-      (w/writeObject wrt a)
-      (is= (byteseq wrt) control)))
-  (testing "float[]"
-    (let [wrt (w/Writer)
-          a (js/Float32Array. #js[0 1 2 3 4 5])
-          control '(-76 6 -7 0 0 0 0 -7 63 -128 0 0 -7 64 0 0 0 -7 64 64 0 0 -7 64 -128 0 0 -7 64 -96 0 0)]
-      (w/writeObject wrt a)
-      (is= (byteseq wrt) control)))
-  (testing "double[]"
-    (let [wrt (w/Writer)
-          a (js/Float64Array. #js[0 1 2 3 4 5])
-          control '(-79 6 -5 -4 -6 64 0 0 0 0 0 0 0 -6 64 8 0 0 0 0 0 0 -6 64 16 0 0 0 0 0 0 -6 64 20 0 0 0 0 0 0)]
-      (w/writeObject wrt a)
-      (is= (byteseq wrt) control)))
-  (testing "boolean[]"
-    (let [wrt (w/Writer)
-          a [true false true false]
-          control '(-78 4 -11 -10 -11 -10)]
-      (w/writeAs wrt "boolean[]" a)
-      (is= (byteseq wrt) control))))
+    (doseq [{:keys [form bytes value input byte-count]} samples/uuid-samples]
+      (testing form
+        (let [out (byte-array (or byte-count (count bytes)))
+              wrt (w/writer out)]
+          (w/writeUUID wrt value)
+          (are-nums= bytes out)
+          (rawOut/reset (.-raw-out wrt))
+          (w/writeObject wrt value)
+          (are-nums= bytes out)))))
+  (testing "regex"
+    (doseq [{:keys [form bytes value input byte-count]} samples/regex-samples]
+      (testing form
+        (let [out (byte-array (or byte-count (count bytes)))
+              wrt (w/writer out)]
+          (w/writeRegex wrt value)
+          (are-nums= bytes out)
+          (rawOut/reset (.-raw-out wrt))
+          (w/writeObject wrt value)
+          (are-nums= bytes out)))))
+  (testing "sets"
+    (doseq [{:keys [form bytes value input byte-count]} samples/set-samples]
+      (testing form
+        (let [out (byte-array (or byte-count (count bytes)))
+              wrt (w/writer out)]
+          (w/writeSet wrt value)
+          (are-nums= bytes out)
+          (rawOut/reset (.-raw-out wrt))
+          (w/clearCaches wrt)
+          (w/writeObject wrt value)
+          (are-nums= bytes out))))))
 
-(comment
- (testing "goog.math.Long"
-   (let [wrt (w/Writer)
-         l (goog.math.Long. 99)
-         control '(80 99)]
-     (w/writeObject wrt l)
-     (is= (byteseq wrt) control))
-   (let [wrt (w/Writer)
-         l (goog.math.Long. 99999999999999999)
-         control '(-8 1 99 69 120 93 -119 -1 -1)]
-     (w/writeObject wrt l)
-     (is= (byteseq wrt) control)))
- (testing "long[]"
-   (let [wrt (w/Writer)
-         a (mapv #(goog.math.Long. %) [0 1 2 3 4 5])
-         control '(-80 6 0 1 2 3 4 5)]
-     (w/writeObject wrt a)
-     (is= (byteseq wrt) control))))
-
-
-
-; all num types (see rawOutput)
-; chars?, struct, caching, userHandlers + custom tags
+; struct, caching, userHandlers + custom tags

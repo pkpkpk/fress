@@ -92,6 +92,7 @@
 
 (def list-samples
   [{:form "[]", :bytes [-28], :byte-count 1, :footer false, :rawbytes [228], :raw-byte-count 1, :value []}
+   {:form "()", :bytes [-28], :byte-count 1, :footer false, :rawbytes [228], :raw-byte-count 1, :value ()}
    {:form "[\"\"]", :bytes [-27 -38], :byte-count 2, :footer false, :rawbytes [229 218], :raw-byte-count 2, :value [""]}
    {:form "[\"\" true false nil]", :bytes [-24 -38 -11 -10 -9], :byte-count 5, :footer false, :rawbytes [232 218 245 246 247], :raw-byte-count 5, :value ["" true false nil]}
    {:form "[\"\" true false nil [-1 0 1]]", :bytes [-23 -38 -11 -10 -9 -25 -1 0 1], :byte-count 9, :footer false, :rawbytes [233 218 245 246 247 231 255 0 1], :raw-byte-count 9, :value ["" true false nil [-1 0 1]]}
@@ -113,17 +114,36 @@
    {:form "(boolean-array [true false true false])", :bytes [-78 4 -11 -10 -11 -10], :byte-count 6, :footer false, :rawbytes [178 4 245 246 245 246], :raw-byte-count 6, :input [true false true false]}])
 
 (def inst-samples
-  [{:form #inst "2018-05-29T11:17:10.600-00:00" :bytes [-56 123 99 -85 -99 -71 72] :rawbytes [200 123 99 171 157 185 72] :value #inst "2018-05-29T11:17:10.600-00:00"}
-   {:form "(java.util.Date.)", :bytes [-56 123 99 -85 -92 -95 -91], :rawbytes [200 123 99 171 164 161 165], :value #inst "2018-05-29T11:24:43.301-00:00"}])
+  [{:form #inst "2018-05-29T11:17:10.600-00:00"
+    :bytes [-56 123 99 -85 -99 -71 72]
+    :rawbytes [200 123 99 171 157 185 72]
+    :value #inst "2018-05-29T11:17:10.600-00:00"}
+   {:form "(java.util.Date.)",
+    :bytes [-56 123 99 -85 -92 -95 -91]
+    :rawbytes [200 123 99 171 164 161 165]
+    :value #inst "2018-05-29T11:24:43.301-00:00"}])
 
-(def misc-samples
-  [{:form "[1 2 3]", :value [1 2 3], :bytes [-25 1 2 3], :rawbytes [231 1 2 3]}
-   {:form "[true false [nil]]", :value [true false [nil]], :bytes [-25 -11 -10 -27 -9], :rawbytes [231 245 246 229 247]}])
+(def uri-samples
+  [{:form "(java.net.URI. \"https://www.youtube.com/watch?v=xvhQitzj0zQ\")"
+    :bytes [-59 -29 43 104 116 116 112 115 58 47 47 119 119 119 46 121 111 117 116 117 98 101 46 99 111 109 47 119 97 116 99 104 63 118 61 120 118 104 81 105 116 122 106 48 122 81]
+    :byte-count 46,
+    :footer false
+    :rawbytes [197 227 43 104 116 116 112 115 58 47 47 119 119 119 46 121 111 117 116 117 98 101 46 99 111 109 47 119 97 116 99 104 63 118 61 120 118 104 81 105 116 122 106 48 122 81]
+    :raw-byte-count 46
+    :input "https://www.youtube.com/watch?v=xvhQitzj0zQ"}])
 
 (def uuid-samples
   [{:form "(java.util.UUID/randomUUID)", :bytes [-61 -39 16 15 86 86 -123 61 -80 71 99 -66 80 -20 17 -2 19 83 -81],
     :rawbytes [195 217 16 15 86 86 133 61 176 71 99 190 80 236 17 254 19 83 175],
     :value #uuid "0f565685-3db0-4763-be50-ec11fe1353af"}])
+
+(def regex-samples
+  [{:form "#\"\\n\"", :bytes [-60 -36 92 110], :byte-count 4, :footer false, :rawbytes [196 220 92 110], :raw-byte-count 4, :value #"\n"}])
+
+(def set-samples
+  [{:form "#{}", :bytes [-63 -28], :byte-count 2, :footer false, :rawbytes [193 228], :raw-byte-count 2, :value #{}}
+   {:form "#{:user/foo}", :bytes [-63 -27 -54 -51 -34 117 115 101 114 -51 -35 102 111 111], :byte-count 14, :footer false, :rawbytes [193 229 202 205 222 117 115 101 114 205 221 102 111 111], :raw-byte-count 14, :value #{:user/foo}}
+   {:form "#{nil :user/foo [1 2 3] -99}", :bytes [-63 -24 -9 -54 -51 -34 117 115 101 114 -51 -35 102 111 111 -25 1 2 3 79 -99], :byte-count 21, :footer false, :rawbytes [193 232 247 202 205 222 117 115 101 114 205 221 102 111 111 231 1 2 3 79 157], :raw-byte-count 21, :value #{nil :user/foo [1 2 3] -99}}])
 
 (def footer-samples
   [{:form "(byte-array [7 11 13 17])"
@@ -136,3 +156,7 @@
     :footer true,
     :rawbytes [231 1 2 3 207 207 207 207 0 0 0 4 32 36 4 46],
     :value [1 2 3]}])
+
+(def misc-samples
+  [{:form "[1 2 3]", :value [1 2 3], :bytes [-25 1 2 3], :rawbytes [231 1 2 3]}
+   {:form "[true false [nil]]", :value [true false [nil]], :bytes [-25 -11 -10 -27 -9], :rawbytes [231 245 246 229 247]}])

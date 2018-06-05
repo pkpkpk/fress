@@ -82,3 +82,5 @@
 (defmethod f64-array PersistentVector [v] (js/Float64Array. (into-array v)))
 (defmethod f64-array js/Array [a] (js/Float64Array. a))
 (defmethod f64-array ArrayList [al] (js/Float64Array. (.toArray al)))
+
+(defn time->inst [time] (doto (js/Date.) (.setTime time)))

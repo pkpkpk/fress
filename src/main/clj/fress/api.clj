@@ -225,3 +225,16 @@
     (bytestream->buf BYTES-os)))
 
 
+(defrecord Book [author title])
+
+(defn- class-sym
+  "Returns the class name of inst as a symbol."
+  [^Object inst]
+  (-> inst (.getClass) (.getName) symbol))
+
+(defn record-sample []
+  (let [book (->Book "Borges" "El jardín de senderos que se bifurcan")]
+    {:bytes (vec (byteseq book))
+     :author (:author book)
+     :title (:title book)
+     :class-sym (class-sym book)}))

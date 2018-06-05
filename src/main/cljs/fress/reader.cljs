@@ -57,8 +57,8 @@
   (readObject [this])
   (readCount- [this])
   (readObjects- [this length])
-  (readClosedList- [this])
-  (readOpenList- [this])
+  (readClosedList [this])
+  (readOpenList [this])
   (readAndCacheObject- [this cache])
   (lookupCache [this cache index])
   (validateFooter [this] [this calculatedLength magicFromStream])
@@ -477,16 +477,16 @@
           (do
             (aset objects i (readObject this))
             (recur (inc i)))))))
-  (readClosedList- [this]
+  (readClosedList [this]
     (let [objects (array-list)]
       (loop []
         (let [code (readNextCode this)]
           (if (== code codes/END_COLLECTION)
             (.toArray objects)
             (do
-              (.add objects (read rdr code))
+              (.add objects (read- this code))
               (recur)))))))
-  (readOpenList- [this]
+  (readOpenList [this]
     (let [objects (array-list)]
       (loop []
         (let [code (try
@@ -496,7 +496,7 @@
           (if (== code codes/END_COLLECTION)
             (.toArray objects)
             (do
-              (.add objects (read rdr code))
+              (.add objects (read- this code))
               (recur)))))))
   (readAndCacheObject- [this ^ArrayList cache]
     (let [index (.size cache)
@@ -620,6 +620,18 @@
 (defn readSymbol [rdr _ _]
   (symbol (readObject rdr) (readObject rdr)))
 
+(def ^{:dynamic true
+       :doc "map of record names to map->Record constructors at runtime"}
+  *record->ctor* {})
+
+(defn readRecord [rdr tag component-count]
+  (assert (implements? ILookup *record->ctor*))
+  (let [rname (readObject rdr)
+        rmap (readObject rdr)]
+    (if-let [rcons (get *record->ctor* rname)]
+      (rcons rmap)
+      (TaggedObject. "record" (into-array Object [rname rmap])))))
+
 (def default-read-handlers
   {"list" (fn [objectArray] (vec objectArray)) ;;diff sig, called by internalReadList
    "utf8" #(readUTF8 %1) ;<= for tagged use, but default is still code
@@ -637,10 +649,8 @@
    "uri" readUri
    "inst" readInst
    "key" readKeyword
-   "sym" readSymbol})
-
-; ratio, char
-;no bigint, bigdec
+   "sym" readSymbol
+   "record" readRecord})
 
 (defn build-lookup
   [userHandlers]

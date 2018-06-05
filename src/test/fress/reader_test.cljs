@@ -388,3 +388,23 @@
     (testing "normal use"
       (is= (r/readObject rdr) value)
       (is= (r/readObject rdr) value))))
+
+(defrecord Book [author title])
+
+(deftest record-test
+  (let [{:keys [bytes author title class-sym]} samples/record-sample
+        rdr (r/reader (byte-array bytes))]
+    (testing "no bound reader ... => tagged-object"
+      (let [o (r/readObject rdr)]
+        (is (instance? r/TaggedObject o))
+        (is= (.-tag o) "record")
+        (let [v (.-value o)]
+          (is (aget v 0) 'fress.api.Book)
+          (is (js->clj (aget v 1)) {:author author :title title}))))
+    (rawIn/reset (.-raw-in rdr))
+    (r/resetCaches rdr)
+    (testing "binding defrecord ctor  => record instance"
+      (binding [r/*record->ctor* {'fress.api.Book map->Book}]
+        (let [o (r/readObject rdr)]
+          (is (instance? Book o))
+          (is= o (Book. author title)))))))

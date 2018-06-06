@@ -446,6 +446,29 @@
     (writeInt wtr length)
     (doseq [o arr] (writeObject wtr o))))
 
+(def
+  ^{:dynamic true
+    :doc "map record-types -> string name desired for serializing records"}
+  *record->name* {})
+
+(defn class-sym
+  "Record types need a string so the name can survive munging. Is converted to
+   symbol before serializing."
+  [rec]
+  (let [name (get *record->name* (type rec))]
+    (assert (string? name))
+    (symbol name)))
+
+(defn writeRecord [w rec]
+  (writeTag w "record" 2)
+  (writeObject w (class-sym rec) true)
+  (writeTag w "map" 1)
+  (beginClosedList w)
+  (doseq [[field value] rec]
+    (writeObject w field true)
+    (writeObject w value))
+  (endList w))
+
 (def default-write-handlers
   {js/Number writeNumber
    js/String writeString
@@ -481,7 +504,9 @@
     (fn [tag obj]
       (if tag
         (get handlers tag)
-        (get handlers (type obj))))))
+        (if (record? obj)
+          writeRecord
+          (get handlers (type obj)))))))
 
 (defn writer
   "Create a writer that combines userHandlers with the normal type handlers

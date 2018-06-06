@@ -355,3 +355,14 @@
     (w/writeObject wrt value true)
     (w/writeObject wrt value true)
     (are-nums= bytes out)))
+
+(defrecord Book [author title])
+
+(deftest write-record-test
+  (let [{:keys [bytes author title class-sym]} samples/record-sample
+        out (byte-array (count bytes))
+        wrt (w/writer out)
+        value (Book. author title)]
+    (binding [w/*record->name* {Book "fress.api.Book"}]
+      (w/writeObject wrt value)
+      (are-nums= bytes out))))

@@ -227,7 +227,7 @@
 
 (defrecord Book [author title])
 
-(defn- class-sym
+(defn class-sym
   "Returns the class name of inst as a symbol."
   [^Object inst]
   (-> inst (.getClass) (.getName) symbol))

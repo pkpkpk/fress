@@ -15,16 +15,17 @@
   ([a b c] (is (= a b c)))
   ([a b c d] (is (= a b c d)-)))
 
-(defn seq=
-  [as bs]
-  (assert (seq as) (seq bs))
-  (and (= (count as) (count bs))
-       (every? true? (map = as bs))))
-
 (defn _seq [coll]
   (if (goog.isArrayLike coll)
     (array-seq coll)
     (seq coll)))
+
+(defn seq=
+  [as bs]
+  (let [as (_seq as)
+        bs (_seq bs)]
+    (and (= (count as) (count bs))
+         (every? true? (map = as bs)))))
 
 (defn are-nums=
   "type flexible assertion that accepts two sequences of numbers

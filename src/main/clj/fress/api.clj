@@ -86,6 +86,7 @@
    See fressian for options."
   [obj & {:keys [handlers footer]}]
   (let [BYTES-os (BytesOutputStream.)
+        write-handlers (or handlers write-handlers)
         writer (fressian/create-writer BYTES-os :handlers write-handlers)]
     (.writeObject writer obj)
     (when footer (.writeFooter writer))
@@ -110,8 +111,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn byteseq [obj & {:keys [handlers footer]}]
-  (byte-buffer-seq (byte-buf obj :footer footer)))
+(defn bytevec [obj & {:keys [handlers footer]}]
+  (vec (byte-buffer-seq (byte-buf obj :handlers handlers :footer footer))))
 
 (defn bytes->rdr
   [bytes]
@@ -121,9 +122,9 @@
     (fressian/create-reader (io/input-stream in) :handler read-handlers)))
 
 (defn ->rdr [o] (-> o byte-buf bytes->rdr))
-(defn ->raw [o] (-> o byte-buf bytes->rdr rdr->raw))
+(defn ->raw-in [o] (-> o byte-buf bytes->rdr rdr->raw))
 
-(defn raw->rawbytes [raw]
+(defn raw-in->ubytes [raw]
   (loop [acc []]
     (let [byte (try
                  (.readRawByte raw)
@@ -132,11 +133,11 @@
         acc
         (recur (conj acc byte))))))
 
-(defn rawbyteseq [obj & {:keys [handlers footer]}]
+(defn ubytevec [obj & {:keys [handlers footer]}]
   (let [bytes (byte-buf obj :footer footer)
         rdr (bytes->rdr bytes)
         raw (rdr->raw rdr)]
-    (raw->rawbytes raw)))
+    (raw-in->ubytes raw)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;js MAX_SAFE_INT etc
@@ -157,15 +158,15 @@
 (defmacro sample
   ([form & {:keys [footer tag-utf8] :or {footer false}}]
    (binding [*write-utf8-tag* tag-utf8]
-     (let [value  (if (symbol? form) form (eval form))
-           bytes  (vec (byteseq value :footer footer))
-           rawbytes (vec (rawbyteseq value :footer footer))
+     (let [value (if (symbol? form) form (eval form))
+           bytes (mapv long (bytevec value :footer footer))
+           ubytes (mapv long (ubytevec value :footer footer))
            base {:form (pr-str form)
                  :bytes bytes
                  :byte-count (count bytes)
                  :footer footer
-                 :rawbytes rawbytes
-                 :raw-byte-count (count rawbytes)}]
+                 :ubytes ubytes
+                 :ubyte-count (count ubytes)}]
        (cond
          (or (typed-array? value) (bytes? value))
          (assoc base :input (eval (second form)))
@@ -184,19 +185,12 @@
          :else
          (assoc base :value value))))))
 
-#_(def read-handlers
-  (-> (merge {"utf8" utf8-reader} fressian/clojure-read-handlers)
-      fressian/associative-lookup))
-
 (deftype Person [ ^String firstName ^String  lastName]
   Object
   (toString [this] (str "Person " firstName " " lastName)))
 
-
-
 (defn write-person []
   (let [BYTES-os (BytesOutputStream.)
-        ; baos (ByteArrayOutputStream.)
         tag "org.fressian.Examples.Person"
         person-writer (reify WriteHandler
                         (write [_ w person]
@@ -224,7 +218,6 @@
     (.writeObject writer bunchOfData true) ;<= written with cache reference code
     (bytestream->buf BYTES-os)))
 
-
 (defrecord Book [author title])
 
 (defn class-sym
@@ -234,7 +227,7 @@
 
 (defn record-sample []
   (let [book (->Book "Borges" "El jardín de senderos que se bifurcan")]
-    {:bytes (vec (byteseq book))
+    {:bytes (bytevec book)
      :author (:author book)
      :title (:title book)
      :class-sym (class-sym book)}))

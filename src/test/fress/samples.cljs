@@ -48,6 +48,17 @@
          (js/console.info "reading edn...")
          (read-string _str))))))
 
+(defn byte-samples []
+  [{:form "(byte-array [-1 -2 -3 0 1 2 3])"
+    :bytes [-41 -1 -2 -3 0 1 2 3]
+    :input [-1 -2 -3 0 1 2 3]}
+   {:form "(byte-array [-4 -3 -2 -1 0 1 2 3 4])",
+    :bytes [-39 9 -4 -3 -2 -1 0 1 2 3 4]
+    :input [-4 -3 -2 -1 0 1 2 3 4]}
+   (assoc @chunked_bytes_sample
+          :chunked? true
+          :input (vec (take 70000 (repeat 99))))])
+
 (defonce chunked_string_sample
   (let [path (path.join (local-dir) "chunked_string_sample.edn")]
     (delay
@@ -56,6 +67,14 @@
        (let [_str (slurp path)]
          (js/console.info "reading edn...")
          (read-string _str))))))
+
+(defn string-samples []
+  [{:form "\"hola\"", :bytes [-34 104 111 108 97], :value "hola"}
+   {:form "(apply str (take 20 (repeat \\A)))", :bytes [-29 20 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65], :value "AAAAAAAAAAAAAAAAAAAA"}
+   {:form "\"😉 😎 🤔 😐 🙄\"",
+    :bytes [-29 34 -19 -96 -67 -19 -72 -119 32 -19 -96 -67 -19 -72 -114 32 -19 -96 -66 -19 -76 -108 32 -19 -96 -67 -19 -72 -112 32 -19 -96 -67 -19 -71 -124]
+    :value "😉 😎 🤔 😐 🙄"}
+   (assoc @chunked_string_sample :chunked? true)])
 
 (def utf8-samples
   [{:tag? true :form "(->utf8 \"hello\")", :bytes [-17 -34 117 116 102 56 2 5 104 101 108 108 111], :rawbytes [239 222 117 116 102 56 2 5 104 101 108 108 111], :value "hello"}

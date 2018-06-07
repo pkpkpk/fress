@@ -10,7 +10,7 @@
             [fress.util :refer [byte-array] :as util]
             [fress.test-helpers :as helpers :refer [log is= seq= are-nums= float=]]))
 
-#_(deftest int-test
+(deftest int-test
   (doseq [{:keys [form bytes value throw?]} samples/int-samples]
     (testing form
       (let [out (byte-array (count bytes))
@@ -29,7 +29,7 @@
             (testing "reading unsafe int"
               (is (thrown? js/Error (r/readObject (r/reader (byte-array bytes))))))))))))
 
-#_(deftest float-test
+(deftest float-test
   (doseq [{:keys [form bytes value throw?]} (concat samples/float-samples samples/double-samples)]
     (testing form
       (let [out (byte-array (count bytes))
@@ -39,7 +39,57 @@
         (are-nums= bytes out)
         (is (float= value (r/readObject rdr)))))))
 
-#_(deftest rawUTF8-test
+(deftest string-test
+  (doseq [{:keys [form bytes value chunked?]} (samples/string-samples)]
+    (testing form
+      (let [out (byte-array (count bytes))
+            wrt (w/writer out)
+            rdr (r/reader out)]
+        (w/writeObject wrt value)
+        (are-nums= bytes out)
+        (is value (r/readObject rdr))
+        (testing "read by component"
+          (let [rdr (r/reader out)
+                bytelength (alength (.encode util/TextEncoder value))]
+            (cond
+              chunked?
+              (do
+                (is= (r/readNextCode rdr) codes/STRING_CHUNK)
+                (is= (r/readCount- rdr) (inc util/U16_MAX_VALUE)))
+
+              (< (alength out) 8)
+              (is= (r/readNextCode rdr) (+ codes/STRING_PACKED_LENGTH_START bytelength))
+
+              :else
+              (is= (r/readNextCode rdr) codes/STRING))))))))
+
+(deftest bytes-test
+  (doseq [{:keys [form bytes input chunked?]} (samples/byte-samples)]
+    (testing form
+      (let [out (byte-array (count bytes))
+            wrt (w/writer out)
+            rdr (r/reader out)
+            value (byte-array input)]
+        (w/writeObject wrt value)
+        (are-nums= bytes out)
+        (is value (r/readObject rdr))
+        (testing "read by component"
+          (let [rdr (r/reader out)]
+            (cond
+              chunked?
+              (do
+                (is= (r/readNextCode rdr) codes/BYTES_CHUNK)
+                (is= (r/readCount- rdr) ranges/BYTE_CHUNK_SIZE))
+
+              (<= (alength out) 8)
+              (is= (r/readNextCode rdr) (+ codes/BYTES_PACKED_LENGTH_START (count input)))
+
+              :else
+              (do
+                (is= (r/readNextCode rdr) codes/BYTES)
+                (is= (r/readNextCode rdr) (count input))))))))))
+
+(deftest rawUTF8-test
   (doseq [{:keys [form bytes value tag?]} samples/utf8-samples]
     (testing form
       (let [out (byte-array (count bytes))
@@ -51,7 +101,7 @@
         (are-nums= bytes out)
         (is value (r/readObject rdr))))))
 
-#_(deftest misc-roundtrip
+(deftest misc-roundtrip
   (doseq [{:keys [form bytes value]} samples/misc-samples]
     (testing form
       (let [out (byte-array (count bytes))
@@ -61,7 +111,7 @@
         (are-nums= bytes out)
         (is= value (r/readObject rdr))))))
 
-#_(deftest uri-roundtrip
+(deftest uri-roundtrip
   (doseq [{:keys [form bytes input]} samples/uri-samples]
     (testing form
       (let [out (byte-array (count bytes))
@@ -78,7 +128,7 @@
    'object-array w/writeObjectArray
    'boolean-array w/writeBooleanArray})
 
-#_(deftest typed-array-test
+(deftest typed-array-test
   (doseq [{:keys [form bytes value input byte-count]} samples/typed-array-samples]
     (testing form
       (let [out (byte-array (or byte-count (count bytes)))
@@ -92,7 +142,7 @@
         (are-nums= bytes out)
         (is (seq= value (r/readObject rdr)))))))
 
-#_(deftest footer-roundtrip
+(deftest footer-roundtrip
   (doseq [{:keys [form bytes value input]} samples/footer-samples]
     (testing form
       (let [out (byte-array (count bytes))
@@ -188,32 +238,21 @@
           (is (instance? Book o))
           (is= o (Book. author title)))))))
 
-
-
-
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; caching
-; #_(deftest cached-test
-;   (let [{:keys [value bytes]} samples/cached-sample
-;         out (byte-array (count bytes))
-;         wrt (w/writer out)]
-;     (w/writeObject wrt value true)
-;     (w/writeObject wrt value true)
-;     (are-nums= bytes out)))
-;
-; #_(deftest read-cached-test
-;   (let [{:keys [bytes value]} samples/cached-sample
-;         rdr (r/reader (byte-array bytes))
-;         raw (:raw-in rdr)]
-;     (testing "by component"
-;       (is= (r/readNextCode rdr) codes/PUT_PRIORITY_CACHE)
-;       (is= (r/readObject rdr) value)
-;       (is= (r/readNextCode rdr) (+ codes/PRIORITY_CACHE_PACKED_START 0))
-;       (is (thrown-with-msg? js/Error #"EOF" (r/readObject rdr))))
-;     (rawIn/reset raw)
-;     (r/resetCaches rdr)
-;     (testing "normal use"
-;       (is= (r/readObject rdr) value)
-;       (is= (r/readObject rdr) value))))
+(deftest cached-test
+  (let [{:keys [value bytes]} samples/cached-sample
+        out (byte-array (count bytes))
+        wrt (w/writer out)
+        rdr (r/reader out)]
+    (w/writeObject wrt value true)
+    (w/writeObject wrt value true)
+    (are-nums= bytes out)
+    (is= (r/readObject rdr) value)
+    (is= (r/readObject rdr) value)
+    (testing "read by component"
+      (let [rdr (r/reader out)]
+        (is= (r/readNextCode rdr) codes/PUT_PRIORITY_CACHE)
+        (is= (r/readObject rdr) value)
+        (is= (r/readNextCode rdr) (+ codes/PRIORITY_CACHE_PACKED_START 0))
+        (is (thrown-with-msg? js/Error #"EOF" (r/readObject rdr)))))))

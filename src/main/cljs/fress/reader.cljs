@@ -622,13 +622,18 @@
 
 (def ^{:dynamic true
        :doc "map of record names to map->Record constructors at runtime"}
-  *record->ctor* {})
+  *record-name->map-ctor* {}) ;; {"string-name" map->some-record}
+
+(defn valid-record-map? [m]
+  (and (implements? ILookup *record-name->map-ctor*)
+       (every? string? (keys m))
+       (every? fn? (vals m))))
 
 (defn readRecord [rdr tag component-count]
-  (assert (implements? ILookup *record->ctor*))
+  (assert (valid-record-map? *record-name->map-ctor*))
   (let [rname (readObject rdr)
         rmap (readObject rdr)]
-    (if-let [rcons (get *record->ctor* rname)]
+    (if-let [rcons (get *record-name->map-ctor* (name rname))]
       (rcons rmap)
       (TaggedObject. "record" (into-array Object [rname rmap])))))
 

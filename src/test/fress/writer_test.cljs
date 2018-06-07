@@ -8,7 +8,7 @@
             [fress.writer :as w]
             [fress.util :as util :refer [byte-array]]
             [fress.samples :as samples]
-            [fress.test-helpers :as helpers :refer [log is= byteseq overflow are-nums=]]))
+            [fress.test-helpers :as helpers :refer [log is= overflow are-nums=]]))
 
 #_(deftest integer-test
   (testing "write i16"

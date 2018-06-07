@@ -160,13 +160,14 @@
    (binding [*write-utf8-tag* tag-utf8]
      (let [value (if (symbol? form) form (eval form))
            bytes (mapv long (bytevec value :footer footer))
-           ubytes (mapv long (ubytevec value :footer footer))
+           ; ubytes (mapv long (ubytevec value :footer footer))
            base {:form (pr-str form)
                  :bytes bytes
                  :byte-count (count bytes)
                  :footer footer
-                 :ubytes ubytes
-                 :ubyte-count (count ubytes)}]
+                 ; :ubytes ubytes
+                 ; :ubyte-count (count ubytes)
+                 }]
        (cond
          (or (typed-array? value) (bytes? value))
          (assoc base :input (eval (second form)))
@@ -184,6 +185,11 @@
 
          :else
          (assoc base :value value))))))
+
+(defmacro sample-each [coll] (vec (for [item coll]  `(sample ~item))))
+
+(defmacro uri-samples [coll]
+  (vec (for [item coll]  `(sample (java.net.URI. ~item)))))
 
 (deftype Person [ ^String firstName ^String  lastName]
   Object

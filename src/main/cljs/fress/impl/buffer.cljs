@@ -24,7 +24,6 @@
   (getBytes [this off length])
   (reset [this]))
 
-
 (defprotocol IReadableBuffer
   (getBytesRead [this])
   (readUnsignedByte [this])
@@ -32,6 +31,27 @@
   (readUnsignedBytes [this length] "return unsigned byte view on memory")
   (readSignedBytes [this length] "return signed byte view on memory"))
 
+(defprotocol IWritableStream
+  (realize [this])
+  (close [this]))
+
+(defprotocol IGrowableBuffer
+  (getFreeCapacity [this] "remaining free bytes to write")
+  (room? [this length])
+  (grow [this bytes-needed]))
+
+(defprotocol IWritableBuffer
+  (getBytesWritten [this])
+  (writeByte [this byte])
+  (writeBytes
+   [this bytes]
+   [this bytes offset length])
+  (notifyBytesWritten [this ^int count]))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; backing-> Readable
  ;;<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< how to handle EOF??
 ;; wasm users need to trigger EOF, use footer or write -1 ? <<<<<<<<<<<<<<<
 ;; add arity to readBytes for array to  copy into?
@@ -66,36 +86,55 @@
       (set! (.-bytesRead this) (+ bytesRead length))
       bytes)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Writable stream
 
-(defn readable-buffer
-  ([](readable-buffer (js/WebAssembly.Memory. #js{:initial 1}) 0))
-  ([backing](readable-buffer backing 0))
-  ([backing backing-offset]
-   (let [backing (or backing (js/WebAssembly.Memory. #js{:initial 1}))
-         _(assert (some? (.-buffer backing)))
-         backing-offset (or backing-offset 0)
-         _(assert (int? backing-offset))
-         bytesRead 0]
-     (ReadableBuffer. backing backing-offset bytesRead))))
+(deftype
+  ^{:doc
+    "Backed by a plain array, 'WritableStream' grows as bytes are written,
+     is only realized into an byte-array when close() is called.
 
+     In future can use ArrayBuffer.transfer()"}
+  WritableStream [arr ^number bytesWritten ^boolean open? buffer]
+  IDeref
+  (-deref [this] (or buffer (realize this)))
+  IWritableStream
+  (realize [this]
+    (let [ta (js/Int8Array. arr)]
+      (set! (.-buffer this) ta)
+      arr))
+  (close [this]
+    (set! (.-open? this) false)
+    (realize this))
+  IWritableBuffer
+  (getBytesWritten ^number [this] bytesWritten)
+  (notifyBytesWritten [this ^number n]
+    (assert (int? n) "written byte count must be an int")
+    (set! (.-bytesWritten this) (+ n bytesWritten)))
+  (writeByte [this byte]
+    (and open?
+         (do
+           (.push arr byte)
+           (if (some? buffer) (set! (.-buffer this) nil))
+           true)))
+  (writeBytes [this bytes]
+    (and open?
+         (do
+           (goog.array.extend arr bytes)
+           (if (some? buffer) (set! (.-buffer this) nil))
+           true)))
+  (writeBytes [this bytes offset length]
+    (and open?
+         (do
+           (goog.array.extend arr (.slice  bytes offset (+ offset length)))
+           (if (some? buffer) (set! (.-buffer this) nil))
+           true))))
 
-
-
-(defprotocol IWritableBuffer
-  (getFreeCapacity [this] "remaining free bytes to write")
-  (getBytesWritten [this])
-  (room? [this length])
-  (grow [this bytes-needed])
-  (writeByte [this byte])
-  (writeBytes
-   [this bytes]
-   [this bytes offset length])
-  (notifyBytesWritten [this ^int count])
-  (close [this]))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Writable Buffer
 
 (deftype WritableBuffer
   [memory ^number memory-offset ^number bytesWritten]
-
   IBuffer
   (reset [this] (set! (.-bytesWritten this) 0))
   (getByte [this index]
@@ -104,31 +143,25 @@
   (getBytes [this offset length]
     (let [bytes (js/Int8Array. (.-buffer memory) (+ offset memory-offset) length)]
       bytes))
-
-  IWritableBuffer
+  IGrowableBuffer
   (getFreeCapacity ^number [this] (- (.. memory -buffer -byteLength) memory-offset bytesWritten))
-
-  (getBytesWritten ^number [this] bytesWritten)
-
   (room? ^boolean [this length]
     (let [free (getFreeCapacity this)]
       (<= length free)))
-
   (grow [this bytes-needed]
     (let [pages-needed (js/Math.ceil (/ bytes-needed 65535))]
       (.grow memory pages-needed)))
-
+  IWritableBuffer
+  (getBytesWritten ^number [this] bytesWritten)
   (notifyBytesWritten [this ^number n]
     (assert (int? n) "written byte count must be an int")
     (set! (.-bytesWritten this) (+ n bytesWritten)))
-
   (writeByte ^boolean [this byte]
     (when-not ^boolean  (room? this 1) (grow this 1))
     (aset (js/Int8Array. (.. memory -buffer)) bytesWritten byte)
     ; (adler/update! checksum byte)
     (notifyBytesWritten this 1)
     true)
-
   (writeBytes ^boolean [this bytes] (writeBytes this bytes 0 (alength bytes)))
   (writeBytes ^boolean [this bytes offset length]
     ;; we are assuming we have unbounded write access. not sure how this is going
@@ -141,14 +174,30 @@
       (notifyBytesWritten this length))
       true))
 
-;;;figure out how to set this up statically if possible
-(defn writable-buffer
-  ([](writable-buffer (js/WebAssembly.Memory. #js{:initial 1}) 0))
-  ([backing](writable-buffer backing 0))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn readable-buffer
+  ([](readable-buffer (js/WebAssembly.Memory. #js{:initial 1}) 0))
+  ([backing](readable-buffer backing 0))
   ([backing backing-offset]
    (let [backing (or backing (js/WebAssembly.Memory. #js{:initial 1}))
          _(assert (some? (.-buffer backing)))
          backing-offset (or backing-offset 0)
          _(assert (int? backing-offset))
-         bytesWritten 0]
-     (WritableBuffer. backing backing-offset bytesWritten))))
+         bytesRead 0]
+     (ReadableBuffer. backing backing-offset bytesRead))))
+
+;;;figure out how to set this up statically if possible
+(defn writable-buffer
+  ([](writable-buffer (js/WebAssembly.Memory. #js{:initial 1}) 0))
+  ([backing](writable-buffer backing 0))
+  ([backing backing-offset]
+   (if (instance? IWritableBuffer backing)
+     backing
+     (let [backing (or backing (js/WebAssembly.Memory. #js{:initial 1}))
+           _(assert (some? (.-buffer backing)))
+           backing-offset (or backing-offset 0)
+           _(assert (int? backing-offset))
+           bytesWritten 0]
+       (WritableBuffer. backing backing-offset bytesWritten)))))

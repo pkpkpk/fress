@@ -35,12 +35,9 @@
   (realize [this])
   (close [this]))
 
-(defprotocol IGrowableBuffer
+(defprotocol IWritableBuffer
   (getFreeCapacity [this] "remaining free bytes to write")
   (room? [this length])
-  (grow [this bytes-needed]))
-
-(defprotocol IWritableBuffer
   (getBytesWritten [this])
   (writeByte [this byte])
   (writeBytes
@@ -76,12 +73,12 @@
       (set! (.-bytesRead this) (inc bytesRead))
       byte))
   (readSignedBytes [this  length]
-    (assert (<= 0 length (.-byteLength (.-buffer memory))))
+    (assert (<= 0 (+ bytesRead length) (.. memory -buffer -byteLength)))
     (let [bytes (js/Int8Array. (.-buffer memory) (+  memory-offset bytesRead) length)]
       (set! (.-bytesRead this) (+ bytesRead length))
       bytes))
   (readUnsignedBytes [this  length]
-    (assert (<= 0 length (.-byteLength (.-buffer memory))))
+    (assert (<= 0 (+ bytesRead length) (.. memory -buffer -byteLength)))
     (let [bytes (js/Uint8Array. (.-buffer memory) (+  memory-offset bytesRead) length)]
       (set! (.-bytesRead this) (+ bytesRead length))
       bytes)))
@@ -95,14 +92,21 @@
      is only realized into an byte-array when close() is called.
 
      In future can use ArrayBuffer.transfer()"}
-  WritableStream [arr ^number bytesWritten ^boolean open? buffer]
+  WritableStream [arr ^number bytesWritten ^boolean open? buffer buffer-offset]
+  IReadableBuffer
+  (readUnsignedByte [this])
+  (readSignedBytes [this length])
   IDeref
   (-deref [this] (or buffer (realize this)))
   IWritableStream
   (realize [this]
-    (let [ta (js/Int8Array. arr)]
-      (set! (.-buffer this) ta)
-      arr))
+    (if-not buffer
+      (let [ta (js/Int8Array. arr)]
+        (set! (.-buffer this) ta)
+        ta)
+      (let []
+        ;already have buffer, check for room, write from offset
+        )))
   (close [this]
     (set! (.-open? this) false)
     (realize this))
@@ -130,74 +134,81 @@
            (if (some? buffer) (set! (.-buffer this) nil))
            true))))
 
+(defn write-stream []
+  (let [bytesWritten 0
+        open? true
+        buffer nil
+        buffer-offset 0]
+    (WritableStream. #js[] bytesWritten open? buffer buffer-offset)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Writable Buffer
 
-(deftype WritableBuffer
-  [memory ^number memory-offset ^number bytesWritten]
+(deftype WritableBuffer [memory ^number memory-offset ^number bytesWritten]
   IBuffer
   (reset [this] (set! (.-bytesWritten this) 0))
   (getByte [this index]
     (assert (and (int? index) (<= 0 index)))
     (aget (js/Int8Array. (.. memory -buffer)) (+ memory-offset index)))
   (getBytes [this offset length]
-    (let [bytes (js/Int8Array. (.-buffer memory) (+ offset memory-offset) length)]
-      bytes))
-  IGrowableBuffer
+    (js/Int8Array. (.-buffer memory) (+ offset memory-offset) length))
+  IWritableBuffer
   (getFreeCapacity ^number [this] (- (.. memory -buffer -byteLength) memory-offset bytesWritten))
   (room? ^boolean [this length]
     (let [free (getFreeCapacity this)]
       (<= length free)))
-  (grow [this bytes-needed]
-    (let [pages-needed (js/Math.ceil (/ bytes-needed 65535))]
-      (.grow memory pages-needed)))
-  IWritableBuffer
   (getBytesWritten ^number [this] bytesWritten)
   (notifyBytesWritten [this ^number n]
     (assert (int? n) "written byte count must be an int")
     (set! (.-bytesWritten this) (+ n bytesWritten)))
   (writeByte ^boolean [this byte]
-    (when-not ^boolean  (room? this 1) (grow this 1))
+    (when-not (room? this 1)
+      (if (some? (.-grow memory))
+        (.grow memory 1)
+        (throw (js/Error. "WritableBuffer out of room"))))
     (aset (js/Int8Array. (.. memory -buffer)) bytesWritten byte)
-    ; (adler/update! checksum byte)
     (notifyBytesWritten this 1)
     true)
   (writeBytes ^boolean [this bytes] (writeBytes this bytes 0 (alength bytes)))
   (writeBytes ^boolean [this bytes offset length]
-    ;; we are assuming we have unbounded write access. not sure how this is going
-    ;; to work from wasm side of things
     (assert (int? length))
-    (when-not ^boolean  (room? this length) (grow this length))
+    (when-not (room? this length)
+      (if (some? (.-grow memory))
+        (let [bytes-needed length
+              pages-needed (js/Math.ceil (/ bytes-needed 65535))]
+          (.grow memory pages-needed))
+        (throw (js/Error. "WritableBuffer out of room"))))
     (let [i8array (js/Int8Array. (.. memory  -buffer))]
       (.set i8array (.subarray bytes offset (+ offset length)) (+  bytesWritten memory-offset))
-      ; (adler/update! checksum bytes offset length)
       (notifyBytesWritten this length))
       true))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
 (defn readable-buffer
-  ([](readable-buffer (js/WebAssembly.Memory. #js{:initial 1}) 0))
   ([backing](readable-buffer backing 0))
   ([backing backing-offset]
-   (let [backing (or backing (js/WebAssembly.Memory. #js{:initial 1}))
-         _(assert (some? (.-buffer backing)))
-         backing-offset (or backing-offset 0)
-         _(assert (int? backing-offset))
-         bytesRead 0]
-     (ReadableBuffer. backing backing-offset bytesRead))))
-
-;;;figure out how to set this up statically if possible
-(defn writable-buffer
-  ([](writable-buffer (js/WebAssembly.Memory. #js{:initial 1}) 0))
-  ([backing](writable-buffer backing 0))
-  ([backing backing-offset]
-   (if (instance? IWritableBuffer backing)
+   (if (implements? IReadableBuffer backing)
      backing
-     (let [backing (or backing (js/WebAssembly.Memory. #js{:initial 1}))
-           _(assert (some? (.-buffer backing)))
+     (let [_(assert (some? (.-buffer backing)))
            backing-offset (or backing-offset 0)
            _(assert (int? backing-offset))
+           bytesRead 0]
+       (ReadableBuffer. backing backing-offset bytesRead)))))
+
+(defn writable-buffer
+  ([](writable-buffer nil nil))
+  ([backing](writable-buffer backing 0))
+  ([backing backing-offset]
+   (cond
+     (implements? IWritableBuffer backing)
+     backing
+
+     (and (some? backing) (some? (.-buffer backing)))
+     (let [backing-offset (or backing-offset 0)
+           _(assert (int? backing-offset))
            bytesWritten 0]
-       (WritableBuffer. backing backing-offset bytesWritten)))))
+       (WritableBuffer. backing backing-offset bytesWritten))
+
+     :else
+     (write-stream))))

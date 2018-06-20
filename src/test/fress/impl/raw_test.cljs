@@ -86,10 +86,12 @@
           (is= :foo (r/readObject rdr))
           (is= 'bar (r/readObject rdr))
           (is= {"baz" [8 9 10]} (r/readObject rdr))
-          (is (thrown-with-msg? js/Error #"EOF" (r/readObject rdr))))))))
-
-;; call reader on write-stream
-;;  -not closed yet
-;;  -already closed
-;;
-;; flush to external buffer?
+          (is (thrown-with-msg? js/Error #"EOF" (r/readObject rdr))))))
+    (testing "flushTo"
+      (let [out (byte-array [0 1 2 3 4 5 6 7 8 9])
+            buffer (buf/write-stream)]
+        (buf/writeByte buffer 98)
+        (buf/writeByte buffer 99)
+        (buf/writeByte buffer 100)
+        (buf/flushTo buffer out 2)
+        (are-nums= out [0 1 98 99 100 5 6 7 8 9])))))

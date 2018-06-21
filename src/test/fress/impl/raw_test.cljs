@@ -5,7 +5,7 @@
             [fress.impl.raw-input :as rawIn]
             [fress.reader :as r]
             [fress.writer :as w]
-            [fress.util :refer [byte-array log]]
+            [fress.util :as util :refer [byte-array log]]
             [fress.test-helpers :as helpers :refer [is= are-nums=]]))
 
 (defn is-EOF? [r]
@@ -32,7 +32,7 @@
       (is (= 1 (rawIn/getBytesRead raw-in)))))
   (testing "writeRawBytes/readRawBytes"
     (let [bytes (byte-array [-2 -1 0 1 2])
-          memory (js/Uint8Array. 5) ;(js/WebAssembly.Memory. #js{:initial 1})
+          memory (js/Uint8Array. 5)
           raw-out (rawOut/raw-output memory)
           raw-in  (rawIn/raw-input memory)]
       (is (zero? (rawIn/getBytesRead raw-in)))
@@ -87,11 +87,70 @@
           (is= 'bar (r/readObject rdr))
           (is= {"baz" [8 9 10]} (r/readObject rdr))
           (is (thrown-with-msg? js/Error #"EOF" (r/readObject rdr))))))
+    (testing "writeBytes"
+      (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
+            buffer (buf/write-stream)]
+        (buf/writeBytes buffer in)
+        (is= (alength in) (buf/getBytesWritten buffer))
+        (are-nums= (buf/realize buffer) in)))
+    (testing "writeBytes + offset"
+      (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
+            buffer (buf/write-stream)]
+        (buf/writeBytes buffer in 0 10)
+        (is= 10 (buf/getBytesWritten buffer))
+        (are-nums= (buf/realize buffer) in))
+      (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
+            buffer (buf/write-stream)]
+        (buf/writeBytes buffer in 3 5)
+        (is= 5 (buf/getBytesWritten buffer))
+        (are-nums= (buf/realize buffer) [3 4 5 6 7]))
+      (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
+            buffer (buf/write-stream)]
+        (buf/writeBytes buffer in 3 7)
+        (is= 7 (buf/getBytesWritten buffer))
+        (are-nums= (buf/realize buffer) [3 4 5 6 7 8 9]))
+      (testing "safe for excessive length"
+        (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
+              buffer (buf/write-stream)]
+          (buf/writeBytes buffer in 3 99)
+          (is= 7 (buf/getBytesWritten buffer))
+          (are-nums= (buf/realize buffer) [3 4 5 6 7 8 9]))))
     (testing "flushTo"
-      (let [out (byte-array [0 1 2 3 4 5 6 7 8 9])
+      (let [out (util/i8-array [0 1 2 3 4 5 6 7 8 9])
             buffer (buf/write-stream)]
         (buf/writeByte buffer 98)
         (buf/writeByte buffer 99)
         (buf/writeByte buffer 100)
+        (is= 3 (buf/getBytesWritten buffer))
         (buf/flushTo buffer out 2)
-        (are-nums= out [0 1 98 99 100 5 6 7 8 9])))))
+        (are-nums= out [0 1 98 99 100 5 6 7 8 9])
+        (testing "writeByte reset safety"
+          (buf/reset buffer)
+          (buf/writeByte buffer 101)
+          (is= 1 (buf/getBytesWritten buffer))
+          (buf/flushTo buffer out)
+          (are-nums= out [101 1 98 99 100 5 6 7 8 9]))
+        (testing "writeBytes reset safety"
+          (let [out (util/i8-array [0 1 2 3 4 5 6 7 8 9])
+                buffer (buf/write-stream)]
+            (buf/writeBytes buffer (byte-array [42 12 3 15 6 7]))
+            (buf/reset buffer)
+            (testing "flushTo no offset"
+              (buf/writeBytes buffer (byte-array [99 100 101]))
+              (buf/flushTo buffer out)
+              (are-nums= out [99 100 101 3 4 5 6 7 8 9]))
+            (testing "flushTo with offset"
+              (buf/reset buffer)
+              (buf/writeBytes buffer (byte-array [102 103]))
+              (buf/flushTo buffer out 3)
+              (are-nums= out [99 100 101 102 103 5 6 7 8 9]))
+            (testing "oob dest should throw"
+              (buf/reset buffer)
+              (buf/writeBytes buffer (byte-array [99 100 101]) 0 3)
+              (is (thrown? js/Error (buf/flushTo out 10) )))
+            (testing "overfill  dest should throw"
+              (buf/reset buffer)
+              (buf/writeBytes buffer (byte-array [99 100 101]) 0 3)
+              (is (thrown? js/Error (buf/flushTo out 8))))))))))
+
+

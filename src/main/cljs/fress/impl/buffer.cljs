@@ -97,30 +97,32 @@
     (set! (.-bytesWritten this) 0)
     (set! (.-buffer this) nil))
   IWritableStream
-  ;;; need to consider reset calls, do realize old data past bytes-written index
-  ;;; use ta.set(array-like ,offset)
-
-  (flushTo [this buf] (flush-to this buf 0))
-  (flushTo [this buf off] ; typed array or memory. what about raw ArrayBuffers?
-    (assert (some? (.-buffer buf)))
+  (flushTo [this buf] (flushTo this buf 0))
+  (flushTo [this buf off]
+    (assert (some? (.-buffer buf)) "flushTo requires an arraybuffer backed byte-array")
     (let [free (- (.. buf -buffer -byteLength) off)]
       (if-not (<= bytesWritten free)
         (throw (js/Error. "flush-to buffer is too small"))
-        (let [i8array (js/Int8Array. (.. buf  -buffer))
-              stop (alength arr)] ;do we need new view? is it faster to check if buf is ok as is?
+        (let [ba (if (= (type buf) js/Int8Array)
+                   buf
+                   (js/Int8Array. (.. buf -buffer)))]
           (assert (and (int? off) (<= 0 off)) "flush-to offset must be a positive integer")
           (loop [i 0]
-            (when (< i stop)
-              (aset i8array (+ i off) (aget arr i))
+            (when (< i bytesWritten)
+              (aset ba (+ i off) (aget arr i))
               (recur (inc i))))))))
   (realize [this]
     (or buffer
-        (let [ta (js/Int8Array. arr)]
-          (set! (.-buffer this) ta)
-          ta)))
-
-
-
+        (let [ba (if (== bytesWritten (alength arr))
+                   (js/Int8Array. arr)
+                   (let [ba (js/Int8Array. bytesWritten)]
+                     (loop [i 0]
+                       (when (< i bytesWritten)
+                         (aset ba i (aget arr i))
+                         (recur (inc i))))
+                     ba))]
+          (set! (.-buffer this) ba)
+          ba)))
   (close [this]
     (set! (.-open? this) false)
     (realize this))
@@ -131,23 +133,37 @@
     (assert (int? n) "written byte count must be an int")
     (set! (.-bytesWritten this) (+ n bytesWritten)))
   (writeByte [this byte]
-    (and open?
-         (do
-           (.push arr byte)
-           (set! (.-buffer this) nil)
-           true)))
+    (when open?
+      (if (<= bytesWritten (alength arr))
+        (aset arr bytesWritten byte)
+        (.push arr byte))
+      (notifyBytesWritten this 1)
+      (set! (.-buffer this) nil)
+      true))
   (writeBytes [this bytes]
-    (and open?
-         (do
-           (goog.array.extend arr bytes)
-           (set! (.-buffer this) nil)
-           true)))
+    (when open?
+      (loop [i 0]
+        (when-let [byte (aget bytes i)]
+          (if (< (+ i bytesWritten) (alength arr))
+            (aset arr i byte)
+            (.push arr byte))
+          (recur (inc i))))
+      (notifyBytesWritten this (alength bytes))
+      (set! (.-buffer this) nil)
+      true))
   (writeBytes [this bytes offset length]
-    (and open?
-         (do
-           (goog.array.extend arr (.slice  bytes offset (+ offset length)))
-           (set! (.-buffer this) nil)
-           true))))
+    (when open?
+      (loop [i offset]
+        (if-let [byte (and (< (- i offset) length)
+                             (aget bytes i))]
+          (do
+            (if (< (+ i bytesWritten) (alength arr))
+              (aset arr i byte)
+              (.push arr byte))
+            (recur (inc i)))
+          (notifyBytesWritten this (- i offset))))
+      (set! (.-buffer this) nil)
+      true)))
 
 (defn write-stream []
   (let [bytesWritten 0

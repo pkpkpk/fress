@@ -657,19 +657,20 @@
    "sym" readSymbol
    "record" readRecord})
 
+(defn add-handler [acc [tag handler]]
+  (if (coll? tag)
+    (reduce (fn [acc k] (assoc acc k handler)) acc tag)
+    (assoc acc tag handler)))
+
 (defn build-lookup
-  [userHandlers]
-  (let [handlers (merge default-read-handlers userHandlers)]
+  [user-handlers]
+  (let [handlers (reduce add-handler default-read-handlers user-handlers)]
     (fn lookup [rdr tag]
       (get handlers tag))))
 
 (defn standardExtensionHandlers []
   (reify Object
     (get [this tag] nil)))
-
-;; readAll? validateFooter?
-;; readAll => read until footer, return vec<readObject()>
-;; readObject(rdr validate)
 
 (defn valid-handlers? [handlers]
   (and (map? handlers)
@@ -682,7 +683,6 @@
   (when ^boolean goog.DEBUG
     (when (get opts :handler)
       (throw (js/Error. "reader needs `:handlers` , not `:handler`" ))))
-  (assert (some? (.-buffer in)) "valid inputs need arraybuffer backing ie typed arrays or wasm memory")
   (when handlers (assert (valid-handlers? handlers)) "handlers must be a Map<string,fn>")
   (let [lookup (build-lookup (merge default-read-handlers handlers))
         raw-in (rawIn/raw-input in offset validateAdler?)

@@ -6,6 +6,7 @@
             [fress.impl.ranges :as ranges]
             [fress.reader :as r]
             [fress.writer :as w]
+            [fress.impl.buffer :as buf]
             [fress.samples :as samples]
             [fress.util :refer [byte-array] :as util]
             [fress.test-helpers :as helpers :refer [log is= seq= are-nums= float=]]))
@@ -256,3 +257,47 @@
         (is= (r/readObject rdr) value)
         (is= (r/readNextCode rdr) (+ codes/PRIORITY_CACHE_PACKED_START 0))
         (is (thrown-with-msg? js/Error #"EOF" (r/readObject rdr)))))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; error example
+
+(defn write-error [writer err]
+  (let [name (.-name err)
+        msg (.-message err)
+        stack (.-stack err)]
+    (w/writeTag writer "js-error" 3) ;<-- don't forget field count!
+    (w/writeObject writer name)
+    (w/writeObject writer msg)
+    (w/writeObject writer stack)))
+
+(defn read-error [reader tag field-count]
+  {:name (r/readObject reader)
+   :msg (r/readObject reader)
+   :stack (r/readObject reader)})
+
+(deftest extend-error-test
+  (let [tag "js-error"
+        e (js/Error "a generic error")
+        te (js/TypeError "a type error")]
+    (let [out (buf/write-stream)
+          wrt (w/writer out)]
+      (is (thrown? js/Error (w/writeObject wrt e))))
+    (let [out (buf/write-stream)
+          wrt (w/writer out :handlers {js/Error write-error})]
+      (is (nil? (w/writeObject wrt e)))
+      (is (thrown? js/Error (w/writeObject wrt te))))
+    (let [out (buf/write-stream)
+          wrt (w/writer out :handlers {[js/Error js/TypeError] write-error})]
+      (is (nil? (w/writeObject wrt e)))
+      (is (nil? (w/writeObject wrt te)))
+      (let [rdr (r/reader out)]
+        (is (instance? r/TaggedObject (r/readObject rdr)))
+        (is (instance? r/TaggedObject (r/readObject rdr))))
+      (let [rdr (r/reader out :handlers {tag read-error})]
+        (let [{:keys [name msg]} (r/readObject rdr)]
+          (is= name "Error")
+          (is= msg "a generic error"))
+        (let [{:keys [name msg]} (r/readObject rdr)]
+          (is= name "TypeError")
+          (is= msg "a type error"))))))

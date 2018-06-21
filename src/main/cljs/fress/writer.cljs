@@ -498,9 +498,14 @@
    "long[]" writeLongArray
    "Object[]" writeObjectArray})
 
+(defn add-handler [acc [k handler]]
+  (if (coll? k)
+    (reduce (fn [acc k] (assoc acc k handler)) acc k)
+    (assoc acc k handler)))
+
 (defn build-handler-lookup
   [user-handlers]
-  (let [handlers (merge default-write-handlers user-handlers)]
+  (let [handlers (reduce add-handler default-write-handlers user-handlers)]
     (fn [tag obj]
       (if tag
         (get handlers tag)

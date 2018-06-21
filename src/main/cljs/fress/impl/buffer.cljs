@@ -92,7 +92,14 @@
   WritableStream [arr ^number bytesWritten ^boolean open? buffer]
   IDeref
   (-deref [this] (or buffer (realize this)))
+  IBuffer
+  (reset [this]
+    (set! (.-bytesWritten this) 0)
+    (set! (.-buffer this) nil))
   IWritableStream
+  ;;; need to consider reset calls, do realize old data past bytes-written index
+  ;;; use ta.set(array-like ,offset)
+
   (flushTo [this buf] (flush-to this buf 0))
   (flushTo [this buf off] ; typed array or memory. what about raw ArrayBuffers?
     (assert (some? (.-buffer buf)))
@@ -107,11 +114,13 @@
               (aset i8array (+ i off) (aget arr i))
               (recur (inc i))))))))
   (realize [this]
-    (if-not buffer
-      (let [ta (js/Int8Array. arr)]
-        (set! (.-buffer this) ta)
-        ta)
-      buffer))
+    (or buffer
+        (let [ta (js/Int8Array. arr)]
+          (set! (.-buffer this) ta)
+          ta)))
+
+
+
   (close [this]
     (set! (.-open? this) false)
     (realize this))
@@ -125,19 +134,19 @@
     (and open?
          (do
            (.push arr byte)
-           (if (some? buffer) (set! (.-buffer this) nil))
+           (set! (.-buffer this) nil)
            true)))
   (writeBytes [this bytes]
     (and open?
          (do
            (goog.array.extend arr bytes)
-           (if (some? buffer) (set! (.-buffer this) nil))
+           (set! (.-buffer this) nil)
            true)))
   (writeBytes [this bytes offset length]
     (and open?
          (do
            (goog.array.extend arr (.slice  bytes offset (+ offset length)))
-           (if (some? buffer) (set! (.-buffer this) nil))
+           (set! (.-buffer this) nil)
            true))))
 
 (defn write-stream []
@@ -191,8 +200,14 @@
 (defn readable-buffer
   ([backing](readable-buffer backing 0))
   ([backing backing-offset]
-   (if (implements? IReadableBuffer backing)
+   (cond
+     (implements? IReadableBuffer backing)
      backing
+
+     (instance? WritableStream backing)
+     (readable-buffer (realize backing) backing-offset)
+
+     :else
      (let [_(assert (some? (.-buffer backing)))
            backing-offset (or backing-offset 0)
            _(assert (int? backing-offset))

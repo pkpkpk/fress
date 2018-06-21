@@ -51,7 +51,6 @@
   (writeStringNoChunk- [this ^string s])
   (writeString- ^FressianWriter [this s])
   (writeString ^FressianWriter [this s])
-  ; (writeIterator [this length it])
   (writeList ^FressianWriter [this o])
   (writeBytes ^FressianWriter [this bs] [this bs offset length])
   ; (writeFooterFor [this byteBuffer])
@@ -152,7 +151,7 @@
       ;; needs to be picked up server-side by a registered "utf8" reader
       ;; we do this because we cant modify codes serverside but still prefer them
       ;; client side because its a simple int dispatch instead of reading the tag
-      (writeTag this "utf8" 2); writeCount + rawbytes ?
+      (writeTag this "utf8" 2); writeCount + rawbytes
       (writeCode this codes/UTF8))
     (writeCount this length)
     (rawOut/writeRawBytes (.-raw-out this) bytes 0 length))
@@ -516,7 +515,7 @@
 (defn writer
   "Create a writer that combines userHandlers with the normal type handlers
    built into Fressian."
-  [out & {:keys [handlers]}]
+  [out & {:keys [handlers] :as opts}]
   (let [lookup-fn (build-handler-lookup handlers)
         raw-out (rawOut/raw-output out)
         priorityCache nil ;added when needed

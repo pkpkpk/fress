@@ -41,7 +41,7 @@
 (defn readUTF8
   "this uses TextDecoder on raw utf8 bytes instead of using js on compressed
    fressian string bytes"
-  [rdr] ;tag fields
+  [rdr]
   (let [length (readCount- rdr)
         bytes (rawIn/readFully (:raw-in rdr) length)]
     (.decode util/TextDecoder bytes)))
@@ -339,13 +339,13 @@
        (== code (+ codes/STRING_PACKED_LENGTH_START 5))
        (== code (+ codes/STRING_PACKED_LENGTH_START 6))
        (== code (+ codes/STRING_PACKED_LENGTH_START 7)))
-      (internalReadString rdr (- code codes/STRING_PACKED_LENGTH_START)) ;=> string
+      (internalReadString rdr (- code codes/STRING_PACKED_LENGTH_START))
 
       (== code codes/STRING)
       (internalReadString rdr (readCount- rdr))
 
       (== code codes/STRING_CHUNK)
-      (internalReadChunkedString rdr (readCount- rdr)) ;=> string
+      (internalReadChunkedString rdr (readCount- rdr))
 
       (or
        (== code (+ codes/LIST_PACKED_LENGTH_START 0))
@@ -413,7 +413,6 @@
 
 (defrecord FressianReader [in raw-in lookup standardExtensionHandlers priorityCache structCache]
   Object
-  ; (close [] (.close raw-in))
   IFressianReader
   (readNextCode [this] (rawIn/readRawByte raw-in))
   (readInt ^number [this] (internalReadInt this))
@@ -672,18 +671,9 @@
   (reify Object
     (get [this tag] nil)))
 
-(defn valid-handlers? [handlers]
-  (and (map? handlers)
-       (every? string? (keys handlers))
-       (every? fn? (vals handlers))))
-
 (defn reader
   [in & {:keys [handlers validateAdler? offset]
          :or {handlers nil, offset 0, validateAdler? false} :as opts}]
-  (when ^boolean goog.DEBUG
-    (when (get opts :handler)
-      (throw (js/Error. "reader needs `:handlers` , not `:handler`" ))))
-  (when handlers (assert (valid-handlers? handlers)) "handlers must be a Map<string,fn>")
   (let [lookup (build-lookup (merge default-read-handlers handlers))
         raw-in (rawIn/raw-input in offset validateAdler?)
         seh (standardExtensionHandlers)]

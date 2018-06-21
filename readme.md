@@ -38,7 +38,7 @@ If you read a record type that is not defined in the client, the reader will ret
 
   Example: lets write a handler for javascript errors
 
-  ```clojure
+  ``` clojure
   (defn write-error [writer error]
     (let [name (.-name error)
           msg (.-message error)

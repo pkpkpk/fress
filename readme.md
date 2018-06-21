@@ -24,7 +24,7 @@
       (r/readObject reader))
     ```
 
-    If you read a record type that is not defined in the client, the reader will return a TaggedObject containing all the fields defined by the writer.
+If you read a record type that is not defined in the client, the reader will return a TaggedObject containing all the fields defined by the writer.
 
 
 ### Extending with your own types
@@ -58,8 +58,7 @@
 
   (w/writeObject writer e) ;=> OK!
   ```
-
-  So this works for errors created with `js/Error`, but what about `js/TypeError`, `js/SyntaxError` ...? We can use the same custom writer for multiple related types by using a collection of those types in our handler argument during writer creation.
+So this works for errors created with `js/Error`, but what about `js/TypeError`, `js/SyntaxError` ...? We can use the same custom writer for multiple related types by using a collection of those types in our handler argument during writer creation.
 
   ```clojure
   (def writer (w/writer out :handlers {[js/Error js/TypeError js/SyntaxError]  write-error}))
@@ -69,7 +68,7 @@
 
   ```clojure
 
-  (def rdr (r/reader @out))
+  (def rdr (r/reader out))
 
   (def o (r/readObject rdr))
 

@@ -5,9 +5,9 @@
 
 ### Differences from clojure.data.fressian
   + no BigInteger, BigDecimal, chars, ratios at this time
-  + UTF8
   + EOF
-  + Records require abit of extra work, see below
+
+<hr>
 
 ### Records
 clojure.data.fressian can use defrecord constructors to produce symbolic tags for serialization, and use those same symbolic tags to resolve constructors during deserialization. In cljs, symbols are munged in advanced builds, and we have no runtime resolve. How do we deal with this?
@@ -28,6 +28,7 @@ clojure.data.fressian can use defrecord constructors to produce symbolic tags fo
 
 If you read a record type that is not defined in the client, the reader will return a TaggedObject containing all the fields defined by the writer.
 
+<hr>
 
 ### Extending with your own types
   1. Decide on a string tag name for your type, and the number of fields it contains
@@ -90,4 +91,17 @@ So what happened? When the reader encounters a tag in the buffer, it looks for a
 
 ```
 
+<hr>
 
+### Raw UTF-8
+
+JVM fressian compresses UTF-8 strings when writing them. This means a reader must decompress each char to reassemble the string. If payload size is your primary concern this is great, but if you want faster read+write times there is another option. The javascript [TextDecoder/TextEncoder][1] API has [growing support][2] and is written in native code. TextEncoder will convert a javascript string into plain utf-8 bytes, and the TextDecoder can assemble a javascript string from raw bytes faster than javascript can assemble a string from compressed bytes.
+
+By default fress writes strings using the default fressian compression. If you'd like to write raw UTF-8, bind  `fress.writer/*write-raw-utf8*` to `true` before writing the string. If you are targeting a jvm reader, you must also bind `*write-utf8-tag*` to `true` so the tag is picked up by the reader. Otherwise a code is used that is only present in fress clients.
+
+
+
+
+
+[1]: https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder
+[2]: https://caniuse.com/#feat=textencoder

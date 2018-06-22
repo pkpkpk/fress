@@ -411,7 +411,7 @@
       :else
       (throw (js/Error. (str "unmatched code: " code))))))
 
-(defrecord FressianReader [in raw-in lookup standardExtensionHandlers priorityCache structCache]
+(defrecord FressianReader [in raw-in lookup priorityCache structCache]
   Object
   IFressianReader
   (readNextCode [this] (rawIn/readRawByte raw-in))
@@ -464,7 +464,7 @@
         (throw (js/Error. (str "no read handler for tag: " (pr-str tag))))
         handler)))
   (handleStruct- [this ^string tag ^number fields]
-    (let [handler (or (lookup this tag) (.get standardExtensionHandlers tag))]
+    (let [handler (lookup this tag)]
       (if (nil? handler)
         (TaggedObject. tag (readObjects- this fields))
         (handler this tag fields))))
@@ -667,14 +667,9 @@
     (fn lookup [rdr tag]
       (get handlers tag))))
 
-(defn standardExtensionHandlers []
-  (reify Object
-    (get [this tag] nil)))
-
 (defn reader
   [in & {:keys [handlers validateAdler? offset]
          :or {handlers nil, offset 0, validateAdler? false} :as opts}]
   (let [lookup (build-lookup (merge default-read-handlers handlers))
-        raw-in (rawIn/raw-input in offset validateAdler?)
-        seh (standardExtensionHandlers)]
-    (FressianReader. in raw-in lookup seh nil nil)))
+        raw-in (rawIn/raw-input in offset validateAdler?)]
+    (FressianReader. in raw-in lookup nil nil)))

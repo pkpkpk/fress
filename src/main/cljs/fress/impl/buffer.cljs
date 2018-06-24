@@ -223,6 +223,9 @@
      (instance? WritableStream backing)
      (readable-buffer (realize backing) backing-offset)
 
+     (instance? js/ArrayBuffer backing)
+     (readable-buffer (js/Int8Array. backing) backing-offset)
+
      :else
      (let [_(assert (some? (.-buffer backing)))
            backing-offset (or backing-offset 0)
@@ -237,6 +240,9 @@
    (cond
      (implements? IWritableBuffer backing)
      backing
+
+     (instance? js/ArrayBuffer backing)
+     (writable-buffer (js/Int8Array. backing) backing-offset)
 
      (and (some? backing) (some? (.-buffer backing)))
      (let [backing-offset (or backing-offset 0)

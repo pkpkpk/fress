@@ -4,10 +4,8 @@
             [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
             [fress.impl.uuid :as uuid]
-            [fress.util :as util :refer [expected byte-array]])
+            [fress.util :as util :refer [expected byte-array log]])
   (:import [goog.math Long]))
-
-(defn log [& args] (.apply js/console.log js/console (into-array args)))
 
 (defrecord StructType [tag fields])
 (defrecord TaggedObject [tag value]) ;meta
@@ -412,7 +410,6 @@
       (throw (js/Error. (str "unmatched code: " code))))))
 
 (defrecord FressianReader [in raw-in lookup priorityCache structCache]
-  Object
   IFressianReader
   (readNextCode [this] (rawIn/readRawByte raw-in))
   (readInt ^number [this] (internalReadInt this))
@@ -520,8 +517,6 @@
             (rawIn/validateChecksum raw-in)
             (rawIn/reset raw-in)
             (resetCaches this)))))))
-
-
 
 (defn readSet [rdr _ _]
   (let [lst (readObject rdr)]
@@ -660,6 +655,18 @@
   (if (coll? tag)
     (reduce (fn [acc k] (assoc acc k handler)) acc tag)
     (assoc acc tag handler)))
+
+(defn ^boolean valid-handler-key?
+  [k]
+  (if (coll? k)
+    (every? string? k)
+    (string? k)))
+
+(defn valid-user-handlers?
+  [uh]
+  (and  (map? uh)
+        (every? fn? (vals uh))
+        (every? valid-handler-key? (keys uh))))
 
 (defn build-lookup
   [user-handlers]

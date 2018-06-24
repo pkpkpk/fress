@@ -70,9 +70,16 @@
   (writeAs ^FressianWriter [this tag o] [this tag o cache?] "public")
   (writeObject ^FressianWriter [this o] [this o cache?] "public")
   (writeCode [this code] "public")
-  (beginOpenList ^FressianWriter [this] "public")
-  (beginClosedList ^FressianWriter [this] "public")
-  (endList ^FressianWriter [this] "public")
+  (beginOpenList ^FressianWriter [this]
+   "Writes fressian code to begin an open list.  An
+    open list can be terminated either by a call to end-list,
+    or by simply closing the stream.  Used to write sequential
+    data whose size is not known in advance, in contexts where
+    stream failure can safely be interpreted as end of list.")
+  (beginClosedList ^FressianWriter [this]
+    "Begin writing a fressianed list.  To end the list, call end-list.
+     Used to write sequential data whose size is not known in advance.")
+  (endList ^FressianWriter [this] "Ends a list begun with begin-closed-list.")
   (getByte [this index]))
 
 (defn ^number bit-switch
@@ -145,7 +152,6 @@
   (assert (string? s))
   (let [bytes (.encode util/TextEncoder s)
         length (.-byteLength bytes)]
-    ; may need unique code here, breaking std fressian behavior
     ; need to test if jvm can still read this
     (if *write-utf8-tag*
       ;; needs to be picked up server-side by a registered "utf8" reader
@@ -349,9 +355,6 @@
             (writeInt this index)))))
     this)
 
-  ; (writeFooterFor [this bytes])
-  ; (writeExt [this ...])
-
   (writeFooter [this]
     (internalWriteFooter this (rawOut/getBytesWritten raw-out))
     (clearCaches this)
@@ -511,6 +514,19 @@
         (if (record? obj)
           writeRecord
           (get handlers (type obj)))))))
+
+(defn ^boolean valid-handler-key?
+  "singular or coll of constructors and string tags"
+  [k]
+  (if (coll? k)
+    (every? #(or (fn? %) (string? %)) k)
+    (or (fn? k) (string? k))))
+
+(defn valid-user-handlers?
+  [uh]
+  (and  (map? uh)
+        (every? fn? (vals uh))
+        (every? valid-handler-key? (keys uh))))
 
 (defn writer
   "Create a writer that combines userHandlers with the normal type handlers

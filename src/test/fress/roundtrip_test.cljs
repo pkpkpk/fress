@@ -280,14 +280,14 @@
   (let [tag "js-error"
         e (js/Error "a generic error")
         te (js/TypeError "a type error")]
-    (let [out (buf/write-stream)
+    (let [out (buf/streaming-writer)
           wrt (w/writer out)]
       (is (thrown? js/Error (w/writeObject wrt e))))
-    (let [out (buf/write-stream)
+    (let [out (buf/streaming-writer)
           wrt (w/writer out :handlers {js/Error write-error})]
       (is (nil? (w/writeObject wrt e)))
       (is (thrown? js/Error (w/writeObject wrt te))))
-    (let [out (buf/write-stream)
+    (let [out (buf/streaming-writer)
           wrt (w/writer out :handlers {[js/Error js/TypeError] write-error})]
       (is (nil? (w/writeObject wrt e)))
       (is (nil? (w/writeObject wrt te)))

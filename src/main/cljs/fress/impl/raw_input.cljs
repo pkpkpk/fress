@@ -148,6 +148,5 @@
   ([in](raw-input in 0))
   ([in start-index](raw-input in start-index true))
   ([in ^number start-index ^boolean validateAdler]
-   ; (assert (some? (.-buffer in)))
    (let [in (buf/readable-buffer in start-index)]
      (RawInput. in (if validateAdler (adler/adler32))))))

@@ -21,7 +21,7 @@
   (getBytes [this off length])
   (reset [this]))
 
-(defprotocol IReadableBuffer
+(defprotocol IBufferReader
   (getBytesRead [this])
   (notifyBytesRead [this ^int count])
   (readUnsignedByte [this])
@@ -29,7 +29,8 @@
   (readUnsignedBytes [this length] "return unsigned byte view on memory")
   (readSignedBytes [this length] "return signed byte view on memory"))
 
-(defprotocol IWritableBuffer
+; IWriter => ;https://dev.clojure.org/jira/browse/CLJS-2247
+(defprotocol IBufferWriter
   (getFreeCapacity [this] "remaining free bytes to write")
   (room? [this length])
   (getBytesWritten [this])
@@ -37,7 +38,7 @@
   (writeBytes [this bytes] [this bytes offset length])
   (notifyBytesWritten [this ^int count]))
 
-(defprotocol IWritableStream
+(defprotocol IStreamingWriter
   (realize [this] "get byte-array of current buffer contents. does not close.")
   (close [this] "disable further writing, return byte-array")
   (flushTo [this out] [this out offset]
@@ -47,11 +48,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wasm users need to trigger EOF using footer or wrap everying in single object
 ;; add arity to readBytes for array to  copy into?
-(deftype ReadableBuffer
+(deftype BufferReader
   [memory ^number memory-offset ^number bytesRead]
   IBuffer
   (reset [this] (set! (.-bytesRead this) 0))
-  IReadableBuffer
+  IBufferReader
   (getBytesRead ^number [this] bytesRead)
   (notifyBytesRead [this ^number n]
     (set! (.-bytesRead this) (+ bytesRead n)))
@@ -89,14 +90,14 @@
      is only realized into an byte-array when close() is called.
 
      In future can use ArrayBuffer.transfer()"}
-  WritableStream [arr ^number bytesWritten ^boolean open? buffer]
+  StreamingWriter [arr ^number bytesWritten ^boolean open? buffer]
   IDeref
   (-deref [this] (or buffer (realize this)))
   IBuffer
   (reset [this]
     (set! (.-bytesWritten this) 0)
     (set! (.-buffer this) nil))
-  IWritableStream
+  IStreamingWriter
   (flushTo [this buf] (flushTo this buf 0))
   (flushTo [this buf off]
     (assert (some? (.-buffer buf)) "flushTo requires an arraybuffer backed byte-array")
@@ -126,7 +127,7 @@
   (close [this]
     (set! (.-open? this) false)
     (realize this))
-  IWritableBuffer
+  IBufferWriter
   (room? ^boolean [this _] open?)
   (getBytesWritten ^number [this] bytesWritten)
   (notifyBytesWritten [this ^number n]
@@ -165,16 +166,13 @@
       (set! (.-buffer this) nil)
       true)))
 
-(defn write-stream []
+(defn streaming-writer []
   (let [bytesWritten 0
         open? true
         buffer nil]
-    (WritableStream. #js[] bytesWritten open? buffer)))
+    (StreamingWriter. #js[] bytesWritten open? buffer)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Writable Buffer
-
-(deftype WritableBuffer [memory ^number memory-offset ^number bytesWritten]
+(deftype BufferWriter [memory ^number memory-offset ^number bytesWritten]
   IBuffer
   (reset [this] (set! (.-bytesWritten this) 0))
   (getByte [this index]
@@ -182,7 +180,7 @@
     (aget (js/Int8Array. (.. memory -buffer)) (+ memory-offset index)))
   (getBytes [this offset length]
     (js/Int8Array. (.-buffer memory) (+ offset memory-offset) length))
-  IWritableBuffer
+  IBufferWriter
   (getFreeCapacity ^number [this] (- (.. memory -buffer -byteLength) memory-offset bytesWritten))
   (room? ^boolean [this length]
     (let [free (getFreeCapacity this)]
@@ -195,7 +193,7 @@
     (when-not (room? this 1)
       (if (some? (.-grow memory))
         (.grow memory 1)
-        (throw (js/Error. "WritableBuffer out of room"))))
+        (throw (js/Error. "BufferWriter out of room"))))
     (aset (js/Int8Array. (.. memory -buffer)) bytesWritten byte)
     (notifyBytesWritten this 1))
   (writeBytes [this bytes] (writeBytes this bytes 0 (alength bytes)))
@@ -206,7 +204,7 @@
         (let [bytes-needed length
               pages-needed (js/Math.ceil (/ bytes-needed 65535))]
           (.grow memory pages-needed))
-        (throw (js/Error. "WritableBuffer out of room"))))
+        (throw (js/Error. "BufferWriter out of room"))))
     (let [i8array (js/Int8Array. (.. memory  -buffer))]
       (.set i8array (.subarray bytes offset (+ offset length)) (+  bytesWritten memory-offset))
       (notifyBytesWritten this length)))) ;<- is there  a meaningful value to return? bytesWritten?
@@ -217,10 +215,10 @@
   ([backing](readable-buffer backing 0))
   ([backing backing-offset]
    (cond
-     (implements? IReadableBuffer backing)
+     (implements? IBufferReader backing)
      backing
 
-     (instance? WritableStream backing)
+     (instance? StreamingWriter backing)
      (readable-buffer (realize backing) backing-offset)
 
      (instance? js/ArrayBuffer backing)
@@ -231,14 +229,14 @@
            backing-offset (or backing-offset 0)
            _(assert (int? backing-offset))
            bytesRead 0]
-       (ReadableBuffer. backing backing-offset bytesRead)))))
+       (BufferReader. backing backing-offset bytesRead)))))
 
 (defn writable-buffer
   ([](writable-buffer nil nil))
   ([backing](writable-buffer backing 0))
   ([backing backing-offset]
    (cond
-     (implements? IWritableBuffer backing)
+     (implements? IBufferWriter backing)
      backing
 
      (instance? js/ArrayBuffer backing)
@@ -248,7 +246,7 @@
      (let [backing-offset (or backing-offset 0)
            _(assert (int? backing-offset))
            bytesWritten 0]
-       (WritableBuffer. backing backing-offset bytesWritten))
+       (BufferWriter. backing backing-offset bytesWritten))
 
      :else
-     (write-stream))))
+     (streaming-writer))))

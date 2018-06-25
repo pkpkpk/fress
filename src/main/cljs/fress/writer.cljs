@@ -458,8 +458,9 @@
    symbol before serializing."
   [rec]
   (let [name (get *record->name* (type rec))]
-    (assert (string? name))
-    (symbol name)))
+    (if (string? name)
+      (symbol name)
+      (throw (js/Error. "writing records requires corresponding entry in *record->name*")))))
 
 (defn writeRecord [w rec]
   (writeTag w "record" 2)

@@ -6,6 +6,7 @@
             [fress.impl.ranges :as ranges]
             [fress.reader :as r]
             [fress.writer :as w]
+            [fress.api :as api]
             [fress.impl.buffer :as buf]
             [fress.samples :as samples]
             [fress.util :refer [byte-array] :as util]
@@ -219,23 +220,23 @@
 (deftest record-test
   (let [{:keys [bytes author title class-sym]} samples/record-sample
         out (byte-array (count bytes))
-        wrt (w/writer out)
+        wrt (api/create-writer out)
         value (Book. author title)]
-    (binding [w/*record->name* {Book "fress.api.Book"}]
-      (w/writeObject wrt value)
+    (binding [api/*record->name* {Book "fress.api.Book"}]
+      (api/write-object wrt value)
       (are-nums= bytes out))
     (testing "no bound reader ... => tagged-object"
-      (let [rdr (r/reader out)
-            o (r/readObject rdr)]
-        (is (instance? r/TaggedObject o))
-        (is= (.-tag o) "record")
-        (let [v (.-value o)]
+      (let [rdr (api/create-reader out)
+            o (api/read-object rdr)]
+        (is (api/tagged-object? o))
+        (is= (api/tag o) "record")
+        (let [v (api/tagged-value o)]
           (is (aget v 0) 'fress.api.Book)
           (is (js->clj (aget v 1)) {:author author :title title}))))
     (testing "binding defrecord ctor  => record instance"
-      (binding [r/*record-name->map-ctor* {"fress.api.Book" map->Book}]
-        (let [rdr (r/reader out)
-              o (r/readObject rdr)]
+      (binding [api/*record-name->map-ctor* {"fress.api.Book" map->Book}]
+        (let [rdr (api/create-reader out)
+              o (api/read-object rdr)]
           (is (instance? Book o))
           (is= o (Book. author title)))))))
 

@@ -1,20 +1,4 @@
-(ns
-  ^{:doc
-    "On the JVM fressian can write to an output stream and treat it as
-     an infinite sink. The size of the bytes written is not fressian's concern.
-
-     In javascript we do not have that luxury: without knowing the final byte
-     length of objects ahead of time, we need to be able to handle:
-      - if we run out of free space, we need to be able to request more
-       - wasm memory is paged, easy!
-       - plain javascript arraybuffers are fixed sized, need to alloc new array
-         and copy over contents
-     - if we have excess room we need to emulate a closed stream's 'EOF' behavior
-     - we should respect the reference passed by the caller if possible
-     - we should be able to receive a buffer and start writing at a designated offset"}
-  fress.impl.buffer
-  (:require [fress.util :as util :refer [dbg log]]))
-
+(ns fress.impl.buffer)
 
 (defprotocol IBuffer
   (getByte [this index])

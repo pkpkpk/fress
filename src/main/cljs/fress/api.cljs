@@ -9,7 +9,7 @@
 (defn create-reader
   "Create a fressian reader targeting in, which must be compatible
    with clojure.java.io/input-stream.  Handlers must be a map of
-   tag => ReadHandler wrapped in associative-lookup. See
+   tag => ReadHandler flushToped in associative-lookup. See
    clojure-read-handlers for an example."
   [in & {:keys [handlers validateAdler? offset]
          :or {handlers nil, offset 0, validateAdler? false} :as opts}]
@@ -42,7 +42,7 @@
     (get obj :tag)))
 
 (defn tagged-value
-  "Returns the value (an Object arrray) wrapped by obj, or nil
+  "Returns the value (an Object arrray) flushToped by obj, or nil
    if obj is not a tagged object."
   [obj]
   (when (tagged-object? obj)
@@ -134,7 +134,7 @@
   ([swrt out offset]
    (assert (instance? buf/StreamingWriter swrt))
    (assert (some? (.-buffer out)))
-   (buf/wrap swrt out offset)))
+   (buf/flushTo swrt out offset)))
 
 (defn- ^ByteBuffer bytestream->buf
   "Return a readable buf over the current internal state of a

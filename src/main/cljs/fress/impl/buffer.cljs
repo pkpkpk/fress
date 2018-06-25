@@ -25,12 +25,15 @@
 (defprotocol IStreamingWriter
   (realize [this] "get byte-array of current buffer contents. does not close.")
   (close [this] "disable further writing, return byte-array")
+  (flushTo [this out] [this out offset]
+    "write bytes to externally provided arraybuffer source at the given offset")
   (wrap [this out] [this out offset]
-    "write bytes to externally provided arraybuffer source at the given offset"))
+    "The new buffer will be backed by the given byte array; that is,
+     modifications to the buffer will cause the array to be modified and vice versa."))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; wasm users need to trigger EOF using footer or wrap everying in single object
+;; wasm users need to trigger EOF using footer or flushTo everying in single object
 ;; add arity to readBytes for array to  copy into?
 (deftype BufferReader
   [memory ^number memory-offset ^number bytesRead]
@@ -82,9 +85,13 @@
     (set! (.-bytesWritten this) 0)
     (set! (.-buffer this) nil))
   IStreamingWriter
-  (wrap [this buf] (wrap this buf 0))
+  (wrap [this buf](wrap this buf 0))
   (wrap [this buf off]
-    (assert (some? (.-buffer buf)) "wrap requires an arraybuffer backed byte-array")
+    (let []
+      ))
+  (flushTo [this buf] (flushTo this buf 0))
+  (flushTo [this buf off]
+    (assert (some? (.-buffer buf)) "flushTo requires an arraybuffer backed byte-array")
     (let [free (- (.. buf -buffer -byteLength) off)]
       (if-not (<= bytesWritten free)
         (throw (js/Error. "flush-to buffer is too small"))

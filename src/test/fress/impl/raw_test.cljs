@@ -117,42 +117,42 @@
           (buf/writeBytes buffer in 3 99)
           (is= 7 (buf/getBytesWritten buffer))
           (are-nums= (buf/realize buffer) [3 4 5 6 7 8 9]))))
-    (testing "flushTo"
+    (testing "wrap"
       (let [out (util/i8-array [0 1 2 3 4 5 6 7 8 9])
             buffer (buf/streaming-writer)]
         (buf/writeByte buffer 98)
         (buf/writeByte buffer 99)
         (buf/writeByte buffer 100)
         (is= 3 (buf/getBytesWritten buffer))
-        (buf/flushTo buffer out 2)
+        (buf/wrap buffer out 2)
         (are-nums= out [0 1 98 99 100 5 6 7 8 9])
         (testing "writeByte reset safety"
           (buf/reset buffer)
           (buf/writeByte buffer 101)
           (is= 1 (buf/getBytesWritten buffer))
-          (buf/flushTo buffer out)
+          (buf/wrap buffer out)
           (are-nums= out [101 1 98 99 100 5 6 7 8 9]))
         (testing "writeBytes reset safety"
           (let [out (util/i8-array [0 1 2 3 4 5 6 7 8 9])
                 buffer (buf/streaming-writer)]
             (buf/writeBytes buffer (byte-array [42 12 3 15 6 7]))
             (buf/reset buffer)
-            (testing "flushTo no offset"
+            (testing "wrap no offset"
               (buf/writeBytes buffer (byte-array [99 100 101]))
-              (buf/flushTo buffer out)
+              (buf/wrap buffer out)
               (are-nums= out [99 100 101 3 4 5 6 7 8 9]))
-            (testing "flushTo with offset"
+            (testing "wrap with offset"
               (buf/reset buffer)
               (buf/writeBytes buffer (byte-array [102 103]))
-              (buf/flushTo buffer out 3)
+              (buf/wrap buffer out 3)
               (are-nums= out [99 100 101 102 103 5 6 7 8 9]))
             (testing "oob dest should throw"
               (buf/reset buffer)
               (buf/writeBytes buffer (byte-array [99 100 101]) 0 3)
-              (is (thrown? js/Error (buf/flushTo out 10) )))
+              (is (thrown? js/Error (buf/wrap out 10) )))
             (testing "overfill  dest should throw"
               (buf/reset buffer)
               (buf/writeBytes buffer (byte-array [99 100 101]) 0 3)
-              (is (thrown? js/Error (buf/flushTo out 8))))))))))
+              (is (thrown? js/Error (buf/wrap out 8))))))))))
 
 

@@ -41,7 +41,7 @@
 (defprotocol IStreamingWriter
   (realize [this] "get byte-array of current buffer contents. does not close.")
   (close [this] "disable further writing, return byte-array")
-  (flushTo [this out] [this out offset]
+  (wrap [this out] [this out offset]
     "write bytes to externally provided arraybuffer source at the given offset"))
 
 
@@ -98,9 +98,9 @@
     (set! (.-bytesWritten this) 0)
     (set! (.-buffer this) nil))
   IStreamingWriter
-  (flushTo [this buf] (flushTo this buf 0))
-  (flushTo [this buf off]
-    (assert (some? (.-buffer buf)) "flushTo requires an arraybuffer backed byte-array")
+  (wrap [this buf] (wrap this buf 0))
+  (wrap [this buf off]
+    (assert (some? (.-buffer buf)) "wrap requires an arraybuffer backed byte-array")
     (let [free (- (.. buf -buffer -byteLength) off)]
       (if-not (<= bytesWritten free)
         (throw (js/Error. "flush-to buffer is too small"))

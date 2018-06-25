@@ -221,15 +221,20 @@
      (instance? StreamingWriter backing)
      (readable-buffer (realize backing) backing-offset)
 
+     (instance? BufferWriter backing)
+     (readable-buffer (.-memory backing) backing-offset)
+
      (instance? js/ArrayBuffer backing)
      (readable-buffer (js/Int8Array. backing) backing-offset)
 
-     :else
-     (let [_(assert (some? (.-buffer backing)))
-           backing-offset (or backing-offset 0)
-           _(assert (int? backing-offset))
+     (some? (.-buffer backing))
+     (let [backing-offset (int (or backing-offset 0))
            bytesRead 0]
-       (BufferReader. backing backing-offset bytesRead)))))
+       (BufferReader. backing backing-offset bytesRead))
+
+     :else
+     (throw (js/Error. (str "invalid input type " (type backing) " passed to readable-buffer.\n"
+                            "Input must be a typed array, array-buffer, or IBufferWriter instance"))))))
 
 (defn writable-buffer
   ([](writable-buffer nil nil))

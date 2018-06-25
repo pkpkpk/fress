@@ -1,4 +1,5 @@
 (ns fress.api
+  #?(:clj (:refer-clojure :exclude (read)))
   #?(:cljs
      (:require [fress.reader :as r]
                [fress.impl.raw-input :as rawIn]
@@ -8,7 +9,11 @@
                [fress.util :as util])
      :clj
      (:require [clojure.data.fressian :as fressian]))
-  #?(:clj (:import [org.fressian.handlers WriteHandler ReadHandler])))
+  #?(:clj (:import [org.fressian.handlers WriteHandler ReadHandler]
+                   [org.fressian FressianWriter StreamingWriter FressianReader TaggedObject Writer Reader]
+                   [java.io InputStream OutputStream])))
+
+(set! *warn-on-reflection* true)
 
 #?(:clj
    (defn private-field [obj fn-name-string]
@@ -59,24 +64,36 @@
                (String. bytes "UTF-8"))))))
 
 #?(:clj
-   (def write-handlers
-     (-> (merge {utf8 {"utf8" utf8-writer}} fressian/clojure-write-handlers)
-         fressian/associative-lookup
-         fressian/inheritance-lookup)))
+   (defn read-handlers
+     ([] (read-handlers nil))
+     ([user-handlers]
+      (let [default-handlers (assoc fressian/clojure-read-handlers "utf8" utf8-reader)
+            handlers (merge default-handlers user-handlers)]
+        (fressian/associative-lookup handlers)))))
 
 #?(:clj
-   (def read-handlers
-     (-> (merge {"utf8" utf8-reader} fressian/clojure-read-handlers)
-         fressian/associative-lookup)))
+   (defn write-handlers
+     ([](write-handlers nil))
+     ([user-handlers]
+      (let [default-handlers (assoc fressian/clojure-write-handlers utf8 {"utf8" utf8-writer})
+            handlers (merge default-handlers user-handlers)]
+        (-> handlers
+            fressian/associative-lookup
+            fressian/inheritance-lookup)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 #?(:clj
-   (defn create-reader [])
+   (defn ^Reader create-reader
+     "Wraps clojure.data.fressian/create-reader but :handlers is just a map of
+      tag->fn merged with default read handlers"
+     [^InputStream in & {:keys [handlers checksum?]}]
+     (let [handlers (read-handlers handlers)]
+       (fressian/create-reader in :handlers handlers :checksum? checksum?)))
    :cljs
    (defn create-reader
      "Create a fressian reader targeting in.
-     - :handlers must be a map of tag => fn<rdr,tag,field-count>"
+      - :handlers must be a map of tag => fn<rdr,tag,field-count>"
      [in & {:keys [handlers validateAdler? offset]
             :or {handlers nil, offset 0, validateAdler? false} :as opts}]
      (when handlers (assert (r/valid-user-handlers? handlers)))
@@ -97,18 +114,6 @@
      [rdr]
      (binding [r/*record-name->map-ctor* *record-name->map-ctor*]
        (r/readObject rdr))))
-
-; #?(:clj
-;    (defn read-batch
-;      "Read a fressian reader fully (until eof), returning a (possibly empty)
-;    vector of results."
-;      [^Reader fin]
-;      (let [sentinel (Object.)]
-;        (loop [objects []]
-;          (let [obj (try (.readObject fin) (catch EOFException e sentinel))]
-;            (if (= obj sentinel)
-;              objects
-;              (recur (conj objects obj))))))))
 
 #?(:clj
    (def tagged-object? fressian/tagged-object?)
@@ -139,7 +144,12 @@
        (get obj :value))))
 
 #?(:clj
-   (defn create-writer [])
+   (defn create-writer
+     "Wraps clojure.data.fressian/create-writer but :handlers is just a map of
+      {type {'tag' write-fn}} merged with default write handlers"
+     [^OutputStream out & {:keys [handlers]}]
+     (let [handlers (write-handlers handlers)]
+       (fressian/create-writer out :handlers handlers)))
    :cljs
    (defn create-writer
      "Create a fressian writer targeting out.
@@ -251,25 +261,43 @@
       (assert (some? (.-buffer out)))
       (buf/flushTo swrt out offset))))
 
+#?(:clj
+   (def read fressian/read)
+   :cljs
+   (defn read
+     "Convenience method for reading a single fressian object.
+      Takes same options as create-reader.  Readable can be
+      any type supported by clojure.java.io/input-stream, or
+      a ByteBuffer."
+     [readable & options]
+     (r/readObject (apply create-reader readable options))))
 
-; (defn read
-;   "Convenience method for reading a single fressian object.
-;    Takes same options as create-reader.  Readable can be
-;    any type supported by clojure.java.io/input-stream, or
-;    a ByteBuffer."
-;   [readable & options]
-;   (.readObject ^Reader (apply create-reader (to-input-stream readable) options)))
-;
-; (defn ^ByteBuffer write
-;   "Convenience method for writing a single object.  Returns a
-;    byte buffer.  Options are the same as for create-reader,
-;    with one additional option.  If footer? is specified, will
-;    write a fressian footer after writing the object."
-;   ([obj & options]
-;      (let [{:keys [footer?]} (when options (apply hash-map options))
-;            bos (BytesOutputStream.)
-;            writer ^Writer (apply create-writer bos options)]
-;        (.writeObject writer obj)
-;        (when footer?
-;          (.writeFooter writer))
-;        (bytestream->buf bos))))
+; #?(:clj
+;    (defn read-batch
+;      "Read a fressian reader fully (until eof), returning a (possibly empty)
+;    vector of results."
+;      [^Reader fin]
+;      (let [sentinel (Object.)]
+;        (loop [objects []]
+;          (let [obj (try (.readObject fin) (catch EOFException e sentinel))]
+;            (if (= obj sentinel)
+;              objects
+;              (recur (conj objects obj))))))))
+
+#?(:clj
+   (def write fressian/write)
+   :cljs
+   (defn write
+     "Convenience method for writing a single object.  Returns a
+      byte buffer.  Options are the same as for create-reader,
+      with one additional option.  If footer? is specified, will
+      write a fressian footer after writing the object."
+     [obj & options]
+     (let [{:keys [footer?]} (when options (apply hash-map options))
+           bos (buf/streaming-writer)
+           writer (apply create-writer bos options)]
+       (w/writeObject writer obj)
+       (when footer?
+         (w/writeFooter writer))
+       (buf/close bos))))
+

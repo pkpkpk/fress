@@ -198,7 +198,7 @@
         (throw (js/Error. "BufferWriter out of room"))))
     (let [i8array (js/Int8Array. (.. memory  -buffer))]
       (.set i8array (.subarray bytes offset (+ offset length)) (+  bytesWritten memory-offset))
-      (notifyBytesWritten this length)))) ;<- is there  a meaningful value to return? bytesWritten?
+      (notifyBytesWritten this length)))) ;<- is there  a meaningful value to return? bytesWritten? this?
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -219,30 +219,33 @@
      (readable-buffer (js/Int8Array. backing) backing-offset)
 
      (some? (.-buffer backing))
-     (let [backing-offset (int (or backing-offset 0))
-           bytesRead 0]
-       (BufferReader. backing backing-offset bytesRead))
+     (BufferReader. backing (int (or backing-offset 0)) 0)
 
      :else
-     (throw (js/Error. (str "invalid input type " (type backing) " passed to readable-buffer.\n"
-                            "Input must be a typed array, array-buffer, or IBufferWriter instance"))))))
+     (throw
+       (js/Error.
+        (str "invalid input type " (type backing) " passed to readable-buffer.\n"
+             "Input must be a typed array, array-buffer, or IBufferWriter instance"))))))
 
 (defn writable-buffer
   ([](writable-buffer nil nil))
   ([backing](writable-buffer backing 0))
   ([backing backing-offset]
    (cond
+     (nil? backing)
+     (streaming-writer)
+
      (implements? IBufferWriter backing)
      backing
 
      (instance? js/ArrayBuffer backing)
      (writable-buffer (js/Int8Array. backing) backing-offset)
 
-     (and (some? backing) (some? (.-buffer backing)))
-     (let [backing-offset (or backing-offset 0)
-           _(assert (int? backing-offset))
-           bytesWritten 0]
-       (BufferWriter. backing backing-offset bytesWritten))
+     (some? (.-buffer backing))
+     (BufferWriter. backing (int (or backing-offset 0)) 0)
 
      :else
-     (streaming-writer))))
+     (throw
+       (js/Error.
+        (str "invalid input type " (type backing) " passed to writable-buffer.\n"
+             "Input must be a typed array, array-buffer, or nil"))))))

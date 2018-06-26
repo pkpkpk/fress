@@ -525,14 +525,15 @@
 
 (defn valid-user-handlers?
   [uh]
-  (and  (map? uh)
-        (every? fn? (vals uh))
-        (every? valid-handler-key? (keys uh))))
+  (and (map? uh)
+       (every? fn? (vals uh))
+       (every? valid-handler-key? (keys uh))))
 
 (defn writer
   "Create a writer that combines userHandlers with the normal type handlers
    built into Fressian."
   [out & {:keys [handlers] :as opts}]
+  (when handlers (assert (valid-user-handlers? handlers)))
   (let [lookup-fn (build-handler-lookup handlers)
         raw-out (rawOut/raw-output out)
         priorityCache nil ;added when needed

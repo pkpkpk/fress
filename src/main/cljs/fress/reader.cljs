@@ -17,23 +17,23 @@
             ch>>4 (bit-shift-right ch 4)]
         (when (< pos length)
           (cond
-           (<=  0 ch>>4 7) (do (.push buf ch) (recur (inc pos)))
-           (<= 12 ch>>4 13) (let [ch1 (aget source (inc pos))]
+            (<=  0 ch>>4 7) (do (.push buf ch) (recur (inc pos)))
+            (<= 12 ch>>4 13) (let [ch1 (aget source (inc pos))]
+                               (.push buf (bit-or
+                                           (bit-shift-left
+                                            (bit-and ch 0x1f) 6)
+                                           (bit-and ch1 0x3f)))
+                               (recur (+ pos 2)))
+            (= ch>>4 14) (let [ch1 (aget source (inc pos))
+                               ch2 (aget source (+ pos 2))]
                            (.push buf (bit-or
                                        (bit-shift-left
-                                        (bit-and ch 0x1f) 6)
-                                       (bit-and ch1 0x3f)))
-                           (recur (+ pos 2)))
-           (= ch>>4 14) (let [ch1 (aget source (inc pos))
-                           ch2 (aget source (+ pos 2))]
-                       (.push buf (bit-or
-                                   (bit-shift-left
-                                    (bit-and ch 0x0f) 12)
-                                   (bit-shift-left
-                                    (bit-and ch1 0x03f) 6)
-                                   (bit-and ch2 0x3f)))
-                       (recur (+ pos 3)))
-           :default (throw (str "Invalid UTF-8: " ch))))))
+                                        (bit-and ch 0x0f) 12)
+                                       (bit-shift-left
+                                        (bit-and ch1 0x03f) 6)
+                                       (bit-and ch2 0x3f)))
+                           (recur (+ pos 3)))
+            :default (throw (str "Invalid UTF-8: " ch))))))
     (.apply (.-fromCharCode js/String) nil buf)))
 
 (defn readUTF8
@@ -675,8 +675,9 @@
       (get handlers tag))))
 
 (defn reader
-  [in & {:keys [handlers validateAdler? offset]
-         :or {handlers nil, offset 0, validateAdler? false} :as opts}]
+  [in & {:keys [handlers checksum? offset]
+         :or {handlers nil, offset 0, checksum? false} :as opts}]
+  (when handlers (assert (valid-user-handlers? handlers)))
   (let [lookup (build-lookup (merge default-read-handlers handlers))
-        raw-in (rawIn/raw-input in offset validateAdler?)]
+        raw-in (rawIn/raw-input in offset checksum?)]
     (FressianReader. in raw-in lookup nil nil)))

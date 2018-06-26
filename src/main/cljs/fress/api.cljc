@@ -84,25 +84,22 @@
   "Create a fressian reader targeting in.
    - :handlers is just a map of tag->fn merged with default read handlers
    - :checksum? checks adler validity on each read, throws when fails
+   - :name->map-ctor map of record names to map->Record constructors at runtime
+       {'string-name' map->some-record}
    - cljs allows reading from :offset"
-  [^InputStream in & {:keys [handlers] :as opts}]
+  [^InputStream in & opts]
   #?(:clj
-     (apply fressian/create-reader in (assoc opts :handlers (read-handlers handlers)))
+     (let [{:keys [handlers checksum?]} (apply hash-map opts)
+           handlers (read-handlers handlers)]
+       (fressian/create-reader in :handlers handlers :checksum? checksum?))
      :cljs
      (apply r/reader in opts)))
-
-#?(:cljs
-   (def ^{:dynamic true
-          :doc "map of record names to map->Record constructors at runtime"}
-     *record-name->map-ctor* {})) ;; {"string-name" map->some-record}
 
 (defn read-object
   "Read a single object from a fressian reader."
   [rdr]
   #?(:clj (fressian/read-object rdr)
-     :cljs
-     (binding [r/*record-name->map-ctor* *record-name->map-ctor*]
-       (r/readObject rdr))))
+     :cljs (r/readObject rdr)))
 
 (defn tagged-object?
   "Returns true if o is a tagged object, which will occur when
@@ -127,23 +124,21 @@
 
 (defn create-writer
   "Create a fressian writer targeting out.
-     - :handlers is just a map of {type {'tag' write-fn}} merged with default write handlers"
-  [^OutputStream out & {:keys [handlers] :as opts}]
-  #?(:clj (apply fressian/create-writer out (assoc opts :handlers (write-handlers handlers)))
+    - :handlers is just a map of {type {'tag' write-fn}} merged with default
+      write handlers
+    - :record->name (cljs only) map of record ctor to string-name (the string
+      version of the record's fully resolved symbol)"
+  [^OutputStream out & opts]
+  #?(:clj (let [{:keys [handlers] :as opts} (apply hash-map opts)
+                handlers (write-handlers handlers)]
+            (fressian/create-writer out :handlers handlers))
      :cljs (apply w/writer out opts)))
-
-#?(:cljs
-   (def ^{:dynamic true
-          :doc "map record-types -> string name desired for serializing records"}
-     *record->name* {}))
 
 (defn write-object
   "Write a single object to a fressian writer." ;<= ret?
   [wrt o]
   #?(:clj (fressian/write-object wrt o)
-     :cljs
-     (binding [w/*record->name* *record->name*]
-       (w/writeObject wrt o))))
+     :cljs (w/writeObject wrt o)))
 
 (defn write-utf8
   "write a string as raw utf-8 bytes"
@@ -155,7 +150,7 @@
       :cljs
       (binding [w/*write-raw-utf8* true
                 w/*write-utf8-tag* tag?]
-        (w/writeString wrt s)))))
+        (w/writeString wrt s))))) ;;;;yuck
 
 (defn write-footer
   [writer]
@@ -185,27 +180,7 @@
   #?(:clj (fressian/begin-open-list writer)
      :cljs (w/beginOpenList writer)))
 
-(defn field-caching-writer
-  "Returns a record writer that caches values for keys
-   matching cache-pred, which is typically specified
-   as a set, e.g. (field-caching-writer #{:color}).
-   CLJS requires binding fress.api/*record->name* to {type 'record-name'}"
-  [cache-pred]
-  #?(:clj (fressian/field-caching-writer cache-pred)
-     :cljs
-     (fn [_ w rec]
-       (binding [w/*record->name* *record->name*]
-         (w/writeTag w "record" 2)
-         (w/writeObject w (w/class-sym rec) true)
-         (w/writeTag w "map" 1)
-         (w/beginClosedList w)
-         (reduce-kv ;; <= reduce-kv has a bug, needs test<<<<<<<<<<<<<<<<<<<<<<<
-          (fn [^Writer w k v]
-            (w/writeObject w k true)
-            (w/writeObject w v (boolean (cache-pred k))))
-          w
-          rec)
-         (w/endList w)))))
+
 
 #?(:cljs
    (defn streaming-writer []

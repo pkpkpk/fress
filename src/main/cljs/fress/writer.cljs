@@ -448,30 +448,6 @@
     (writeInt wtr length)
     (doseq [o arr] (writeObject wtr o))))
 
-(def
-  ^{:dynamic true
-    :doc "map record-types -> string name desired for serializing records"}
-  *record->name* {})
-
-(defn class-sym
-  "Record types need a string so the name can survive munging. Is converted to
-   symbol before serializing."
-  [rec]
-  (let [name (get *record->name* (type rec))]
-    (if (string? name)
-      (symbol name)
-      (throw (js/Error. "writing records requires corresponding entry in *record->name*")))))
-
-(defn writeRecord [w rec]
-  (writeTag w "record" 2)
-  (writeObject w (class-sym rec) true)
-  (writeTag w "map" 1)
-  (beginClosedList w)
-  (doseq [[field value] rec]
-    (writeObject w field true)
-    (writeObject w value))
-  (endList w))
-
 (def default-write-handlers
   {js/Number writeNumber
    js/String writeString
@@ -501,19 +477,40 @@
    "long[]" writeLongArray
    "Object[]" writeObjectArray})
 
+(defn class-sym
+  "Record types need a string so the name can survive munging. Is converted to
+   symbol before serializing."
+  [rec rec->tag]
+  (let [name (get rec->tag (type rec))]
+    (if (string? name)
+      (symbol name)
+      (throw (js/Error. "writing records requires corresponding entry in *record->name*")))))
+
+(defn writeRecord [w rec rec->tag]
+  (writeTag w "record" 2)
+  (writeObject w (class-sym rec rec->tag) true)
+  (writeTag w "map" 1)
+  (beginClosedList w)
+  (doseq [[field value] rec]
+    (writeObject w field true)
+    (writeObject w value))
+  (endList w))
+
+
 (defn add-handler [acc [k handler]]
   (if (coll? k)
     (reduce (fn [acc k] (assoc acc k handler)) acc k)
     (assoc acc k handler)))
 
 (defn build-handler-lookup
-  [user-handlers]
+  [user-handlers rec->tag]
   (let [handlers (reduce add-handler default-write-handlers user-handlers)]
     (fn [tag obj]
       (if tag
         (get handlers tag)
         (if (record? obj)
-          writeRecord
+          (fn [w rec]
+            (writeRecord w rec rec->tag))
           (get handlers (type obj)))))))
 
 (defn ^boolean valid-handler-key?
@@ -529,12 +526,20 @@
        (every? fn? (vals uh))
        (every? valid-handler-key? (keys uh))))
 
+(defn valid-record->name?
+  "each key should be record ctor"
+  [m]
+  (and (map? m)
+       (every? fn? (keys m))
+       (every? string? (vals m))))
+
 (defn writer
   "Create a writer that combines userHandlers with the normal type handlers
    built into Fressian."
-  [out & {:keys [handlers] :as opts}]
+  [out & {:keys [handlers record->name] :as opts}]
   (when handlers (assert (valid-user-handlers? handlers)))
-  (let [lookup-fn (build-handler-lookup handlers)
+  (when record->name (assert (valid-record->name? record->name)))
+  (let [lookup-fn (build-handler-lookup handlers record->name)
         raw-out (rawOut/raw-output out)
         priorityCache nil ;added when needed
         structCache nil]

@@ -179,7 +179,8 @@
   (let [bytes [-17 -29 28 111 114 103 46 102 114 101 115 115 105 97 110 46 69 120 97 109 112 108 101 115 46 80 101 114 115 111 110 2 -33 106 111 110 110 121 -29 9 103 114 101 101 110 119 111 111 100 -96 -34 116 104 111 109 -33 121 111 114 107 101]
         tag "org.fressian.Examples.Person"
         out (byte-array (count bytes))
-        wrt (w/writer out :handlers {Person writePerson})
+        ; wrt (w/writer out :handlers {Person writePerson})
+        wrt (api/create-writer out :handlers {Person writePerson})
         jonny (->Person "jonny" "greenwood")
         thom (->Person "thom" "yorke")]
     (w/writeObject wrt jonny) ;<= triggers struct caching
@@ -211,21 +212,20 @@
       (let [rdr (r/reader out :handlers {tag readPerson})]
         (is= (r/readObject rdr) jonny)
         (is= (r/readObject rdr) thom)))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; records
-
+;
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; ;; records
+;
 (defrecord Book [author title])
 
 (deftest record-test
   (let [{:keys [bytes author title class-sym]} samples/record-sample
         out (byte-array (count bytes))
-        wrt (api/create-writer out)
+        wrt (api/create-writer out :record->name {Book "fress.api.Book"})
         value (Book. author title)]
-    (binding [api/*record->name* {Book "fress.api.Book"}]
-      (api/write-object wrt value)
-      (are-nums= bytes out))
-    (testing "no bound reader ... => tagged-object"
+    (api/write-object wrt value)
+    (are-nums= bytes out)
+    (testing "no reader => tagged-object"
       (let [rdr (api/create-reader out)
             o (api/read-object rdr)]
         (is (api/tagged-object? o))
@@ -233,12 +233,11 @@
         (let [v (api/tagged-value o)]
           (is (aget v 0) 'fress.api.Book)
           (is (js->clj (aget v 1)) {:author author :title title}))))
-    (testing "binding defrecord ctor  => record instance"
-      (binding [api/*record-name->map-ctor* {"fress.api.Book" map->Book}]
-        (let [rdr (api/create-reader out)
-              o (api/read-object rdr)]
-          (is (instance? Book o))
-          (is= o (Book. author title)))))))
+    (testing "add defrecord ctor  => record instance"
+      (let [rdr (api/create-reader out :name->map-ctor {"fress.api.Book" map->Book})
+            o (api/read-object rdr)]
+        (is (instance? Book o))
+        (is= o (Book. author title))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; caching
@@ -302,3 +301,4 @@
         (let [{:keys [name msg]} (r/readObject rdr)]
           (is= name "TypeError")
           (is= msg "a type error"))))))
+

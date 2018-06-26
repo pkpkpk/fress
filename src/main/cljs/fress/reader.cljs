@@ -614,20 +614,10 @@
 (defn readSymbol [rdr _ _]
   (symbol (readObject rdr) (readObject rdr)))
 
-(def ^{:dynamic true
-       :doc "map of record names to map->Record constructors at runtime"}
-  *record-name->map-ctor* {}) ;; {"string-name" map->some-record}
-
-(defn valid-record-map? [m]
-  (and (implements? ILookup *record-name->map-ctor*)
-       (every? string? (keys m))
-       (every? fn? (vals m))))
-
-(defn readRecord [rdr tag component-count]
-  (assert (valid-record-map? *record-name->map-ctor*))
+(defn readRecord [rdr tag component-count name->map-ctor]
   (let [rname (readObject rdr)
         rmap (readObject rdr)]
-    (if-let [rcons (get *record-name->map-ctor* (name rname))]
+    (if-let [rcons (get name->map-ctor (name rname))]
       (rcons rmap)
       (TaggedObject. "record" (into-array Object [rname rmap])))))
 
@@ -649,7 +639,8 @@
    "inst" readInst
    "key" readKeyword
    "sym" readSymbol
-   "record" readRecord})
+   ; "record" readRecord
+   })
 
 (defn add-handler [acc [tag handler]]
   (if (coll? tag)
@@ -662,22 +653,33 @@
     (every? string? k)
     (string? k)))
 
-(defn valid-user-handlers?
-  [uh]
-  (and  (map? uh)
-        (every? fn? (vals uh))
-        (every? valid-handler-key? (keys uh))))
-
 (defn build-lookup
-  [user-handlers]
+  [user-handlers name->map-ctor]
   (let [handlers (reduce add-handler default-read-handlers user-handlers)]
     (fn lookup [rdr tag]
-      (get handlers tag))))
+      (if (= "record" tag)
+        (fn [rdr tag field-count]
+          (readRecord rdr tag field-count name->map-ctor))
+        (get handlers tag)))))
+
+(defn valid-user-handlers?
+  [uh]
+  (and (map? uh)
+       (every? fn? (vals uh))
+       (every? valid-handler-key? (keys uh))))
+
+(defn valid-name->map-ctor? [m]
+  (and (map? m)
+       (every? string? (keys m))
+       (every? fn? (vals m))))
 
 (defn reader
-  [in & {:keys [handlers checksum? offset]
+  [in & {:keys [handlers checksum? offset name->map-ctor]
          :or {handlers nil, offset 0, checksum? false} :as opts}]
-  (when handlers (assert (valid-user-handlers? handlers)))
-  (let [lookup (build-lookup (merge default-read-handlers handlers))
+  (when handlers
+    (assert (valid-user-handlers? handlers)))
+  (when name->map-ctor
+    (assert (valid-name->map-ctor? name->map-ctor)))
+  (let [lookup (build-lookup (merge default-read-handlers handlers) name->map-ctor)
         raw-in (rawIn/raw-input in offset checksum?)]
     (FressianReader. in raw-in lookup nil nil)))

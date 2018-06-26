@@ -180,7 +180,22 @@
   #?(:clj (fressian/begin-open-list writer)
      :cljs (w/beginOpenList writer)))
 
-
+(defn field-caching-writer
+  "Returns a record writer that caches values for keys
+   matching cache-pred, which is typically specified
+   as a set, e.g. (field-caching-writer #{:color})"
+  [cache-pred]
+   #?(:clj (fressian/field-caching-writer cache-pred)
+      :cljs
+      (fn [w rec record->name]
+       (w/writeTag w "record" 2)
+       (w/writeObject w (w/class-sym rec record->name) true)
+       (w/writeTag w "map" 1)
+       (w/beginClosedList w)
+       (doseq [[field value] rec]
+         (w/writeObject w field true)
+         (w/writeObject w value (boolean (cache-pred value))))
+       (w/endList w))))
 
 #?(:cljs
    (defn streaming-writer []
@@ -212,8 +227,8 @@
 (defn read-batch
   "Read a fressian reader fully (until eof), returning a (possibly empty)
    vector of results."
-  [^Reader fin]
-  (let [sentinel (Object.)]
+  [^Reader fin] ; coerce readable to rdr?
+  (let [sentinel #?(:clj (Object.) :cljs #js{})]
     (loop [objects (transient [])]
       (let [obj #?(:clj (try (.readObject fin) (catch EOFException e sentinel))
                    :cljs (try (r/readObject fin) (catch js/Error e sentinel)))]

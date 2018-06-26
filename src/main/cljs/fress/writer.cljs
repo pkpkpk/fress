@@ -509,8 +509,11 @@
       (if tag
         (get handlers tag)
         (if (record? obj)
-          (fn [w rec]
-            (writeRecord w rec rec->tag))
+          (if-let [custom-writer (get handlers "record")]
+            (fn [wrt rec]
+              (custom-writer wrt rec rec->tag))
+            (fn [wrt rec]
+              (writeRecord wrt rec rec->tag)))
           (get handlers (type obj)))))))
 
 (defn ^boolean valid-handler-key?

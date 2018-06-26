@@ -239,6 +239,33 @@
         (is (instance? Book o))
         (is= o (Book. author title))))))
 
+;; field caching writer ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defrecord SomeRec [f0])
+
+(deftest field-caching-writer-test
+  (let [no-cache (api/streaming-writer)
+        wrt (api/create-writer no-cache :record->name {SomeRec "SomeRec"})]
+    (api/write-object wrt (SomeRec. "foobar"))
+    (api/write-object wrt (SomeRec. "foobar"))
+    (api/write-object wrt (SomeRec. "foobar"))
+    (let [cached (api/streaming-writer)
+          cache-writer (api/field-caching-writer #{"foobar"})
+          wrt (api/create-writer cached
+                                 :handlers {"record" cache-writer}
+                                 :record->name {SomeRec "SomeRec"})]
+      (api/write-object wrt (SomeRec. "foobar"))
+      (api/write-object wrt (SomeRec. "foobar"))
+      (api/write-object wrt (SomeRec. "foobar"))
+      (is (<  (alength @cached) (alength @no-cache)))
+      (let [name->map-ctor {"SomeRec" map->SomeRec}
+            no-cache-rdr (api/create-reader @no-cache :name->map-ctor name->map-ctor)
+            no-cache-val (api/read-batch no-cache-rdr)
+            cached-rdr (api/create-reader @cached :name->map-ctor name->map-ctor)
+            cached-val (api/read-batch cached-rdr)]
+        (is (= no-cache-val cached-val))
+        (is (every? #(instance? SomeRec %) (concat cached-val no-cache-val)))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; caching
 (deftest cached-test
@@ -259,7 +286,7 @@
         (is (thrown-with-msg? js/Error #"EOF" (r/readObject rdr)))))))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; error example
 
 (defn write-error [writer err]

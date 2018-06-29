@@ -3,6 +3,8 @@
 
 ## Quick Start
 
+
+
 ### Differences from clojure.data.fressian
   + no BigInteger, BigDecimal, chars, ratios at this time
   + EOF
@@ -10,29 +12,45 @@
 <hr>
 
 ### Records
-clojure.data.fressian can use defrecord constructors to produce symbolic tags for serialization, and use those same symbolic tags to resolve constructors during deserialization. In cljs, symbols are munged in advanced builds, and we have no runtime resolve. How do we deal with this?
+clojure.data.fressian can use defrecord constructors to produce symbolic tags (.. its class name) for serialization, and use those same symbolic tags to resolve constructors during deserialization. In cljs, symbols are munged in advanced builds, and we have no runtime resolve. How do we deal with this?
 
- 1. When writing records, we need to help fress by providing __a map linking a record constructor to a string-name__ which allows us to generate these symbolic tags.
- 2. When reading records, we need to help fress by binding `fress.reader/*record-name->map-ctor*` to  __a map linking a string-name to a map->record fn__. These fns are created automatically for each defrecord.
-
+1. When writing records, include a `:record->name` map at writer creation
+  - ex: `{RecordConstructor "app.core/RecordConstructor"}`
+  - the string name should be the same as the string of the fully resolved symbol (className), and is used to generate a symbolic tags representing its class
+2. When reading records, include `:name->map-ctor` map at reader creation
+  - ex: `{"app.core/RecordConstructor" map->RecordConstructor}`
+  - Why the record map constructor? Because clojure.data.fressian's default record writer writes record contents as maps
+  - if the name is not recognized, it will be read as a TaggedObject containing all the fields defined by the writer (more on that later).
 
 ``` clojure
+(require '[fress.api :as fress])
+
 (defrecord SomeRecord [f1 f2]) ; map->SomeRecord is now implicitly defined
 
-(binding [w/*record->name* {SomeRecord "myapp.core.SomeRecord"}]
-  (w/writeObject writer (SomeRecord. "field1" ...)))
+(def rec (SomeRecord. "field1" ...))
 
-(binding [r/*record-name->map-ctor* {"myapp.core.SomeRecord" map->SomeRecord}]
-  (r/readObject reader))
+(def buf (fress/streaming-writer))
+
+(def writer (fress/create-writer buf :record->name {SomeRecord "myapp.core.SomeRecord"}))
+
+(fress/write-object writer rec)
+
+(def reader (fress/create-reader buf :name->map-ctor {"myapp.core.SomeRecord" map->SomeRecord}))
+
+(assert (= rec (fress/read-object reader)))
 ```
 
-If you read a record type that is not defined in the client, the reader will return a TaggedObject containing all the fields defined by the writer.
+You can override the default record writer by adding a `"record"` entry in :handlers. A built in use case for this is `fress.api/field-caching-writer` which offers a way to automatically cache values that pass a predicate
+
+```clojure
+(fress/create-writer buf :handlers {"record" (fress/field-caching-writer #{"some repetitive value"})})
+```
 
 <hr>
 
 ### Extending with your own types
   1. Decide on a string tag name for your type, and the number of fields it contains
-  + define a write-handler, a `fn<writer, object>`
+  + define a __write-handler__, a `fn<writer, object>`
     + use `(w/writeTag writer tag field-count)`
     + call writeObject on each field component
       + each field itself can be a custom type with its own tag + fields
@@ -42,6 +60,8 @@ If you read a record type that is not defined in the client, the reader will ret
 Example: lets write a handler for javascript errors
 
 ``` clojure
+(require '[fress.writer :as w])
+
 (defn write-error [writer error]
   (let [name (.-name error)
         msg (.-message error)
@@ -99,7 +119,13 @@ JVM fressian compresses UTF-8 strings when writing them. This means a reader mus
 
 By default fress writes strings using the default fressian compression. If you'd like to write raw UTF-8, bind  `fress.writer/*write-raw-utf8*` to `true` before writing the string. If you are targeting a jvm reader, you must also bind `*write-utf8-tag*` to `true` so the tag is picked up by the reader. Otherwise a code is used that is only present in fress clients.
 
+## Caching
 
+ write without
+ get size
+
+ write with
+ get size
 
 
 

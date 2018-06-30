@@ -55,21 +55,17 @@
   (writeBytes ^FressianWriter [this bs] [this bs offset length])
   ; (writeFooterFor [this byteBuffer])
   (writeFooter ^FressianWriter [this])
-  (close [this] "public")
-
   (clearCaches [this])
-  (resetCaches ^FressianWriter [this]"public")
-
-  (getPriorityCache ^InterleavedIndexHopMap [this]"public")
-  (getStructCache ^InterleavedIndexHopMap [this]"public")
-  (writeTag ^FressianWriter [this tag componentCount] "public")
-  ; (writeExt ^FressianWriter [this]"public")
-  (writeCount [this n] "public")
-  (shouldSkipCache- ^boolean [this o] "private")
-  (doWrite- [this tag o w cache?] "private")
-  (writeAs ^FressianWriter [this tag o] [this tag o cache?] "public")
-  (writeObject ^FressianWriter [this o] [this o cache?] "public")
-  (writeCode [this code] "public")
+  (resetCaches ^FressianWriter [this])
+  (getPriorityCache [this])
+  (getStructCache [this])
+  (writeTag ^FressianWriter [this tag componentCount])
+  (writeCount [this n])
+  (shouldSkipCache- ^boolean [this o])
+  (doWrite- [this tag o w cache?])
+  (writeAs ^FressianWriter [this tag o] [this tag o cache?])
+  (writeObject ^FressianWriter [this o] [this o cache?])
+  (writeCode [this code])
   (beginOpenList ^FressianWriter [this]
    "Writes fressian code to begin an open list.  An
     open list can be terminated either by a call to end-list,
@@ -79,8 +75,7 @@
   (beginClosedList ^FressianWriter [this]
     "Begin writing a fressianed list.  To end the list, call end-list.
      Used to write sequential data whose size is not known in advance.")
-  (endList ^FressianWriter [this] "Ends a list begun with begin-closed-list.")
-  (getByte [this index]))
+  (endList ^FressianWriter [this] "Ends a list begun with begin-closed-list."))
 
 (defn ^number bit-switch
   "@return {number}(bits not needed to represent this number) + 1"
@@ -182,8 +177,6 @@
 
 (deftype FressianWriter [out raw-out priorityCache structCache ^fn lookup]
   IFressianWriter
-  (getByte [this index] (rawOut/getByte raw-out index))
-
   (writeCode [this code] (rawOut/writeRawByte raw-out code))
 
   (writeCount [this n] (writeInt this n))

@@ -452,7 +452,6 @@
   {js/Number writeNumber
    js/String writeString
    js/Boolean writeBoolean
-   js/Object #(writeMap %1 (js->clj %2))
    js/Array writeList
    js/Date writeInst
    js/RegExp writeRegex
@@ -497,6 +496,16 @@
   (endList w))
 
 
+(defn build-inheritance-lookup [handlers]
+  (let [fns (filter fn? (keys handlers))]
+    (fn [o]
+      (loop [fns fns]
+        (when (seq fns)
+          (let [f (first fns)]
+            (if (instance? f o)
+              (get handlers f)
+              (recur (rest fns)))))))))
+
 (defn add-handler [acc [k handler]]
   (if (coll? k)
     (reduce (fn [acc k] (assoc acc k handler)) acc k)
@@ -504,7 +513,8 @@
 
 (defn build-handler-lookup
   [user-handlers rec->tag]
-  (let [handlers (reduce add-handler default-write-handlers user-handlers)]
+  (let [handlers (reduce add-handler default-write-handlers user-handlers)
+        inh-lookup (build-inheritance-lookup handlers)]
     (fn [tag obj]
       (if tag
         (get handlers tag)
@@ -514,7 +524,11 @@
               (custom-writer wrt rec rec->tag))
             (fn [wrt rec]
               (writeRecord wrt rec rec->tag)))
-          (get handlers (type obj)))))))
+          (if (object? obj)
+            (fn [wrt obj]
+              (writeMap wrt (js->clj obj)))
+            (or (get handlers (type obj))
+                (inh-lookup obj))))))))
 
 (defn ^boolean valid-handler-key?
   "singular or coll of constructors and string tags"

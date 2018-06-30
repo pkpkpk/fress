@@ -289,6 +289,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; error example
 
+(deftype Err [name message stack])
+
 (defn write-error [writer err]
   (let [name (.-name err)
         msg (.-message err)
@@ -306,26 +308,38 @@
 (deftest extend-error-test
   (let [tag "js-error"
         e (js/Error "a generic error")
-        te (js/TypeError "a type error")]
-    (let [out (buf/streaming-writer)
-          wrt (w/writer out)]
-      (is (thrown? js/Error (w/writeObject wrt e))))
-    (let [out (buf/streaming-writer)
-          wrt (w/writer out :handlers {js/Error write-error})]
-      (is (nil? (w/writeObject wrt e)))
-      (is (thrown? js/Error (w/writeObject wrt te))))
-    (let [out (buf/streaming-writer)
-          wrt (w/writer out :handlers {[js/Error js/TypeError] write-error})]
-      (is (nil? (w/writeObject wrt e)))
-      (is (nil? (w/writeObject wrt te)))
-      (let [rdr (r/reader out)]
-        (is (instance? r/TaggedObject (r/readObject rdr)))
-        (is (instance? r/TaggedObject (r/readObject rdr))))
-      (let [rdr (r/reader out :handlers {tag read-error})]
-        (let [{:keys [name msg]} (r/readObject rdr)]
-          (is= name "Error")
-          (is= msg "a generic error"))
-        (let [{:keys [name msg]} (r/readObject rdr)]
-          (is= name "TypeError")
-          (is= msg "a type error"))))))
+        te (js/TypeError "a type error")
+        ce (Err. "a name!" "a msg!" "c")]
+    (testing "missing write handler"
+      (let [out (buf/streaming-writer)
+            wrt (w/writer out)]
+        (is (thrown? js/Error (w/writeObject wrt e)))))
+    (testing "exact match + inheritance-lookup"
+      (let [out (buf/streaming-writer)
+            wrt (w/writer out :handlers {js/Error write-error})]
+        (is (nil? (w/writeObject wrt e)))
+        (is (nil? (w/writeObject wrt te)) "type error should work via inheritance")
+        (is (thrown? js/Error (w/writeObject wrt ce)))))
+    (testing "overload write fn"
+      (let [out (buf/streaming-writer)
+            wrt (w/writer out :handlers {[js/Error Err] write-error})]
+        (is (nil? (w/writeObject wrt e)))
+        (is (nil? (w/writeObject wrt te)))
+        (is (nil? (w/writeObject wrt ce)))
+        (testing "no read fn"
+          (let [rdr (api/create-reader out)]
+            (is (api/tagged-object? (api/read-object rdr)))
+            (is (api/tagged-object? (api/read-object rdr)))
+            (is (api/tagged-object? (api/read-object rdr)))))
+        (testing "with read fn"
+          (let [rdr (api/create-reader out :handlers {tag read-error})]
+            (let [{:keys [name msg]} (r/readObject rdr)]
+              (is= name "Error")
+              (is= msg "a generic error"))
+            (let [{:keys [name msg]} (r/readObject rdr)]
+              (is= name "TypeError")
+              (is= msg "a type error"))
+            (let [{:keys [name msg]} (r/readObject rdr)]
+              (is= name "a name!")
+              (is= msg "a msg!"))))))))
 

@@ -8,13 +8,15 @@
      (:require [clojure.data.fressian :as fressian]))
   #?(:clj (:import [org.fressian.handlers WriteHandler ReadHandler]
                    [org.fressian FressianWriter StreamingWriter FressianReader TaggedObject Writer Reader]
-                   [java.io InputStream OutputStream])))
+                   [org.fressian.impl RawOutput RawInput BytesOutputStream]
+                   java.nio.ByteBuffer
+                   [java.io InputStream OutputStream EOFException])))
 
 (set! *warn-on-reflection* true)
 
 #?(:clj
-   (defn private-field [obj fn-name-string]
-     (let [m (.. obj getClass (getDeclaredField fn-name-string))]
+   (defn private-field [^Object obj name-string]
+     (let [m (. (.getClass obj)(getDeclaredField name-string))]
        (. m (setAccessible true))
        (. m (get obj)))))
 
@@ -25,7 +27,7 @@
    (defn- rdr->raw [rdr] (private-field rdr "is")))
 
 #?(:clj
-   (deftype utf8 [s]))
+   (deftype utf8 [^String s]))
 
 #?(:clj
    (defn utf8? [o] (instance? utf8 o)))
@@ -37,14 +39,16 @@
    (def utf8-writer
      (reify WriteHandler
        (write [_ w u]
-              (let [bytes (.getBytes (.-s u) "UTF-8")
+              (let [s (.-s ^utf8 u)
+                    bytes (.getBytes ^String s "UTF-8")
                     raw-out (w->raw w)
                     length (count bytes)]
                 (if *write-utf8-tag* ;<= client can read either
-                  (.writeTag w "utf8" 2)
-                  (.writeCode w (int 191)))
-                (.writeCount w length)
-                (.writeRawBytes raw-out bytes 0 length))))))
+                  (.writeTag ^FressianWriter w "utf8" 2)
+                  (.writeCode ^FressianWriter w (int 191)))
+                (.writeCount ^FressianWriter w length)
+                ;FIXME use writeBytes, code makes tagged-object compatible
+                (.writeRawBytes ^RawOutput raw-out bytes 0 length))))))
 
 #?(:clj
    (def utf8-reader
@@ -57,7 +61,7 @@
                    offset (int 0)
                    bytes (byte-array length)
                    raw-in (rdr->raw rdr)]
-               (.readFully raw-in bytes offset length)
+               (.readFully ^RawInput raw-in bytes offset length)
                (String. bytes "UTF-8"))))))
 
 #?(:clj
@@ -136,9 +140,12 @@
 
 (defn write-object
   "Write a single object to a fressian writer." ;<= ret?
-  [wrt o]
-  #?(:clj (fressian/write-object wrt o)
-     :cljs (w/writeObject wrt o)))
+  ([wrt o]
+   #?(:clj (fressian/write-object wrt o)
+      :cljs (w/writeObject wrt o)))
+  ([wrt o cache?]
+   #?(:clj (.writeObject ^FressianWriter wrt o cache?)
+      :cljs (w/writeObject wrt o cache?))))
 
 (defn write-utf8
   "write a string as raw utf-8 bytes"
@@ -197,12 +204,22 @@
          (w/writeObject w value (boolean (cache-pred value))))
        (w/endList w))))
 
-#?(:cljs
-   (defn streaming-writer []
+(defn streaming-writer [] ;name?
+  #?(:clj (BytesOutputStream.)
+     :cljs
      (let [bytesWritten 0
            open? true
            buffer nil]
        (buf/StreamingWriter. #js[] bytesWritten open? buffer))))
+
+(defn ^ByteBuffer bytestream->buf
+  "Return a readable buf over the current internal state of a
+   BytesOutputStream."
+  [^BytesOutputStream stream]
+  #?(:clj
+     (ByteBuffer/wrap (.internalBuffer stream) 0 (.length stream))
+     :cljs
+     (buf/realize stream))) ;fixed, will not change with more writes! call again
 
 #?(:cljs
    (defn flush-to
@@ -213,7 +230,7 @@
       (buf/flushTo stream out offset))))
 
 #_(:cljs
-   (defn wrap
+   (defn wrap ;TODO
      ([stream out])
      ([stream out offset])))
 

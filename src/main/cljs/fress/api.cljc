@@ -204,13 +204,9 @@
          (w/writeObject w value (boolean (cache-pred value))))
        (w/endList w))))
 
-(defn streaming-writer [] ;name?
+(defn byte-stream []
   #?(:clj (BytesOutputStream.)
-     :cljs
-     (let [bytesWritten 0
-           open? true
-           buffer nil]
-       (buf/StreamingWriter. #js[] bytesWritten open? buffer))))
+     :cljs (buf/byte-stream)))
 
 (defn ^ByteBuffer bytestream->buf
   "Return a readable buf over the current internal state of a
@@ -225,7 +221,7 @@
    (defn flush-to
      ([stream out](flush-to stream out 0))
      ([stream out offset]
-      (assert (instance? buf/StreamingWriter stream))
+      (assert (instance? buf/BytesOutputStream stream))
       (assert (some? (.-buffer out)))
       (buf/flushTo stream out offset))))
 
@@ -262,7 +258,7 @@
   #?(:clj (apply fressian/write obj options)
      :cljs
      (let [{:keys [footer?]} (when options (apply hash-map options))
-           bos (buf/streaming-writer)
+           bos (buf/byte-stream)
            writer (apply create-writer bos options)]
        (w/writeObject writer obj)
        (when footer?

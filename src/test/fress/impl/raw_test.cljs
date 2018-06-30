@@ -74,10 +74,10 @@
         (rawIn/reset raw-in)
         (is (thrown? js/Error (rawIn/readFully raw-in (inc (alength memory)))))))))
 
-(deftest streaming-writer-test
+(deftest byte-stream-test
   (let [data [42 :foo 'bar {"baz" [8 9 10]}]]
     (testing "get readable bytes from buf/close(writestream)"
-      (let [buffer (buf/streaming-writer)
+      (let [buffer (buf/byte-stream)
             wrt (w/writer buffer)]
         (doseq [d data] (w/writeObject wrt d))
         (is  (.-open? buffer))
@@ -91,35 +91,35 @@
           (is (thrown-with-msg? js/Error #"EOF" (r/readObject rdr))))))
     (testing "writeBytes"
       (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
-            buffer (buf/streaming-writer)]
+            buffer (buf/byte-stream)]
         (buf/writeBytes buffer in)
         (is= (alength in) (buf/getBytesWritten buffer))
         (are-nums= (buf/realize buffer) in)))
     (testing "writeBytes + offset"
       (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
-            buffer (buf/streaming-writer)]
+            buffer (buf/byte-stream)]
         (buf/writeBytes buffer in 0 10)
         (is= 10 (buf/getBytesWritten buffer))
         (are-nums= (buf/realize buffer) in))
       (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
-            buffer (buf/streaming-writer)]
+            buffer (buf/byte-stream)]
         (buf/writeBytes buffer in 3 5)
         (is= 5 (buf/getBytesWritten buffer))
         (are-nums= (buf/realize buffer) [3 4 5 6 7]))
       (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
-            buffer (buf/streaming-writer)]
+            buffer (buf/byte-stream)]
         (buf/writeBytes buffer in 3 7)
         (is= 7 (buf/getBytesWritten buffer))
         (are-nums= (buf/realize buffer) [3 4 5 6 7 8 9]))
       (testing "safe for excessive length"
         (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
-              buffer (buf/streaming-writer)]
+              buffer (buf/byte-stream)]
           (buf/writeBytes buffer in 3 99)
           (is= 7 (buf/getBytesWritten buffer))
           (are-nums= (buf/realize buffer) [3 4 5 6 7 8 9]))))
     (testing "flushTo"
       (let [out (util/i8-array [0 1 2 3 4 5 6 7 8 9])
-            buffer (buf/streaming-writer)]
+            buffer (buf/byte-stream)]
         (buf/writeByte buffer 98)
         (buf/writeByte buffer 99)
         (buf/writeByte buffer 100)
@@ -134,7 +134,7 @@
           (are-nums= out [101 1 98 99 100 5 6 7 8 9]))
         (testing "writeBytes reset safety"
           (let [out (util/i8-array [0 1 2 3 4 5 6 7 8 9])
-                buffer (buf/streaming-writer)]
+                buffer (buf/byte-stream)]
             (buf/writeBytes buffer (byte-array [42 12 3 15 6 7]))
             (buf/reset buffer)
             (testing "flushTo no offset"

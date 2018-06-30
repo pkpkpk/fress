@@ -311,17 +311,17 @@
         te (js/TypeError "a type error")
         ce (Err. "a name!" "a msg!" "c")]
     (testing "missing write handler"
-      (let [out (buf/streaming-writer)
+      (let [out (api/byte-stream)
             wrt (w/writer out)]
         (is (thrown? js/Error (w/writeObject wrt e)))))
     (testing "exact match + inheritance-lookup"
-      (let [out (buf/streaming-writer)
+      (let [out (api/byte-stream)
             wrt (w/writer out :handlers {js/Error write-error})]
         (is (nil? (w/writeObject wrt e)))
         (is (nil? (w/writeObject wrt te)) "type error should work via inheritance")
         (is (thrown? js/Error (w/writeObject wrt ce)))))
     (testing "overload write fn"
-      (let [out (buf/streaming-writer)
+      (let [out (api/byte-stream)
             wrt (w/writer out :handlers {[js/Error Err] write-error})]
         (is (nil? (w/writeObject wrt e)))
         (is (nil? (w/writeObject wrt te)))

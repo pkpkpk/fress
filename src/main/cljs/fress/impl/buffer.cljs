@@ -73,11 +73,11 @@
 
 (deftype
   ^{:doc
-    "Backed by a plain array, 'WritableStream' grows as bytes are written,
+    "Backed by a plain array, 'BytesOutputStream' grows as bytes are written,
      is only realized into an byte-array when close() is called.
 
      In future can use ArrayBuffer.transfer()"}
-  StreamingWriter [arr ^number bytesWritten ^boolean open? buffer]
+  BytesOutputStream [arr ^number bytesWritten ^boolean open? buffer]
   IDeref
   (-deref [this] (or buffer (realize this)))
   IBuffer
@@ -157,13 +157,15 @@
       (set! (.-buffer this) nil)
       true)))
 
-(defn streaming-writer []
+(defn byte-stream []
   (let [bytesWritten 0
         open? true
         buffer nil]
-    (StreamingWriter. #js[] bytesWritten open? buffer)))
+    (BytesOutputStream. #js[] bytesWritten open? buffer)))
 
-(deftype BufferWriter [memory ^number memory-offset ^number bytesWritten]
+(deftype
+  ^{:doc "used on fixed size buffers"}
+  BufferWriter [memory ^number memory-offset ^number bytesWritten]
   IBuffer
   (reset [this] (set! (.-bytesWritten this) 0))
   (getByte [this index]
@@ -209,7 +211,7 @@
      (implements? IBufferReader backing)
      backing
 
-     (instance? StreamingWriter backing)
+     (instance? BytesOutputStream backing)
      (readable-buffer (realize backing) backing-offset)
 
      (instance? BufferWriter backing)
@@ -233,7 +235,7 @@
   ([backing backing-offset]
    (cond
      (nil? backing)
-     (streaming-writer)
+     (byte-stream)
 
      (implements? IBufferWriter backing)
      backing

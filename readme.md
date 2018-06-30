@@ -16,7 +16,7 @@ clojure.data.fressian can use defrecord constructors to produce symbolic tags (.
 
 1. When writing records, include a `:record->name` map at writer creation
   - ex: `{RecordConstructor "app.core/RecordConstructor"}`
-  - the string name should be the same as the string of the fully resolved symbol (className), and is used to generate a symbolic tags representing its class
+  - the string name should be the same as the string of the fully resolved symbol, and is used to generate a symbolic tag representing its className
 2. When reading records, include `:name->map-ctor` map at reader creation
   - ex: `{"app.core/RecordConstructor" map->RecordConstructor}`
   - Why the record map constructor? Because clojure.data.fressian's default record writer writes record contents as maps
@@ -40,7 +40,7 @@ clojure.data.fressian can use defrecord constructors to produce symbolic tags (.
 (assert (= rec (fress/read-object reader)))
 ```
 
-You can override the default record writer by adding a `"record"` entry in :handlers. A built in use case for this is `fress.api/field-caching-writer` which offers a way to automatically cache values that pass a predicate
+You can override the default record writer by adding a `"record"` entry in `:handlers`. A built in use case for this is `fress.api/field-caching-writer` which offers a way to automatically cache values that pass a predicate
 
 ```clojure
 (fress/create-writer buf :handlers {"record" (fress/field-caching-writer #{"some repetitive value"})})
@@ -54,7 +54,7 @@ You can override the default record writer by adding a `"record"` entry in :hand
     + use `(w/writeTag writer tag field-count)`
     + call writeObject on each field component
       + each field itself can be a custom type with its own tag + fields
-  + create a writer and pass a map of `{type writeHandler}`
+  + create a writer and pass a `:handler` map of `{type writeHandler}`
 
 
 Example: lets write a handler for javascript errors
@@ -73,31 +73,30 @@ Example: lets write a handler for javascript errors
 
 (def e (js/Error "wat"))
 
-(def writer (w/writer out))
+(def writer (fress/create-writer out))
 
-(w/writeObject writer e) ;=> throws, no handler!
+(fress/write-object writer e) ;=> throws, no handler!
 
-(def writer (w/writer out :handlers {js/Error write-error}))
+(def writer (fress/create-writer out :handlers {js/Error write-error}))
 
-(w/writeObject writer e) ;=> OK!
-```
-So this works for errors created with `js/Error`, but what about `js/TypeError`, `js/SyntaxError` ...? We can use the same custom writer for multiple related types by using a collection of those types in our handler argument during writer creation.
-
-```clojure
-(def writer (w/writer out :handlers {[js/Error js/TypeError js/SyntaxError]  write-error}))
+(fress/write-object writer e) ;=> OK!
 ```
 
-So now let's try reading...
+Fress will automatically test if each written object is an instance of a registered write handler, so this will also work for `js/TypeError`, `js/SyntaxError` etc.
+
+So now let's try reading our custom type:
 
 ```clojure
-(def rdr (r/reader out))
+(def rdr (fress/create-reader out))
 
-(def o (r/readObject rdr))
+(def o (fress/read-object rdr))
 
 (assert (instance? r/TaggedObject o))
 ```
 
-So what happened? When the reader encounters a tag in the buffer, it looks for a registered read handler, and if it doesnt find one, its **uses the field count** to read off each component of the unidentified type and return them as a `TaggedObject`. The field count is important because it lets consumers preserve the reading frame without forehand knowledge of whatever types you throw at it. Downstreams users do not have to care, but we do so lets add a read-error function
+So what happened? When the reader encounters a tag in the buffer, it looks for a registered read handler, and if it doesnt find one, its **uses the field count** to read off each component of the unidentified type and return them as a `TaggedObject`. The field count is important because it lets consumers preserve the reading frame without forehand knowledge of whatever types you throw at it. Downstreams users do not have to care.
+
+We can fix this by adding a read-error function:
 
 ```clojure
 (defn read-error [reader tag field-count]
@@ -115,9 +114,9 @@ So what happened? When the reader encounters a tag in the buffer, it looks for a
 
 ### Raw UTF-8
 
-JVM fressian compresses UTF-8 strings when writing them. This means a reader must decompress each char to reassemble the string. If payload size is your primary concern this is great, but if you want faster read+write times there is another option. The javascript [TextDecoder/TextEncoder][1] API has [growing support][2] and is written in native code. TextEncoder will convert a javascript string into plain utf-8 bytes, and the TextDecoder can assemble a javascript string from raw bytes faster than javascript can assemble a string from compressed bytes.
+JVM fressian compresses UTF-8 strings when writing them. This means a reader must decompress each char to reassemble the string. If payload size is your primary concern this is great, but if you want faster read+write times there is another option. The javascript [TextEncoder][1] / [TextDecoder][2] API has [growing support][3] (also see analog in node util module) and is written in native code. TextEncoder will convert a javascript string into plain utf-8 bytes, and the TextDecoder can reassemble a javascript string from raw bytes faster than javascript can assemble a string from compressed bytes.
 
-By default fress writes strings using the default fressian compression. If you'd like to write raw UTF-8, bind  `fress.writer/*write-raw-utf8*` to `true` before writing the string. If you are targeting a jvm reader, you must also bind `*write-utf8-tag*` to `true` so the tag is picked up by the reader. Otherwise a code is used that is only present in fress clients.
+By default fress writes strings using the default fressian compression. If you'd like to write raw UTF-8, you can use `fress.api/write-utf8` on a string, or bind  `fress.writer/*write-raw-utf8*` to `true` before writing. If you are targeting a jvm reader, you must also pass a `true` second arg  (or bind `*write-utf8-tag*` to `true`) so the tag is picked up by the jvm reader. Otherwise a code is used that is only present in fress clients.
 
 ## Caching
 
@@ -128,6 +127,6 @@ By default fress writes strings using the default fressian compression. If you'd
  get size
 
 
-
-[1]: https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder
-[2]: https://caniuse.com/#feat=textencoder
+[1]: https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder
+[2]: https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder
+[3]: https://caniuse.com/#feat=textencoder

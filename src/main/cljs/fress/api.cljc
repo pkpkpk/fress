@@ -32,23 +32,22 @@
 #?(:clj
    (defn utf8? [o] (instance? utf8 o)))
 
-#?(:clj
-   (def ^:dynamic *write-utf8-tag* false))
+(def ^:dynamic *write-utf8-tag* false)
 
 #?(:clj
    (def utf8-writer
      (reify WriteHandler
        (write [_ w u]
-              (let [s (.-s ^utf8 u)
-                    bytes (.getBytes ^String s "UTF-8")
-                    raw-out (w->raw w)
-                    length (count bytes)]
-                (if *write-utf8-tag* ;<= client can read either
-                  (.writeTag ^FressianWriter w "utf8" 2)
-                  (.writeCode ^FressianWriter w (int 191)))
-                (.writeCount ^FressianWriter w length)
-                ;FIXME use writeBytes, code makes tagged-object compatible
-                (.writeRawBytes ^RawOutput raw-out bytes 0 length))))))
+         (let [s (.-s ^utf8 u)
+               bytes (.getBytes ^String s "UTF-8")
+               raw-out (w->raw w)
+               length (count bytes)]
+          (if *write-utf8-tag* ;<= client can read either
+            (.writeTag ^FressianWriter w "utf8" 2)
+            (.writeCode ^FressianWriter w (int 191)))
+          (.writeCount ^FressianWriter w length)
+          ;FIXME use writeBytes, code makes tagged-object compatible
+          (.writeRawBytes ^RawOutput raw-out bytes 0 length))))))
 
 #?(:clj
    (def utf8-reader
@@ -66,6 +65,7 @@
 
 #?(:clj
    (defn read-handlers
+     "merge in user handlers with default-handlers, wrap for fressian lookup"
      ([] (read-handlers nil))
      ([user-handlers]
       (let [default-handlers (assoc fressian/clojure-read-handlers "utf8" utf8-reader)
@@ -74,6 +74,7 @@
 
 #?(:clj
    (defn write-handlers
+     "merge in user handlers with default-handlers, wrap for fressian lookup"
      ([](write-handlers nil))
      ([user-handlers]
       (let [default-handlers (assoc fressian/clojure-write-handlers utf8 {"utf8" utf8-writer})
@@ -81,6 +82,12 @@
         (-> handlers
             fressian/associative-lookup
             fressian/inheritance-lookup)))))
+
+#?(:clj
+   (extend-protocol fressian/FressianReadable
+     BytesOutputStream
+     (to-input-stream [stream]
+        (fressian/to-input-stream (ByteBuffer/wrap (.internalBuffer stream) 0 (.length stream))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -93,7 +100,8 @@
    - cljs allows reading from :offset"
   [^InputStream in & opts]
   #?(:clj
-     (let [{:keys [handlers checksum?]} (apply hash-map opts)
+     (let [in (fressian/to-input-stream in)
+           {:keys [handlers checksum?]} (apply hash-map opts)
            handlers (read-handlers handlers)]
        (fressian/create-reader in :handlers handlers :checksum? checksum?))
      :cljs
@@ -144,20 +152,20 @@
    #?(:clj (fressian/write-object wrt o)
       :cljs (w/writeObject wrt o)))
   ([wrt o cache?]
-   #?(:clj (.writeObject ^FressianWriter wrt o cache?)
+   #?(:clj (.writeObject ^FressianWriter wrt o (boolean cache?))
       :cljs (w/writeObject wrt o cache?))))
 
 (defn write-utf8
   "write a string as raw utf-8 bytes"
   ([wrt s](write-utf8 wrt s false))
-  ([wrt s tag?]
+  ([wrt s cache?] ;cache?
    (assert (string? s))
-   #?(:clj (binding [*write-utf8-tag* tag?]
-             (write-object wrt (utf8. s)))
+   #?(:clj
+      (write-object wrt (utf8. s) cache?)
       :cljs
       (binding [w/*write-raw-utf8* true
-                w/*write-utf8-tag* tag?]
-        (w/writeString wrt s))))) ;;;;yuck
+                w/*write-utf8-tag* *write-utf8-tag*]
+        (write-object wrt s cache?)))))
 
 (defn write-footer
   [writer]
@@ -215,7 +223,9 @@
   #?(:clj
      (ByteBuffer/wrap (.internalBuffer stream) 0 (.length stream))
      :cljs
-     (buf/realize stream))) ;fixed, will not change with more writes! call again
+     (do
+       (assert (instance? buf/BytesOutputStream stream))
+       (buf/realize stream)))) ;fixed, will not change with more writes! call again
 
 #?(:cljs
    (defn flush-to
@@ -234,8 +244,10 @@
   "Convenience method for reading a single fressian object.
    Takes same options as create-reader"
   [readable & options]
-  #?(:clj (apply fressian/read readable options)
-     :cljs (r/readObject (apply create-reader readable options))))
+  #?(:clj
+     (.readObject ^Reader (apply create-reader (fressian/to-input-stream readable) options))
+     :cljs
+     (r/readObject (apply create-reader readable options))))
 
 (defn read-batch
   "Read a fressian reader fully (until eof), returning a (possibly empty)
@@ -252,10 +264,17 @@
 (defn write
   "Convenience method for writing a single object.  Returns a
    byte buffer.  Options are the same as for create-reader,
-   with one additional option.  If footer? is specified, will
+   with one additional option :footer? {bool}, if specified will
    write a fressian footer after writing the object."
   [obj & options]
-  #?(:clj (apply fressian/write obj options)
+  #?(:clj
+     (let [{:keys [footer?]} (apply hash-map options)
+           bos (BytesOutputStream.)
+           writer ^Writer (apply create-writer bos options)]
+       (.writeObject writer obj)
+       (when footer?
+         (.writeFooter writer))
+       (bytestream->buf bos))
      :cljs
      (let [{:keys [footer?]} (when options (apply hash-map options))
            bos (buf/byte-stream)

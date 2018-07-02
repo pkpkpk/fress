@@ -205,6 +205,12 @@
   #?(:clj (fressian/write-footer writer)
      :cljs (w/writeFooter writer)))
 
+(defn reset-caches
+  "write a signal to the reader to forget established cache codes"
+  [writer]
+  #?(:clj (.resetCaches ^FressianWriter writer)
+     :cljs (w/resetCaches writer)))
+
 (defn begin-closed-list
   "Begin writing a fressianed list.  To end the list, call end-list.
    Used to write sequential data whose size is not known in advance."

@@ -29,7 +29,7 @@ clojure.data.fressian can use defrecord constructors to produce symbolic tags (.
 
 (def rec (SomeRecord. "field1" ...))
 
-(def buf (fress/streaming-writer))
+(def buf (fress/byte-stream))
 
 (def writer (fress/create-writer buf :record->name {SomeRecord "myapp.core.SomeRecord"}))
 
@@ -82,7 +82,9 @@ Example: lets write a handler for javascript errors
 (fress/write-object writer e) ;=> OK!
 ```
 
-Fress will automatically test if each written object is an instance of a registered write handler, so this will also work for `js/TypeError`, `js/SyntaxError` etc.
++ __Fress will automatically test if each written object is an instance of a registered type->write-handler pair.__ So write-error will also work for `js/TypeError`, `js/SyntaxError` etc
+
++ types that can share a writehandler but are not prototypically related can be made to share a write handler by passing them as seq in the handler entry key ie `(create-writer out :handlers {[typeA typeB] writer})`
 
 So now let's try reading our custom type:
 
@@ -116,16 +118,20 @@ We can fix this by adding a read-error function:
 
 JVM fressian compresses UTF-8 strings when writing them. This means a reader must decompress each char to reassemble the string. If payload size is your primary concern this is great, but if you want faster read+write times there is another option. The javascript [TextEncoder][1] / [TextDecoder][2] API has [growing support][3] (also see analog in node util module) and is written in native code. TextEncoder will convert a javascript string into plain utf-8 bytes, and the TextDecoder can reassemble a javascript string from raw bytes faster than javascript can assemble a string from compressed bytes.
 
-By default fress writes strings using the default fressian compression. If you'd like to write raw UTF-8, you can use `fress.api/write-utf8` on a string, or bind  `fress.writer/*write-raw-utf8*` to `true` before writing. If you are targeting a jvm reader, you must also pass a `true` second arg  (or bind `*write-utf8-tag*` to `true`) so the tag is picked up by the jvm reader. Otherwise a code is used that is only present in fress clients.
+By default fress writes strings using the default fressian compression. If you'd like to write raw UTF-8, you can use `fress.api/write-utf8` on a string, or bind  `fress.writer/*write-raw-utf8*` to `true` before writing. If you are targeting a jvm reader, you must also bind `*write-utf8-tag*` to `true` so the tag is picked up by the jvm reader. Otherwise a code is used that is only present in fress clients.
+
+<hr>
 
 ## Caching
 
- write without
- get size
+`write-object` has a second arity that accepts a boolean `cache?` parameter. The first time this is called on value, a code is assigned to that object which signals the reader to associated that code with the object. Subsequent writes of an identical object will just be written as that code and the reader will interpret it and return the same value.
 
- write with
- get size
+<hr>
 
+## On the Server
+Fress wraps clojure.data.fressian and can be used as a drop in replacement.
+
++ handlers are automatically wrapped in fressian lookups.
 
 [1]: https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder
 [2]: https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder

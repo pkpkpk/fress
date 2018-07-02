@@ -35,41 +35,65 @@
 (def ^:dynamic *write-utf8-tag* false)
 
 #?(:clj
-   (def utf8-writer
+   (defn fn->write-handler [f]
      (reify WriteHandler
-       (write [_ w u]
-         (let [s (.-s ^utf8 u)
-               bytes (.getBytes ^String s "UTF-8")
-               raw-out (w->raw w)
-               length (count bytes)]
-          (if *write-utf8-tag* ;<= client can read either
-            (.writeTag ^FressianWriter w "utf8" 2)
-            (.writeCode ^FressianWriter w (int 191)))
-          (.writeCount ^FressianWriter w length)
-          ;FIXME use writeBytes, code makes tagged-object compatible
-          (.writeRawBytes ^RawOutput raw-out bytes 0 length))))))
+       (write [_ writer obj]
+          (try
+            (f ^Writer writer obj)
+            (catch clojure.lang.ArityException e
+              (throw (Exception. "fressian write-handlers need to be fn<writer,obj>"))))))))
 
 #?(:clj
-   (def utf8-reader
-     ;; cant modify fressian.impl.Codes so using code from client will fail
-     ;; will not recognized without "utf8" tag, see writer
-     ;; client will need to write with tag when targeting JVM
+   (defn fn->read-handler [f]
      (reify ReadHandler
-       (read [_ rdr tag component-count]
-             (let [length (int (.readInt rdr))
-                   offset (int 0)
-                   bytes (byte-array length)
-                   raw-in (rdr->raw rdr)]
-               (.readFully ^RawInput raw-in bytes offset length)
-               (String. bytes "UTF-8"))))))
+       (read [_ rdr tag field-count]
+         (try
+           (f ^Reader rdr ^String tag field-count)
+           (catch clojure.lang.ArityException e
+             (throw (Exception. "fressian read-handlers need to be fn<reader,tag,field-count>"))))))))
+
+#?(:clj
+   (defn utf8-writer [w u]
+     (let [s (.-s ^utf8 u)
+           bytes (.getBytes ^String s "UTF-8")
+           raw-out (w->raw w)
+           length (count bytes)]
+       (if *write-utf8-tag* ;<= client can read either
+         (.writeTag ^FressianWriter w "utf8" 2)
+         (.writeCode ^FressianWriter w (int 191)))
+       (.writeCount ^FressianWriter w length)
+       ;FIXME use writeBytes, code makes tagged-object compatible
+       (.writeRawBytes ^RawOutput raw-out bytes 0 length))))
+
+
+#?(:clj
+   (defn utf8-reader
+     "cant modify fressian.impl.Codes so using code from client will fail
+      JVM readers must use \"utf8\" tag."
+     [^Reader rdr tag _]
+     (let [length (int (.readInt rdr))
+           offset (int 0)
+           bytes (byte-array length)
+           raw-in (rdr->raw rdr)]
+       (.readFully ^RawInput raw-in bytes offset length)
+       (String. bytes "UTF-8"))))
 
 #?(:clj
    (defn read-handlers
      "merge in user handlers with default-handlers, wrap for fressian lookup"
      ([] (read-handlers nil))
      ([user-handlers]
-      (let [default-handlers (assoc fressian/clojure-read-handlers "utf8" utf8-reader)
-            handlers (merge default-handlers user-handlers)]
+      (when user-handlers
+        (assert
+         (and (map? user-handlers)
+              (every? string? (keys user-handlers))
+              (every? fn? (vals user-handlers)))))
+      (let [user-handlers (merge {"utf8" utf8-reader} user-handlers)
+            handlers (into fressian/clojure-read-handlers
+                           (map
+                            (fn [[tag f]]
+                              [tag (fn->read-handler f)]))
+                           user-handlers)]
         (fressian/associative-lookup handlers)))))
 
 #?(:clj
@@ -77,8 +101,13 @@
      "merge in user handlers with default-handlers, wrap for fressian lookup"
      ([](write-handlers nil))
      ([user-handlers]
-      (let [default-handlers (assoc fressian/clojure-write-handlers utf8 {"utf8" utf8-writer})
-            handlers (merge default-handlers user-handlers)]
+      (let [user-handlers (merge {utf8 {"utf8" utf8-writer}} user-handlers)
+            handlers (into fressian/clojure-write-handlers
+                           (map
+                            (fn [[T m]]
+                              (let [[k v] (first (seq m))]
+                                [T {k (fn->write-handler v)}])))
+                           user-handlers)]
         (-> handlers
             fressian/associative-lookup
             fressian/inheritance-lookup)))))

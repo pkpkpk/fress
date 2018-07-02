@@ -1,14 +1,54 @@
+# ~~`[fress "0.1.0"]`~~
++ ~~`{fress "0.1.0"}`~~
 
-# WIP
 
 ## Quick Start
 
+```clojure
+(require '[fress.api :as fress])
 
+(def buf (fress/byte-stream))
 
-### Differences from clojure.data.fressian
-  + no BigInteger, BigDecimal, chars, ratios at this time
-  + EOF
+(def writer (fress/create-writer buf))
 
+(def data [{::key 'foo/bar} ["a" :b 'c] #{42 true nil}])
+
+(fress/write-object writer data)
+
+(def reader (fress/create-reader buf))
+
+(assert (= data (fress/read-object reader)))
+
+```
+
+<hr>
+
+### Custom Handlers
+
+<hr>
+
+### Read & Writing Bytes in javascript
++ javascript array buffer limitations
++ nil is a value, so gotta throw!
++ excessive memory
+  - write single objects
+  - footers?
++ byte-stream
+  - calling reader realizes current state, writing again invalidates
+  - flushTo
+  - currently lacks wrap functionality
++ checksum
+
+<hr>
+
+### Convenience Functions
+
++ write
+  - `:footer`
+
++ read
+
++ read-batch
 
 <hr>
 
@@ -41,13 +81,13 @@ clojure.data.fressian can use defrecord constructors to produce symbolic tags (.
 (assert (= rec (fress/read-object reader)))
 ```
 
-+ in clojurescript you can override the default record writer by adding a `"record"` entry in `:handlers`. A built in use case for this is `fress.api/field-caching-writer` which offers a way to automatically cache values that pass a predicate
++ in clojurescript you can override the default record writer by adding a `"record"` entry in `:handlers`. A built in use case for this is `fress.api/field-caching-writer` which offers a way to automatically cache the value of keys that pass a predicate
 
 ```clojure
 (fress/create-writer buf :handlers {"record" (fress/field-caching-writer #{:f1})})
 ```
 
-+ in clojure
++ on the jvm:
 
 ```clojure
 (let [cache-writer (fress/field-caching-writer #{:f1})]
@@ -150,6 +190,9 @@ Fress wraps clojure.data.fressian and can be used as a drop in replacement.
 ```
 
 + if you are already reifying fressian read+writeHandlers, they will be passed through as is
+
+#### Differences from clojure.data.fressian
+  + CLJS has no support for BigInteger, BigDecimal, chars, ratios at this time
 
 <hr>
 

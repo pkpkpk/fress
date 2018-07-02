@@ -55,3 +55,26 @@
         (is (=  s (fress/read-object rdr)))))))
 
 
+(defrecord SomeRec [f0])
+
+(deftest field-caching-writer-test
+  (let [no-cache (fress/byte-stream)
+        wrt (fress/create-writer no-cache)]
+    (fress/write-object wrt (SomeRec. "foobar"))
+    (fress/write-object wrt (SomeRec. "foobar"))
+    (fress/write-object wrt (SomeRec. "foobar"))
+    (let [cached (fress/byte-stream)
+          cache-writer (fress/field-caching-writer #{:f0})
+          wrt (fress/create-writer cached
+                                 :handlers {clojure.lang.IRecord
+                                            {"clojure/record" cache-writer}})]
+      (fress/write-object wrt (SomeRec. "foobar"))
+      (fress/write-object wrt (SomeRec. "foobar"))
+      (fress/write-object wrt (SomeRec. "foobar"))
+      (is (<  (count (stream->bytevec cached)) (count (stream->bytevec no-cache))))
+      (let [no-cache-rdr (fress/create-reader no-cache)
+            no-cache-val (fress/read-batch no-cache-rdr)
+            cached-rdr (fress/create-reader cached)
+            cached-val (fress/read-batch cached-rdr)]
+        (is (= no-cache-val cached-val))
+        (is (every? #(instance? SomeRec %) (concat cached-val no-cache-val)))))))

@@ -244,13 +244,13 @@
 (defrecord SomeRec [f0])
 
 (deftest field-caching-writer-test
-  (let [no-cache (api/streaming-writer)
+  (let [no-cache (api/byte-stream)
         wrt (api/create-writer no-cache :record->name {SomeRec "SomeRec"})]
     (api/write-object wrt (SomeRec. "foobar"))
     (api/write-object wrt (SomeRec. "foobar"))
     (api/write-object wrt (SomeRec. "foobar"))
-    (let [cached (api/streaming-writer)
-          cache-writer (api/field-caching-writer #{"foobar"})
+    (let [cached (api/byte-stream)
+          cache-writer (api/field-caching-writer #{:f0})
           wrt (api/create-writer cached
                                  :handlers {"record" cache-writer}
                                  :record->name {SomeRec "SomeRec"})]

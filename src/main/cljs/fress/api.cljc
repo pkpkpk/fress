@@ -36,21 +36,25 @@
 
 #?(:clj
    (defn fn->write-handler [f]
-     (reify WriteHandler
-       (write [_ writer obj]
-          (try
-            (f ^Writer writer obj)
-            (catch clojure.lang.ArityException e
-              (throw (Exception. "fressian write-handlers need to be fn<writer,obj>"))))))))
+     (if (instance? org.fressian.handlers.WriteHandler f)
+       f
+       (reify WriteHandler
+         (write [_ writer obj]
+                (try
+                  (f ^Writer writer obj)
+                  (catch clojure.lang.ArityException e
+                    (throw (Exception. "fressian write-handlers need to be fn<writer,obj>")))))))))
 
 #?(:clj
    (defn fn->read-handler [f]
-     (reify ReadHandler
-       (read [_ rdr tag field-count]
-         (try
-           (f ^Reader rdr ^String tag field-count)
-           (catch clojure.lang.ArityException e
-             (throw (Exception. "fressian read-handlers need to be fn<reader,tag,field-count>"))))))))
+     (if (instance? org.fressian.handlers.ReadHandler f)
+       f
+       (reify ReadHandler
+         (read [_ rdr tag field-count]
+               (try
+                 (f ^Reader rdr ^String tag field-count)
+                 (catch clojure.lang.ArityException e
+                   (throw (Exception. "fressian read-handlers need to be fn<reader,tag,field-count>")))))))))
 
 #?(:clj
    (defn utf8-writer [w u]
@@ -238,7 +242,7 @@
        (w/beginClosedList w)
        (doseq [[field value] rec]
          (w/writeObject w field true)
-         (w/writeObject w value (boolean (cache-pred value))))
+         (w/writeObject w value (boolean (cache-pred field))))
        (w/endList w))))
 
 (defn byte-stream []

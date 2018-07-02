@@ -9,6 +9,7 @@
   + no BigInteger, BigDecimal, chars, ratios at this time
   + EOF
 
+
 <hr>
 
 ### Records
@@ -27,7 +28,7 @@ clojure.data.fressian can use defrecord constructors to produce symbolic tags (.
 
 (defrecord SomeRecord [f1 f2]) ; map->SomeRecord is now implicitly defined
 
-(def rec (SomeRecord. "field1" ...))
+(def rec (SomeRecord. "field1" "field2"))
 
 (def buf (fress/byte-stream))
 
@@ -40,10 +41,18 @@ clojure.data.fressian can use defrecord constructors to produce symbolic tags (.
 (assert (= rec (fress/read-object reader)))
 ```
 
-You can override the default record writer by adding a `"record"` entry in `:handlers`. A built in use case for this is `fress.api/field-caching-writer` which offers a way to automatically cache values that pass a predicate
++ in clojurescript you can override the default record writer by adding a `"record"` entry in `:handlers`. A built in use case for this is `fress.api/field-caching-writer` which offers a way to automatically cache values that pass a predicate
 
 ```clojure
-(fress/create-writer buf :handlers {"record" (fress/field-caching-writer #{"some repetitive value"})})
+(fress/create-writer buf :handlers {"record" (fress/field-caching-writer #{:f1})})
+```
+
++ in clojure
+
+```clojure
+(let [cache-writer (fress/field-caching-writer #{:f1})]
+  (fress/create-writer buf :handlers
+    {clojure.lang.IRecord {"clojure/record" cache-writer}}))
 ```
 
 <hr>
@@ -122,16 +131,34 @@ By default fress writes strings using the default fressian compression. If you'd
 
 <hr>
 
-## Caching
+### Caching
 
-`write-object` has a second arity that accepts a boolean `cache?` parameter. The first time this is called on value, a code is assigned to that object which signals the reader to associated that code with the object. Subsequent writes of an identical object will just be written as that code and the reader will interpret it and return the same value.
+`write-object` has a second arity that accepts a boolean `cache?` parameter. The first time this is called on value, a 'cache-code' is assigned to that object which signals the reader to associated that code with the object. Subsequent writes of an identical object will just be written as that code and the reader will interpret it and return the same value.
+  - Readers can only interpret these cache codes in the context in which the were established. A naive reader who picks up reading bytes after a cache signal is sent will simpy return integers and not the appropriate value
+  - Writers can signal readers to reset their cache with a call to reset-caches. You are free to have multiple cache contexts within the same bytestream
 
 <hr>
 
-## On the Server
+### On the Server
 Fress wraps clojure.data.fressian and can be used as a drop in replacement.
 
-+ handlers are automatically wrapped in fressian lookups.
++ read-handlers are automatically wrapped in fressian lookups; just pass a map of `{tag fn<rdr,tag,field-count>}`, same as you would for cljs
++ write-handlers are also automatically wrapped as lookups, but **the shape for handler args is different**! It must be `{type {tag fn<writer, obj>}`
+
+```clojure
+(fress/create-writer out :handlers {MyType {"mytype" (fn [writer obj] ...)}})
+```
+
++ if you are already reifying fressian read+writeHandlers, they will be passed through as is
+
+<hr>
+
+### Further Reading
++ https://github.com/clojure/data.fressian/wiki
++ https://github.com/Datomic/fressian/wiki
++ https://youtu.be/JArZqMqsaB0
+
+
 
 [1]: https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder
 [2]: https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder

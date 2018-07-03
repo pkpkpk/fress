@@ -11,7 +11,7 @@
 
 (def writer (fress/create-writer buf))
 
-(def data [{::key 'foo/bar} ["a" :b 'c] #{42 true nil}])
+(def data [{::key 'foo/bar :inst (js/Date.now)} #{42 true nil "string"}])
 
 (fress/write-object writer data)
 
@@ -20,10 +20,6 @@
 (assert (= data (fress/read-object reader)))
 
 ```
-
-<hr>
-
-### Custom Handlers
 
 <hr>
 
@@ -49,6 +45,100 @@
 + read
 
 + read-batch
+
++ write-footer
+
+<hr>
+
+### Lists
+
++ fixed size
++ 'streaming'
+  + beginOpenList
+  + beginClosedList
+  + closedlist
+
+<hr>
+
+### Extending with your own types
+  1. Decide on a string tag name for your type, and the number of fields it contains
+  + define a __write-handler__, a `fn<writer, object>`
+    + use `(w/writeTag writer tag field-count)`
+    + call writeObject on each field component
+      + each field itself can be a custom type with its own tag + fields
+  + create a writer and pass a `:handler` map of `{type writeHandler}`
+
+
+Example: lets write a handler for javascript errors
+
+``` clojure
+(require '[fress.writer :as w])
+
+(defn write-error [writer error]
+  (let [name (.-name error)
+        msg (.-message error)
+        stack (.-stack error)]
+    (w/writeTag writer "js-error" 3) ;<-- don't forget field count!
+    (w/writeObject writer name) ;<= implicit ordering, hmmm...
+    (w/writeObject writer msg)
+    (w/writeObject writer stack)))
+
+(def e (js/Error "wat"))
+
+(def writer (fress/create-writer out))
+
+(fress/write-object writer e) ;=> throws, no handler!
+
+(def writer (fress/create-writer out :handlers {js/Error write-error}))
+
+(fress/write-object writer e) ;=> OK!
+```
+
++ __Fress will automatically test if each written object is an instance of a registered type->write-handler pair.__ So write-error will also work for `js/TypeError`, `js/SyntaxError` etc
+
++ types that can share a writehandler but are not prototypically related can be made to share a write handler by passing them as seq in the handler entry key ie `(create-writer out :handlers {[typeA typeB] writer})`
+
+So now let's try reading our custom type:
+
+```clojure
+(def rdr (fress/create-reader out))
+
+(def o (fress/read-object rdr))
+
+(assert (instance? r/TaggedObject o))
+```
+
+So what happened? When the reader encounters a tag in the buffer, it looks for a registered read handler, and if it doesnt find one, its **uses the field count** to read off each component of the unidentified type and return them as a `TaggedObject`. The field count is important because it lets consumers preserve the reading frame without forehand knowledge of whatever types you throw at it. Downstreams users do not have to care.
+
+We can fix this by adding a read-error function:
+
+```clojure
+(defn read-error [reader tag field-count]
+  (assert (= 3 field-count))
+  {:name (r/readObject reader) ; :name was first, right?
+   :msg (r/readObject reader)
+   :stack (r/readObject reader)
+   :tag tag})
+
+(def rdr (r/reader out :handlers {"js-error" read-error}))
+
+(r/readObject rdr) ;=> {:name "Error" :msg "wat" :stack ...}
+
+```
+
+Our write-error function chose to write each individual component sequentially, not as a children of a parent list or, even better, as a map. This puts a burden on our read fn to both grab each individual field and *know the right order* of the components as they are read off. This will not be pleasant to maintain. A better solution would be to just write errors as maps and let fressian do the work for us.
+
+```clojure
+(defn write-error [writer error]
+  (w/writeTag writer "js-error" 1)
+  (w/writeObject writer
+    {:name (.-name error)
+     :msg (.-message error)
+     :stack (.-stack error)}))
+
+(defn read-error [reader tag field-count]
+  (assoc (r/readObject reader) :tag tag))
+```
 
 <hr>
 
@@ -93,72 +183,6 @@ clojure.data.fressian can use defrecord constructors to produce symbolic tags (.
 (let [cache-writer (fress/field-caching-writer #{:f1})]
   (fress/create-writer buf :handlers
     {clojure.lang.IRecord {"clojure/record" cache-writer}}))
-```
-
-<hr>
-
-### Extending with your own types
-  1. Decide on a string tag name for your type, and the number of fields it contains
-  + define a __write-handler__, a `fn<writer, object>`
-    + use `(w/writeTag writer tag field-count)`
-    + call writeObject on each field component
-      + each field itself can be a custom type with its own tag + fields
-  + create a writer and pass a `:handler` map of `{type writeHandler}`
-
-
-Example: lets write a handler for javascript errors
-
-``` clojure
-(require '[fress.writer :as w])
-
-(defn write-error [writer error]
-  (let [name (.-name error)
-        msg (.-message error)
-        stack (.-stack error)]
-    (w/writeTag writer "js-error" 3) ;<-- don't forget field count!
-    (w/writeObject writer name)
-    (w/writeObject writer msg)
-    (w/writeObject writer stack)))
-
-(def e (js/Error "wat"))
-
-(def writer (fress/create-writer out))
-
-(fress/write-object writer e) ;=> throws, no handler!
-
-(def writer (fress/create-writer out :handlers {js/Error write-error}))
-
-(fress/write-object writer e) ;=> OK!
-```
-
-+ __Fress will automatically test if each written object is an instance of a registered type->write-handler pair.__ So write-error will also work for `js/TypeError`, `js/SyntaxError` etc
-
-+ types that can share a writehandler but are not prototypically related can be made to share a write handler by passing them as seq in the handler entry key ie `(create-writer out :handlers {[typeA typeB] writer})`
-
-So now let's try reading our custom type:
-
-```clojure
-(def rdr (fress/create-reader out))
-
-(def o (fress/read-object rdr))
-
-(assert (instance? r/TaggedObject o))
-```
-
-So what happened? When the reader encounters a tag in the buffer, it looks for a registered read handler, and if it doesnt find one, its **uses the field count** to read off each component of the unidentified type and return them as a `TaggedObject`. The field count is important because it lets consumers preserve the reading frame without forehand knowledge of whatever types you throw at it. Downstreams users do not have to care.
-
-We can fix this by adding a read-error function:
-
-```clojure
-(defn read-error [reader tag field-count]
-  {:name (r/readObject reader)
-   :msg (r/readObject reader)
-   :stack (r/readObject reader)})
-
-(def rdr (r/reader out :handlers {"js-error" read-error}))
-
-(r/readObject rdr) ;=> {:name "Error" :msg "wat" :stack ...}
-
 ```
 
 <hr>

@@ -72,16 +72,14 @@
 Example: lets write a handler for javascript errors
 
 ``` clojure
-(require '[fress.writer :as w])
-
 (defn write-error [writer error]
   (let [name (.-name error)
         msg (.-message error)
         stack (.-stack error)]
-    (w/writeTag writer "js-error" 3) ;<-- don't forget field count!
-    (w/writeObject writer name) ;<= implicit ordering, hmmm...
-    (w/writeObject writer msg)
-    (w/writeObject writer stack)))
+    (fress/write-tag writer "js-error" 3) ;<-- don't forget field count!
+    (fress/write-object writer name) ;<= implicit ordering, hmmm...
+    (fress/write-object writer msg)
+    (fress/write-object writer stack)))
 
 (def e (js/Error "wat"))
 
@@ -108,21 +106,21 @@ So now let's try reading our custom type:
 (assert (instance? r/TaggedObject o))
 ```
 
-So what happened? When the reader encounters a tag in the buffer, it looks for a registered read handler, and if it doesnt find one, its **uses the field count** to read off each component of the unidentified type and return them as a `TaggedObject`. The field count is important because it lets consumers preserve the reading frame without forehand knowledge of whatever types you throw at it. Downstreams users do not have to care.
+So what happened? When the reader encounters a tag in the buffer, it looks for a registered read handler, and if it doesnt find one, its **uses the field count** to read off each component of the unidentified type and return them as a `TaggedObject`. `TaggedObject`s are generic containers for types a reader does not know how to handle. The field count is important because it lets consumers gracefully preserve the reading frame without forehand knowledge of whatever types you throw at it. Downstreams users do not have to care.
 
 We can fix this by adding a read-error function:
 
 ```clojure
 (defn read-error [reader tag field-count]
   (assert (= 3 field-count))
-  {:name (r/readObject reader) ; :name was first, right?
-   :msg (r/readObject reader)
-   :stack (r/readObject reader)
+  {:name (fress/read-object reader) ; :name was first, right?
+   :msg (fress/read-object reader)
+   :stack (fress/read-object reader)
    :tag tag})
 
-(def rdr (r/reader out :handlers {"js-error" read-error}))
+(def rdr (fress/create-reader out :handlers {"js-error" read-error}))
 
-(r/readObject rdr) ;=> {:name "Error" :msg "wat" :stack ...}
+(fress/read-object reader) ;=> {:name "Error" :msg "wat" :stack ...}
 
 ```
 
@@ -130,14 +128,14 @@ Our write-error function chose to write each individual component sequentially, 
 
 ```clojure
 (defn write-error [writer error]
-  (w/writeTag writer "js-error" 1)
-  (w/writeObject writer
+  (fress/write-tag writer "js-error" 1)
+  (fress/write-object writer
     {:name (.-name error)
      :msg (.-message error)
      :stack (.-stack error)}))
 
 (defn read-error [reader tag field-count]
-  (assoc (r/readObject reader) :tag tag))
+  (assoc (fress/read-object reader) :tag tag))
 ```
 
 <hr>

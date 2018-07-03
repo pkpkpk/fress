@@ -200,6 +200,13 @@
                 w/*write-utf8-tag* *write-utf8-tag*]
         (write-object wrt s cache?)))))
 
+(defn write-tag
+  [writer tag field-count]
+  (assert (string? tag))
+  (assert (and (number? field-count) (<= 1 field-count)))
+  #?(:clj (.writeTag ^FressianWriter writer tag field-count)
+     :cljs (w/writeTag writer tag field-count)))
+
 (defn write-footer
   [writer]
   #?(:clj (fressian/write-footer writer)

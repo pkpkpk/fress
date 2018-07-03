@@ -295,10 +295,15 @@
      :cljs
      (r/readObject (apply create-reader readable options))))
 
+(defn- ^boolean fressian-reader? [in]
+  #?(:clj (instance? org.fressian.FressianReader in)
+     :cljs (instance? r/FressianReader in)))
+
 (defn read-batch
   "Read a fressian reader fully (until eof), returning a (possibly empty)
    vector of results."
-  [^Reader fin] ; coerce readable to rdr?
+  [^Reader fin]
+  (assert (fressian-reader? fin))
   (let [sentinel #?(:clj (Object.) :cljs #js{})]
     (loop [objects (transient [])]
       (let [obj #?(:clj (try (.readObject fin) (catch EOFException e sentinel))
@@ -306,6 +311,13 @@
         (if (= obj sentinel)
           (persistent! objects)
           (recur (conj! objects obj)))))))
+
+(defn read-all
+  "like read-batch but accepts readables in addition to FressianReaders"
+  [in & options]
+  (if (fressian-reader? in)
+    (read-batch in)
+    (read-batch (apply create-reader in options))))
 
 (defn write
   "Convenience method for writing a single object.  Returns a

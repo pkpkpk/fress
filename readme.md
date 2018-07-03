@@ -39,18 +39,30 @@
 
 ### Convenience Functions
 
-+ write
-  - `:footer`
++ `fress.api/write<object, & opts> -> bytes`
+  - takes any writable object (including a collection) and returns fressian bytes.
+  - accepts same args as `create-writer` but writer + buffer creation are done for you
+  - `:footer? true` option to automatically seal bytes off with footer
+  - convenient when you have all data you want to write ahead of time.
 
-+ read
 
-+ read-batch
++ `fress.api/read<readable, & opts> -> any`
+  - takes bytes or bytestream and returns a single object read off the bytes
+  - accepts same args as `create-reader` but reader creation is done for you
 
-+ write-footer
+
++ `fress.api/read-batch<reader> -> Vec<any>`
+  - takes an existing reader and reads off everything it can, return a vector of its contents
+  - automatically handles thrown EOFs for you
+
+
++ `fress.api/read-all<(readable|reader), & options> -> Vec<any>`
+  - accepts reader, bytes, or bytestream, returns vector of contents
+  - accepts same options as reader
 
 <hr>
 
-### Lists
+### Writing Sequences
 
 + fixed size
 + 'streaming'
@@ -67,7 +79,7 @@
     + call writeObject on each field component
       + each field itself can be a custom type with its own tag + fields
   + create a writer and pass a `:handler` map of `{type writeHandler}`
-
+    - [`:handlers` passed to JVM writers have a different shape](#on-the-server)
 
 Example: lets write a handler for javascript errors
 

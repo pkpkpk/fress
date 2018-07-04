@@ -143,13 +143,29 @@ Our write-error function chose to write each individual component sequentially, 
 
 <hr>
 
-### Writing Lists
+### Lists
 
-+ fixed size
-+ 'streaming'
-  + beginOpenList
-  + beginClosedList
-  + closedlist
++ Fixed sized vectors, lists, and sequences are all written as generic \`list\`s, and are read back as vectors. A list with length > 8 would be represented as:
+
+```
+LIST | length-n | item_0 | item_1 | ... | item_n
+                     ^---can be own multi-byte reading frame
+```
+
++ When you are in a situations where you have a sequence of indeterminant size or you need to write asynchronously, you can use `fress.api/begin-open-list` and `fress.api/begin-closed-list` to establish a list reading frame. Rather than rely on an item count, readers will encounter and open signal and then and read off objects until a END_COLLECTION or EOF is seen.
+
+```
+BEGIN_CLOSED_LIST | value | value | value | END_COLLECTION
+```
+
++ The difference between `begin-closed-list` and `begin-open-list` is that EOF is an acceptable ending for an open list and will be handled for you. Closed lists expect a END_COLLECTION signal and will throw EOF as normal if encountered prematurely.
+
++ Other compound data structs are all written as variants of 'list' with their differences being their tag header and the way read handlers interpret their contents
+  - a Set is identical to a list except it is preceded by a 'SET' tag
+  - A map is a list of k-v pairs preceded by a 'MAP' tag. So a map with 3 entries could look something like:
+
+` MAP | BEGIN_CLOSED_LIST | k | v | k | v | k | v | END_COLLECTION`
+
 
 <hr>
 

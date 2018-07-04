@@ -62,24 +62,15 @@
 
 <hr>
 
-### Writing Sequences
-
-+ fixed size
-+ 'streaming'
-  + beginOpenList
-  + beginClosedList
-  + closedlist
-
-<hr>
-
 ### Extending with your own types
-  1. Decide on a string tag name for your type, and the number of fields it contains
-  + define a __write-handler__, a `fn<writer, object>`
-    + use `(w/writeTag writer tag field-count)`
-    + call writeObject on each field component
-      + each field itself can be a custom type with its own tag + fields
-  + create a writer and pass a `:handler` map of `{type writeHandler}`
-    - [`:handlers` passed to JVM writers have a different shape](#on-the-server)
+
+1. Decide on a string tag name for your type, and the number of fields it contains
++ define a __write-handler__, a `fn<writer, object>`
+  + use `(w/writeTag writer tag field-count)`
+  + call writeObject on each field component
+    + each field itself can be a custom type with its own tag + fields
++ create a writer and pass a `:handler` map of `{type writeHandler}`
+  - [`:handlers` passed to JVM writers have a different shape](#on-the-server)
 
 Example: lets write a handler for javascript errors
 
@@ -136,7 +127,7 @@ We can fix this by adding a read-error function:
 
 ```
 
-Our write-error function chose to write each individual component sequentially, not as a children of a parent list or, even better, as a map. This puts a burden on our read fn to both grab each individual field and *know the right order* of the components as they are read off. This will not be pleasant to maintain. A better solution would be to just write errors as maps and let fressian do the work for us.
+Our write-error function chose to write each individual component sequentially, not as children of a parent list or, even better, as a map. This puts a burden on our read fn to both grab each individual field and *know the right order* of the components as they are read off. This will not be pleasant to maintain. A better solution would be to just write errors as maps and let fressian do the work for us.
 
 ```clojure
 (defn write-error [writer error]
@@ -149,6 +140,16 @@ Our write-error function chose to write each individual component sequentially, 
 (defn read-error [reader tag field-count]
   (assoc (fress/read-object reader) :tag tag))
 ```
+
+<hr>
+
+### Writing Lists
+
++ fixed size
++ 'streaming'
+  + beginOpenList
+  + beginClosedList
+  + closedlist
 
 <hr>
 

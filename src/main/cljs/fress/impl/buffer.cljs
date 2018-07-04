@@ -23,7 +23,7 @@
   (notifyBytesWritten [this ^int count]))
 
 (defprotocol IStreamingWriter
-  (realize [this] "get byte-array of current buffer contents. does not close.")
+  (toByteArray [this] "get byte-array of current buffer contents. does not close.")
   (close [this] "disable further writing, return byte-array")
   (flushTo [this out] [this out offset]
     "write bytes to externally provided arraybuffer source at the given offset")
@@ -74,12 +74,12 @@
 (deftype
   ^{:doc
     "Backed by a plain array, 'BytesOutputStream' grows as bytes are written,
-     is only realized into an byte-array when close() is called.
+     is only toByteArrayd into an byte-array when close() is called.
 
      In future can use ArrayBuffer.transfer()"}
   BytesOutputStream [arr ^number bytesWritten ^boolean open? buffer]
   IDeref
-  (-deref [this] (or buffer (realize this)))
+  (-deref [this] (or buffer (toByteArray this)))
   IBuffer
   (reset [this]
     (set! (.-bytesWritten this) 0)
@@ -103,7 +103,7 @@
             (when (< i bytesWritten)
               (aset ba (+ i off) (aget arr i))
               (recur (inc i))))))))
-  (realize [this]
+  (toByteArray [this]
     (or buffer
         (let [ba (if (== bytesWritten (alength arr))
                    (js/Int8Array. arr)
@@ -117,7 +117,7 @@
           ba)))
   (close [this]
     (set! (.-open? this) false)
-    (realize this))
+    (toByteArray this))
   IBufferWriter
   (room? ^boolean [this _] open?)
   (getBytesWritten ^number [this] bytesWritten)
@@ -212,7 +212,7 @@
      backing
 
      (instance? BytesOutputStream backing)
-     (readable-buffer (realize backing) backing-offset)
+     (readable-buffer (toByteArray backing) backing-offset)
 
      (instance? BufferWriter backing)
      (readable-buffer (.-memory backing) backing-offset)

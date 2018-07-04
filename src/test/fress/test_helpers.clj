@@ -23,4 +23,4 @@
 ;   (into [] (byte-buffer-seq bytes)))
 
 (defn stream->bytevec [bytestream]
-  (into [] (byte-buffer-seq (fress/bytestream->buf bytestream))))
+  (into [] (byte-buffer-seq (fress/byte-stream->buf bytestream))))

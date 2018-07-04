@@ -262,16 +262,12 @@
   #?(:clj (BytesOutputStream.)
      :cljs (buf/byte-stream)))
 
-(defn ^ByteBuffer bytestream->buf
-  "Return a readable buf over the current internal state of a
-   BytesOutputStream."
+(defn ^ByteBuffer byte-stream->buf
+  "Create a byte-buffer (:clj), byte-array (:cljs) from the current
+   internal state of a BytesOutputStream"
   [^BytesOutputStream stream]
-  #?(:clj
-     (ByteBuffer/wrap (.internalBuffer stream) 0 (.length stream))
-     :cljs
-     (do
-       (assert (instance? buf/BytesOutputStream stream))
-       (buf/realize stream)))) ;fixed, will not change with more writes! call again
+  #?(:clj (ByteBuffer/wrap (.internalBuffer stream) 0 (.length stream)) ;(.toByteArray stream)
+     :cljs (buf/toByteArray stream))) ;fixed, will not change with more writes! call again
 
 #?(:cljs
    (defn flush-to
@@ -332,7 +328,7 @@
        (.writeObject writer obj)
        (when footer?
          (.writeFooter writer))
-       (bytestream->buf bos))
+       (byte-stream->buf bos))
      :cljs
      (let [{:keys [footer?]} (when options (apply hash-map options))
            bos (buf/byte-stream)

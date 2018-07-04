@@ -94,29 +94,29 @@
             buffer (buf/byte-stream)]
         (buf/writeBytes buffer in)
         (is= (alength in) (buf/getBytesWritten buffer))
-        (are-nums= (buf/realize buffer) in)))
+        (are-nums= (buf/toByteArray buffer) in)))
     (testing "writeBytes + offset"
       (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
             buffer (buf/byte-stream)]
         (buf/writeBytes buffer in 0 10)
         (is= 10 (buf/getBytesWritten buffer))
-        (are-nums= (buf/realize buffer) in))
+        (are-nums= (buf/toByteArray buffer) in))
       (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
             buffer (buf/byte-stream)]
         (buf/writeBytes buffer in 3 5)
         (is= 5 (buf/getBytesWritten buffer))
-        (are-nums= (buf/realize buffer) [3 4 5 6 7]))
+        (are-nums= (buf/toByteArray buffer) [3 4 5 6 7]))
       (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
             buffer (buf/byte-stream)]
         (buf/writeBytes buffer in 3 7)
         (is= 7 (buf/getBytesWritten buffer))
-        (are-nums= (buf/realize buffer) [3 4 5 6 7 8 9]))
+        (are-nums= (buf/toByteArray buffer) [3 4 5 6 7 8 9]))
       (testing "safe for excessive length"
         (let [in (util/i8-array [0 1 2 3 4 5 6 7 8 9])
               buffer (buf/byte-stream)]
           (buf/writeBytes buffer in 3 99)
           (is= 7 (buf/getBytesWritten buffer))
-          (are-nums= (buf/realize buffer) [3 4 5 6 7 8 9]))))
+          (are-nums= (buf/toByteArray buffer) [3 4 5 6 7 8 9]))))
     (testing "flushTo"
       (let [out (util/i8-array [0 1 2 3 4 5 6 7 8 9])
             buffer (buf/byte-stream)]

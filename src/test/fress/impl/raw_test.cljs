@@ -5,6 +5,7 @@
             [fress.impl.raw-input :as rawIn]
             [fress.reader :as r]
             [fress.writer :as w]
+            [fress.api :as fress]
             [fress.util :as util :refer [byte-array log]]
             [fress.test-helpers :as helpers :refer [is= are-nums=]]))
 
@@ -155,4 +156,36 @@
               (buf/writeBytes buffer (byte-array [99 100 101]) 0 3)
               (is (thrown? js/Error (buf/flushTo out 8))))))))))
 
+
+(deftest Footer->EOF-test
+  ;checksum? true is not relevant here but little used so might as well
+  (testing "control"
+    (let [control [-29 11 108 105 116 116 108 101 32 119 105 110 103 -49 -49 -49 -49 0 0 0 13 102 121 8 -101]
+          buf (util/byte-array (count control))
+          wrt (fress/create-writer buf)]
+      (fress/write-object wrt "little wing")
+      (fress/write-footer wrt)
+      (are-nums= control buf)
+      (let [rdr (fress/create-reader buf :checksum? true)]
+        (is (= "little wing" (fress/read-object rdr)))
+        (is (thrown-with-msg? js/Error #"EOF" (fress/read-object rdr))))))
+  (testing "footer induced EOF"
+    (let [buf (util/byte-array 55)
+          wrt (fress/create-writer buf)]
+      (fress/write-object wrt "little wing")
+      (fress/write-footer wrt)
+      (is (< 25 (buf/getFreeCapacity (.-out (.-raw-out wrt)))))
+      (let [rdr (fress/create-reader buf :checksum? true)]
+        (is (= "little wing" (fress/read-object rdr)))
+        (is (thrown-with-msg? js/Error #"EOF" (fress/read-object rdr))))))
+  (testing "disabling footer EOF induction should keep on reading"
+    (binding [r/*EOF-after-footer?* false]
+      (let [buf (util/byte-array 55)
+            wrt (fress/create-writer buf)]
+        (fress/write-object wrt "little wing")
+        (fress/write-footer wrt)
+        (is (< 25 (buf/getFreeCapacity (.-out (.-raw-out wrt)))))
+        (let [rdr (fress/create-reader buf :checksum? true)]
+          (is (= "little wing" (fress/read-object rdr)))
+          (is (int? (fress/read-object rdr))))))))
 

@@ -38,7 +38,7 @@
 ;; wasm users need to trigger EOF using footer or agree on single object
 ;; add arity to readBytes for array to  copy into?
 (deftype BufferReader
-  [memory ^number memory-offset ^number bytesRead open?]
+  [memory ^number memory-offset ^number bytesRead ^boolean open?]
   IBuffer
   (reset [this]
     (do

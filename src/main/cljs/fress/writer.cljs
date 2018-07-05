@@ -134,8 +134,7 @@
   (let [raw-out (.-raw-out wrt)]
     (rawOut/writeRawInt32 raw-out codes/FOOTER_MAGIC)
     (rawOut/writeRawInt32 raw-out length)
-    (rawOut/writeRawInt32 raw-out (rawOut/getChecksum raw-out))
-    (rawOut/reset raw-out)))
+    (rawOut/writeRawInt32 raw-out (rawOut/getChecksum raw-out))))
 
 (def ^:dynamic *write-raw-utf8* false)
 (def ^:dynamic *write-utf8-tag* false)

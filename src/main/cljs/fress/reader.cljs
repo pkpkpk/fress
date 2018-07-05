@@ -7,6 +7,8 @@
             [fress.util :as util :refer [expected byte-array log]])
   (:import [goog.math Long]))
 
+(def ^:dynamic *EOF-after-footer?* true) ;goog define?
+
 (defrecord StructType [tag fields])
 (defrecord TaggedObject [tag value]) ;meta
 
@@ -387,8 +389,9 @@
 
       (== code codes/FOOTER)
       (let [calculatedLength (dec (rawIn/getBytesRead (.-raw-in rdr)))
-            magic (+ (bit-shift-left code 24) (rawIn/readRawInt24 (.-raw-in rdr)))]
-        (validateFooter rdr calculatedLength magic)
+            i24L (Long.fromNumber (rawIn/readRawInt24 (.-raw-in rdr)))
+            magicL (.add (.shiftLeft (Long.fromNumber code) 24) i24L)]
+        (validateFooter rdr calculatedLength (.toNumber magicL))
         (readObject rdr))
 
       (== code codes/STRUCTTYPE)
@@ -509,13 +512,14 @@
       (validateFooter this calculatedLength magicFromStream)))
   (validateFooter [this calculatedLength ^number magicFromStream]
     (if-not (== magicFromStream codes/FOOTER_MAGIC)
-      (throw (js/Error. (str "Invalid footer magic, expected " codes/FOOTER_MAGIC " got " code)))
+      (throw (js/Error. (str "Invalid footer magic, expected " codes/FOOTER_MAGIC " got " magicFromStream)))
       (let [lengthFromStream (rawIn/readRawInt32 raw-in)]
         (if-not (== lengthFromStream calculatedLength)
-          (throw (js/Error. (str "Invalid footer lenght, expected " calculatedLength " got " lengthFromStream)))
+          (throw (js/Error. (str "Invalid footer length, expected " calculatedLength " got " lengthFromStream)))
           (do
             (rawIn/validateChecksum raw-in)
-            (rawIn/reset raw-in)
+            (when ^boolean *EOF-after-footer?* ; provoke EOF even when room
+              (rawIn/close (.-raw-in this)))
             (resetCaches this)))))))
 
 (defn readSet [rdr _ _]

@@ -20,6 +20,7 @@
              #_[this bytes offset length])
   (getBytesRead [this])
   (reset [this])
+  (close [this] "throw EOF on any further reads, even if room")
   (validateChecksum [this]))
 
 (def ^:dynamic *throw-on-unsafe?* true)
@@ -99,6 +100,8 @@
   (reset [this]
     (buf/reset in)
     (when checksum (adler/reset checksum)))
+
+  (close [this] (buf/close in))
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
   (readRawInt8 ^number [this] (readRawByte this))

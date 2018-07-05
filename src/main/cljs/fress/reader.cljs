@@ -193,6 +193,8 @@
           (expected rdr "chunked string" code))))
     (.toString stringbuf)))
 
+(def magicL (.shiftLeft (Long.fromNumber codes/FOOTER) 24))
+
 (defn internalRead [rdr ^number code]
   (let []
     (cond
@@ -389,9 +391,8 @@
 
       (== code codes/FOOTER)
       (let [calculatedLength (dec (rawIn/getBytesRead (.-raw-in rdr)))
-            i24L (Long.fromNumber (rawIn/readRawInt24 (.-raw-in rdr)))
-            magicL (.add (.shiftLeft (Long.fromNumber code) 24) i24L)]
-        (validateFooter rdr calculatedLength (.toNumber magicL))
+            i24L (Long.fromNumber (rawIn/readRawInt24 (.-raw-in rdr)))]
+        (validateFooter rdr calculatedLength (.toNumber (.add magicL i24L)))
         (readObject rdr))
 
       (== code codes/STRUCTTYPE)

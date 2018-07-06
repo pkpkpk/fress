@@ -11,7 +11,10 @@
 
 (def writer (fress/create-writer buf))
 
-(def data [{::key 'foo/bar :inst (js/Date.now)} #{42 true nil "string"}])
+(def data [{::sym 'foo/bar
+            :inst #?(:cljs (js/Date.now)
+                     :clj (java.util.Date.))
+            :set #{42 true nil "string"}}])
 
 (fress/write-object writer data)
 
@@ -23,17 +26,22 @@
 
 <hr>
 
-### Read & Writing Bytes in javascript
-+ javascript array buffer limitations
-+ nil is a value, so gotta throw!
-+ excessive memory
-  - write single objects
-  - footers?
-+ byte-stream
-  - calling reader realizes current state, writing again invalidates
-  - flushTo
-  - currently lacks wrap functionality
-+ checksum
+
+### Writing bytes with `fress.api/byte-stream`
+
+In javascript, [ArrayBuffers][4] have a fixed size and there are no streaming constructs. Allocating a new buffer and copying its contents on every write is prohibitively slow, so `fress.api/byte-stream` addresses this by pushing bytes onto a plain javascript array which is realized into a [byte-array][5] only when deref'd or closed.
+  - On the jvm, currently `byte-stream` is just an alias for the [BytesOutputStream provided by fressian][6]. (TODO: IDeref interface)
+  - `fress.api/create-reader` will automatically coerce byte-streams into a readable buffer (jvm too) though its unlikely you will need to do so
+  - byte-streams are stateful. If you deref a byte-stream and then continue to write, you will need to deref again to see the new bytes output in the buffer (no wrap behavior).
+  - `fress.api/create-writer` will ofcourse also accept any typed-array or arraybuffer instance, but you are responsible for making sure you have enough room to write.
+
+<hr>
+
+### EOF
+When a reader reaches the end of its buffer, it will throw a `(js/Error. "EOF")` (java.io.EOFException on JVM).
+  + nil is a value, so gotta throw!
+  + `fress.api/read-all` and `fress.api/read-batch` will handle this for you.
+  + By default, footers in javascript readers will automatically trigger a EOF throw, preventing oob reads when there is excess room remaining. The intended use case is receiving a pointer on memory and simply reading off fressian bytes until whichever comes first: a natural EOF or a footer. You can avoid the conundrum by always writing single collections, but that is not always possible or desirable.
 
 <hr>
 
@@ -66,9 +74,9 @@
 ### Extending with your own types
 
 1. Decide on a string tag name for your type, and the number of fields it contains
-2. define a __write-handler__, a `fn<writer, object>`
-  + use `(w/writeTag writer tag field-count)`
-  + call writeObject on each field component
+2. define a *write-handler*, a `fn<writer, object>`
+  + use `(fress/write-tag writer tag field-count)`
+  + call `fress/write-object` on each component of your type
     + each field itself can be a custom type with its own tag + fields
 3. create a writer and pass a `:handler` map of `{type writeHandler}`
   - [`:handlers` passed to JVM writers have a different shape](#on-the-server)
@@ -164,8 +172,8 @@ BEGIN_CLOSED_LIST | value | value | value | END_COLLECTION
 + The difference between `begin-closed-list` and `begin-open-list` is that EOF is an acceptable ending for an open list and will be handled for you. Closed lists expect a END_COLLECTION signal and will throw EOF as normal if encountered prematurely.
 
 + Many structs are written as variants of 'list' with the differences being their tag and the way read handlers interpret their contents. For example:
-  - A set is simply a SET tag followed by a list
-  - A map is a list of k-v pairs preceded by a 'MAP' tag. So the bytecode for a map with 3 entries could look something like:
+  - A set is simply a SET code followed by a list
+  - A map is a MAP code followed by list of k-v pairs. So the bytecode for a map with 3 entries could look something like:
 
 ```
 MAP | BEGIN_CLOSED_LIST | k | v | k | v | k | v | END_COLLECTION
@@ -182,7 +190,7 @@ clojure.data.fressian can use defrecord constructors to produce symbolic tags (.
 2. When reading records, include `:name->map-ctor` map at reader creation
   - ex: `{"app.core/RecordConstructor" map->RecordConstructor}`
   - Why the record map constructor? Because clojure.data.fressian's default record writer writes record contents as maps
-  - if the name is not recognized, it will be read as a TaggedObject containing all the fields defined by the writer (more on that later).
+  - if the name is not recognized, it will be read as a TaggedObject containing all the fields defined by the writer.
 
 ``` clojure
 (require '[fress.api :as fress])
@@ -234,6 +242,11 @@ By default fress writes strings using the default fressian compression. If you'd
 
 <hr>
 
+### checksum
+Writers maintain a checksum of every byte written, and include this (with a byte-count) inside a footer. By default readers ignore this, but you can pass `:checksum? true` when creating a reader to validate the checksum when a footer is read. An invalid checksum will throw.
+
+<hr>
+
 ### On the Server
 Fress wraps clojure.data.fressian and can be used as a drop in replacement.
 
@@ -262,3 +275,6 @@ Fress wraps clojure.data.fressian and can be used as a drop in replacement.
 [1]: https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder
 [2]: https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder
 [3]: https://caniuse.com/#feat=textencoder
+[4]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+[5]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array
+[6]: https://github.com/Datomic/fressian/blob/master/src/org/fressian/impl/BytesOutputStream.java

@@ -59,17 +59,18 @@
 + `fress.api/read-all<(readable|reader), & options> -> Vec<any>`
   - accepts reader, bytes, or bytestream, returns vector of contents
   - accepts same options as reader
+  - automatically handles thrown EOFs for you
 
 <hr>
 
 ### Extending with your own types
 
 1. Decide on a string tag name for your type, and the number of fields it contains
-+ define a __write-handler__, a `fn<writer, object>`
+2. define a __write-handler__, a `fn<writer, object>`
   + use `(w/writeTag writer tag field-count)`
   + call writeObject on each field component
     + each field itself can be a custom type with its own tag + fields
-+ create a writer and pass a `:handler` map of `{type writeHandler}`
+3. create a writer and pass a `:handler` map of `{type writeHandler}`
   - [`:handlers` passed to JVM writers have a different shape](#on-the-server)
 
 Example: lets write a handler for javascript errors
@@ -129,7 +130,7 @@ We can fix this by adding a read-error function:
 
 Our write-error function chose to write each individual component sequentially, not as children of a parent list or, even better, as a map. This puts a burden on our read fn to both grab each individual field and *know the right order* of the components as they are read off. This will not be pleasant to maintain. A better solution would be to just write errors as maps and let fressian do the work for us.
 
-```clojure
+``` clojure
 (defn write-error [writer error]
   (fress/write-tag writer "js-error" 1)
   (fress/write-object writer
@@ -145,14 +146,16 @@ Our write-error function chose to write each individual component sequentially, 
 
 ### Lists
 
-+ Fixed sized vectors, lists, and sequences are all written as generic \`list\`s, and are read back as vectors. A list with length > 8 would be represented as:
++ Fixed sized vectors, lists, and sequences are all written as generic lists and are read back as vectors.
+
++ Lists have three components: type, length, and body. Short lists have their length 'packed' with their type code. Longer lists are given a dedicated length segment. A list with length > 8 would be represented as:
 
 ```
-LIST | length-n | item_0 | item_1 | ... | item_n
+LIST | length-n | item_0 | item_1 | ... | item_n-1
                      ^---can be own multi-byte reading frame
 ```
 
-+ When you are in a situations where you have a sequence of indeterminant size or you need to write asynchronously, you can use `fress.api/begin-open-list` and `fress.api/begin-closed-list` to establish a list reading frame. Rather than rely on an item count, readers will encounter and open signal and then and read off objects until a END_COLLECTION or EOF is seen.
++ When you are in a situations where you have a sequence of indeterminant size or you need to write asynchronously, you can use `fress.api/begin-open-list` and `fress.api/begin-closed-list` to establish a list reading frame. Rather than rely on a known length, readers will encounter a 'open' signal and then call read-object continuously until a END_COLLECTION is seen or EOF is thrown.
 
 ```
 BEGIN_CLOSED_LIST | value | value | value | END_COLLECTION
@@ -160,12 +163,13 @@ BEGIN_CLOSED_LIST | value | value | value | END_COLLECTION
 
 + The difference between `begin-closed-list` and `begin-open-list` is that EOF is an acceptable ending for an open list and will be handled for you. Closed lists expect a END_COLLECTION signal and will throw EOF as normal if encountered prematurely.
 
-+ Other compound data structs are all written as variants of 'list' with their differences being their tag header and the way read handlers interpret their contents
-  - a Set is identical to a list except it is preceded by a 'SET' tag
-  - A map is a list of k-v pairs preceded by a 'MAP' tag. So a map with 3 entries could look something like:
++ Many structs are written as variants of 'list' with the differences being their tag and the way read handlers interpret their contents. For example:
+  - A set is simply a SET tag followed by a list
+  - A map is a list of k-v pairs preceded by a 'MAP' tag. So the bytecode for a map with 3 entries could look something like:
 
-` MAP | BEGIN_CLOSED_LIST | k | v | k | v | k | v | END_COLLECTION`
-
+```
+MAP | BEGIN_CLOSED_LIST | k | v | k | v | k | v | END_COLLECTION
+```
 
 <hr>
 
@@ -216,7 +220,7 @@ clojure.data.fressian can use defrecord constructors to produce symbolic tags (.
 
 ### Raw UTF-8
 
-JVM fressian compresses UTF-8 strings when writing them. This means a reader must decompress each char to reassemble the string. If payload size is your primary concern this is great, but if you want faster read+write times there is another option. The javascript [TextEncoder][1] / [TextDecoder][2] API has [growing support][3] (also see analog in node util module) and is written in native code. TextEncoder will convert a javascript string into plain utf-8 bytes, and the TextDecoder can reassemble a javascript string from raw bytes faster than javascript can assemble a string from compressed bytes.
+Fressian compresses UTF-8 strings when writing them. This means a reader must decompress each char to reassemble the string. If payload size is your primary concern this is great, but if you want faster read+write times there is another option. The javascript [TextEncoder][1] / [TextDecoder][2] API has [growing support][3] (also see analog in node util module) and is written in native code. TextEncoder will convert a javascript string into plain utf-8 bytes, and the TextDecoder can reassemble a javascript string from raw bytes faster than javascript can assemble a string from compressed bytes.
 
 By default fress writes strings using the default fressian compression. If you'd like to write raw UTF-8, you can use `fress.api/write-utf8` on a string, or bind  `fress.writer/*write-raw-utf8*` to `true` before writing. If you are targeting a jvm reader, you must also bind `*write-utf8-tag*` to `true` so the tag is picked up by the jvm reader. Otherwise a code is used that is only present in fress clients.
 
@@ -244,6 +248,7 @@ Fress wraps clojure.data.fressian and can be used as a drop in replacement.
 
 #### Differences from clojure.data.fressian
   + CLJS has no support for BigInteger, BigDecimal, chars, ratios at this time
+  + Integer safety
 
 <hr>
 

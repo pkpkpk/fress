@@ -122,12 +122,21 @@
      (to-input-stream [stream]
         (fressian/to-input-stream (ByteBuffer/wrap (.internalBuffer stream) 0 (.length stream))))))
 
+(defn- ^boolean fressian-reader? [in]
+  #?(:clj (instance? org.fressian.FressianReader in)
+     :cljs (instance? r/FressianReader in)))
+
+(defn- ^boolean fressian-writer? [in]
+  #?(:clj (instance? org.fressian.FressianWriter in)
+     :cljs (instance? w/FressianWriter in)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn create-reader
   "Create a fressian reader targeting in.
    - :handlers is just a map of tag->fn merged with default read handlers
-   - :checksum? checks adler validity on each read, throws when fails
+   - :checksum? {boolean} :: maintain a checksum for each byte read, validated
+     when footer received. throws when fails. If no footer, has no effect
    - :name->map-ctor map of record names to map->Record constructors at runtime
        {'string-name' map->some-record}
    - cljs allows reading from :offset"
@@ -143,6 +152,7 @@
 (defn read-object
   "Read a single object from a fressian reader."
   [rdr]
+  (assert (fressian-reader? rdr))
   #?(:clj (fressian/read-object rdr)
      :cljs (r/readObject rdr)))
 
@@ -180,27 +190,30 @@
      :cljs (apply w/writer out opts)))
 
 (defn write-object
-  "Write a single object to a fressian writer." ;<= ret?
-  ([wrt o]
-   #?(:clj (fressian/write-object wrt o)
-      :cljs (w/writeObject wrt o)))
-  ([wrt o cache?]
-   #?(:clj (.writeObject ^FressianWriter wrt o (boolean cache?))
-      :cljs (w/writeObject wrt o cache?))))
+  "Write a single object to a fressian writer."
+  ([writer o]
+   (assert (fressian-writer? writer))
+   #?(:clj (fressian/write-object writer o)
+      :cljs (w/writeObject writer o)))
+  ([writer o cache?]
+   (assert (fressian-writer? writer))
+   #?(:clj (.writeObject ^FressianWriter writer o (boolean cache?))
+      :cljs (w/writeObject writer o cache?))))
 
 (defn write-utf8
   "write a string as raw utf-8 bytes"
-  ([wrt s](write-utf8 wrt s false))
-  ([wrt s cache?] ;cache?
+  ([writer s](write-utf8 writer s false))
+  ([writer s cache?]
+   (assert (fressian-writer? writer))
    (assert (string? s))
-   #?(:clj
-      (write-object wrt (utf8. s) cache?)
+   #?(:clj (write-object writer (utf8. s) cache?)
       :cljs
       (binding [w/*write-raw-utf8* true
                 w/*write-utf8-tag* *write-utf8-tag*]
-        (write-object wrt s cache?)))))
+        (write-object writer s cache?)))))
 
 (defn write-tag
+  "for use in custom write handlers"
   [writer tag field-count]
   (assert (string? tag))
   (assert (and (number? field-count) (<= 1 field-count)))
@@ -208,13 +221,17 @@
      :cljs (w/writeTag writer tag field-count)))
 
 (defn write-footer
+  "use to seal off a writer with a final byte count & checksum for
+   verification by a reader. Induces EOF"
   [writer]
+  (assert (fressian-writer? writer))
   #?(:clj (fressian/write-footer writer)
      :cljs (w/writeFooter writer)))
 
 (defn reset-caches
   "write a signal to the reader to forget established cache codes"
   [writer]
+  (assert (fressian-writer? writer))
   #?(:clj (.resetCaches ^FressianWriter writer)
      :cljs (w/resetCaches writer)))
 
@@ -222,12 +239,14 @@
   "Begin writing a fressianed list.  To end the list, call end-list.
    Used to write sequential data whose size is not known in advance."
   [writer]
+  (assert (fressian-writer? writer))
   #?(:clj (fressian/begin-closed-list writer)
      :cljs (w/beginClosedList writer)))
 
 (defn end-list
   "Ends a list begun with begin-closed-list."
   [writer]
+  (assert (fressian-writer? writer))
   #?(:clj (fressian/end-list writer)
      :cljs (w/endList writer)))
 
@@ -238,6 +257,7 @@
    data whose size is not known in advance, in contexts where
    stream failure can safely be interpreted as end of list."
   [writer]
+  (assert (fressian-writer? writer))
   #?(:clj (fressian/begin-open-list writer)
      :cljs (w/beginOpenList writer)))
 
@@ -266,7 +286,8 @@
   "Create a byte-buffer (:clj), byte-array (:cljs) from the current
    internal state of a BytesOutputStream"
   [^BytesOutputStream stream]
-  #?(:clj (ByteBuffer/wrap (.internalBuffer stream) 0 (.length stream)) ;(.toByteArray stream)
+  ;presumably bytebuffer is preferable to byte[] on jvm
+  #?(:clj (ByteBuffer/wrap (.internalBuffer stream) 0 (.length stream))
      :cljs (buf/toByteArray stream))) ;fixed, will not change with more writes! call again
 
 #?(:cljs
@@ -290,10 +311,6 @@
      (.readObject ^Reader (apply create-reader (fressian/to-input-stream readable) options))
      :cljs
      (r/readObject (apply create-reader readable options))))
-
-(defn- ^boolean fressian-reader? [in]
-  #?(:clj (instance? org.fressian.FressianReader in)
-     :cljs (instance? r/FressianReader in)))
 
 (defn read-batch
   "Read a fressian reader fully (until eof), returning a (possibly empty)

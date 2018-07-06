@@ -90,7 +90,7 @@
 (deftype
   ^{:doc
     "Backed by a plain array, 'BytesOutputStream' grows as bytes are written,
-     is only toByteArrayd into an byte-array when close() is called.
+     is only realized into an byte-array when close() is called.
 
      In future can use ArrayBuffer.transfer()"}
   BytesOutputStream [arr ^number bytesWritten ^boolean open? buffer]

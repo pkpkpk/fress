@@ -43,7 +43,7 @@
             bs (fress/byte-stream)
             writer (fress/create-writer bs)
             _(fress/write-utf8 writer s)
-            rdr (fress/create-reader (fress/bytestream->buf bs))]
+            rdr (fress/create-reader (fress/byte-stream->buf bs))]
         (is (=  s (fress/read-object rdr)))))
     (testing "proper input-stream should still be ok"
       (let [s "hello"

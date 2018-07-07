@@ -41,7 +41,7 @@ In javascript, [ArrayBuffers][4] have a fixed size and there are no streaming co
 When a reader reaches the end of its buffer, it will throw a `(js/Error. "EOF")` (java.io.EOFException on JVM).
   + nil is a value, so gotta throw!
   + `fress.api/read-all` and `fress.api/read-batch` will handle this for you.
-  + By default, footers in javascript readers will automatically trigger a EOF throw, preventing oob reads when there is excess room remaining. The intended use case is receiving a pointer on memory and simply reading off fressian bytes until whichever comes first: a natural EOF or a footer. You can avoid the conundrum by always writing single collections, but that is not always possible or desirable.
+  + By default, footers in javascript readers will automatically trigger an EOF throw, preventing oob reads when there is excess room remaining. The intended use case is receiving a pointer on memory and simply reading off fressian bytes until whichever comes first: a natural EOF or a footer. You can avoid the conundrum by always writing single collections, but that is not always possible or desirable.
 
 <hr>
 
@@ -53,19 +53,12 @@ When a reader reaches the end of its buffer, it will throw a `(js/Error. "EOF")`
   - `:footer? true` option to automatically seal bytes off with footer
   - convenient when you have all data you want to write ahead of time.
 
-
 + `fress.api/read<readable, & opts> -> any`
   - takes bytes or bytestream and returns a single object read off the bytes
   - accepts same args as `create-reader` but reader creation is done for you
 
-
-+ `fress.api/read-batch<reader> -> Vec<any>`
-  - takes an existing reader and reads off everything it can, return a vector of its contents
-  - automatically handles thrown EOFs for you
-
-
 + `fress.api/read-all<(readable|reader), & options> -> Vec<any>`
-  - accepts reader, bytes, or bytestream, returns vector of contents
+  - accepts reader, bytes, or bytestream, reads off everything it can. returns vector of contents
   - accepts same options as reader
   - automatically handles thrown EOFs for you
 
@@ -77,7 +70,6 @@ When a reader reaches the end of its buffer, it will throw a `(js/Error. "EOF")`
 2. define a *write-handler*, a `fn<writer, object>`
   + use `(fress/write-tag writer tag field-count)`
   + call `fress/write-object` on each component of your type
-    + each field itself can be a custom type with its own tag + fields
 3. create a writer and pass a `:handler` map of `{type writeHandler}`
   - [`:handlers` passed to JVM writers have a different shape](#on-the-server)
 
@@ -106,7 +98,7 @@ Example: lets write a handler for javascript errors
 
 + __Fress will automatically test if each written object is an instance of a registered type->write-handler pair.__ So write-error will also work for `js/TypeError`, `js/SyntaxError` etc
 
-+ types that can share a writehandler but are not prototypically related can be made to share a write handler by passing them as seq in the handler entry key ie `(create-writer out :handlers {[typeA typeB] writer})`
++ types that can share a writehandler but are not prototypically related can be made to share a write handler by passing them as seq in the handler entry key ie `(create-writer out :handlers {[typeA typeB] write-A-or-B})`
 
 So now let's try reading our custom type:
 

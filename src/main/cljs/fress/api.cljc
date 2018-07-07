@@ -5,11 +5,13 @@
                [fress.writer :as w]
                [fress.impl.buffer :as buf])
      :clj
-     (:require [clojure.data.fressian :as fressian]))
+     (:require [clojure.data.fressian :as fressian]
+               [fress.impl.bytestream]))
   #?(:clj (:import [org.fressian.handlers WriteHandler ReadHandler]
                    [org.fressian FressianWriter StreamingWriter FressianReader TaggedObject Writer Reader]
                    [org.fressian.impl RawOutput RawInput BytesOutputStream]
                    java.nio.ByteBuffer
+                   [fress.impl bytestream]
                    [java.io InputStream OutputStream EOFException])))
 
 (set! *warn-on-reflection* true)
@@ -279,7 +281,9 @@
        (w/endList w))))
 
 (defn byte-stream []
-  #?(:clj (BytesOutputStream.)
+  (println "OK?")
+  #?(:clj (fress.impl.bytestream.)
+     ; :clj (BytesOutputStream.)
      :cljs (buf/byte-stream)))
 
 (defn ^ByteBuffer byte-stream->buf

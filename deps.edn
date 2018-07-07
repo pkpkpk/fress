@@ -1,0 +1,7 @@
+{:paths ["src/main/cljs"
+         "src/main/clj"
+         "src/test"]
+ :deps {org.clojure/clojure {:mvn/version "1.10.0-alpha4"}
+        org.clojure/clojurescript {:mvn/version  "1.10.329"}
+        org.clojure/test.check {:mvn/version  "0.10.0-alpha2"}
+        org.clojure/data.fressian {:mvn/version "0.2.1"}}}

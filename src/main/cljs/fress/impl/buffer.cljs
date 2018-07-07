@@ -15,7 +15,6 @@
   (readUnsignedBytes [this length] "return unsigned byte view on memory")
   (readSignedBytes [this length] "return signed byte view on memory"))
 
-; IWriter => ;https://dev.clojure.org/jira/browse/CLJS-2247
 (defprotocol IBufferWriter
   (getFreeCapacity [this] "remaining free bytes to write")
   (room? [this length])
@@ -82,7 +81,7 @@
         (let [bytes (js/Uint8Array. (.-buffer memory) (+  memory-offset bytesRead) length)]
           (notifyBytesRead this length)
           bytes))
-        (throw (js/Error. "EOF")))))
+      (throw (js/Error. "EOF")))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Writable stream
@@ -104,10 +103,9 @@
     (set! (.-open? this) false)
     (toByteArray this))
   IStreamingWriter
-  (wrap [this buf](wrap this buf 0))
-  (wrap [this buf off]
-    (let []
-      ))
+  ; (wrap [this buf](wrap this buf 0))
+  ; (wrap [this buf off]
+  ;   (let []))
   (flushTo [this buf] (flushTo this buf 0))
   (flushTo [this buf off]
     (assert (some? (.-buffer buf)) "flushTo requires an arraybuffer backed byte-array")
@@ -204,7 +202,8 @@
         (.grow memory 1)
         (throw (js/Error. "BufferWriter out of room"))))
     (aset (js/Int8Array. (.. memory -buffer)) bytesWritten byte)
-    (notifyBytesWritten this 1))
+    (notifyBytesWritten this 1)
+    this)
   (writeBytes [this bytes] (writeBytes this bytes 0 (alength bytes)))
   (writeBytes [this bytes ^number offset ^number length]
     (assert (int? length))
@@ -216,7 +215,8 @@
         (throw (js/Error. "BufferWriter out of room"))))
     (let [i8array (js/Int8Array. (.. memory  -buffer))]
       (.set i8array (.subarray bytes offset (+ offset length)) (+  bytesWritten memory-offset))
-      (notifyBytesWritten this length)))) ;<- is there  a meaningful value to return? bytesWritten? this?
+      (notifyBytesWritten this length))
+      this))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

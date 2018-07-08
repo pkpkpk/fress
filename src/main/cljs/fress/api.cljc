@@ -281,9 +281,7 @@
        (w/endList w))))
 
 (defn byte-stream []
-  (println "OK?")
   #?(:clj (fress.impl.bytestream.)
-     ; :clj (BytesOutputStream.)
      :cljs (buf/byte-stream)))
 
 (defn ^ByteBuffer byte-stream->buf

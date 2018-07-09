@@ -1,6 +1,7 @@
 # `[fress "0.1.0"]`
 ## `fress {:mvn/version  "0.1.0"}`
 
+[![Clojars Project](https://img.shields.io/clojars/v/fress.svg)](https://clojars.org/fress)
 
 ## Quick Start
 

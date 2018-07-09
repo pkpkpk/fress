@@ -27,13 +27,21 @@
 <hr>
 
 
-### Writing bytes with `fress.api/byte-stream`
+### Reading+Writing bytes with `fress.api/byte-stream`
 
-In javascript, [ArrayBuffers][4] have a fixed size and there are no streaming constructs. Allocating a new buffer and copying its contents on every write is prohibitively slow, so `fress.api/byte-stream` addresses this by pushing bytes onto a plain javascript array which is realized into a [byte-array][5] only when deref'd or closed.
-  - On the jvm, currently `byte-stream` is just an alias for the [BytesOutputStream provided by fressian][6]. (TODO: IDeref interface)
-  - `fress.api/create-reader` will automatically coerce byte-streams into a readable buffer (jvm too) though its unlikely you will need to do so
-  - byte-streams are stateful. If you deref a byte-stream and then continue to write, you will need to deref again to see the new bytes output in the buffer (no wrap behavior).
-  - `fress.api/create-writer` will ofcourse also accept any typed-array or arraybuffer instance, but you are responsible for making sure you have enough room to write.
+In javascript, binary data is kept in [ArrayBuffers][4]. [TypedArrays][9] are simply [interpretive views][8] on array buffer instances. Both are fixed size and there are no streaming constructs. If you want to 'grow' a typed array, you need to allocate a new buffer and copy over the old buffer's contents. Doing so on every write is prohibitively slow, so `fress.api/byte-stream` addresses this by pushing bytes onto a plain javascript array which is realized into a [byte-array][5] only when deref'd or closed.
+
+On the jvm, `fress.api/byte-stream` is the BytesOutputStream [provided by fressian][6] extended with `clojure.lang.IDeref`. Dereferencing returns a [java.nio.ByteBuffer][7].
+
++ `fress.api/create-reader` will automatically coerce byte-streams into a readable buffer
+  - jvm too
+  - useful for testing
++ byte-streams are stateful, no wrap behavior in js
+  - If you deref a byte-stream and then continue to write, you will need to deref again to see the new bytes output in the buffer
++ `fress.api/create-writer` also accepts any typed-array or arraybuffer instance
+  - you are responsible for making sure you have enough room to write.
+
+
 
 <hr>
 
@@ -41,7 +49,8 @@ In javascript, [ArrayBuffers][4] have a fixed size and there are no streaming co
 When a reader reaches the end of its buffer, it will throw a `(js/Error. "EOF")` (java.io.EOFException on JVM).
   + nil is a value, so gotta throw!
   + `fress.api/read-all` and `fress.api/read-batch` will handle this for you.
-  + By default, footers in javascript readers will automatically trigger an EOF throw, preventing oob reads when there is excess room remaining. The intended use case is receiving a pointer on memory and simply reading off fressian bytes until whichever comes first: a natural EOF or a footer. You can avoid the conundrum by always writing single collections, but that is not always possible or desirable.
+
+By default, footers in cljs readers will automatically trigger an EOF throw, preventing oob reads when there is excess room remaining. The intended use case is receiving a pointer on memory and simply reading off fressian bytes until whichever comes first: a natural EOF or a footer. You can avoid the conundrum by always writing single collections, but that is not always possible or desirable.
 
 <hr>
 
@@ -270,3 +279,6 @@ Fress wraps clojure.data.fressian and can be used as a drop in replacement.
 [4]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [5]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array
 [6]: https://github.com/Datomic/fressian/blob/master/src/org/fressian/impl/BytesOutputStream.java
+[7]: https://docs.oracle.com/javase/7/docs/api/java/nio/ByteBuffer.html
+[8]: https://hacks.mozilla.org/2017/06/a-cartoon-intro-to-arraybuffers-and-sharedarraybuffers/
+[9]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays

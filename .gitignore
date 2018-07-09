@@ -8,3 +8,4 @@ pom.xml
 .cpcache/*
 .cache
 .lein*
+.nrepl*

@@ -15,8 +15,11 @@
       test-paths (get-in raw-deps [:aliases :test :extra-paths])
       dev-deps (deps->vec (get-in raw-deps [:aliases :dev :extra-deps]))
       config (edn/read-string (slurp "config.edn"))]
-
   (defproject fress "0.1.0"
+    :description "Fressian for clojurescript"
+    :url "https://github.com/pkpkpk/fress"
+    :license {:name "Eclipse Public License"
+              :url "http://www.eclipse.org/legal/epl-v10.html"}
     :dependencies ~proj-deps
     :source-paths ~src-paths
     :test-paths ~test-paths

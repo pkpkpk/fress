@@ -1,5 +1,5 @@
-# ~~`[fress "0.1.0"]`~~
-+ ~~`{fress "0.1.0"}`~~
+# `[fress "0.1.0"]`
+## `fress {:mvn/version  "0.1.0"}`
 
 
 ## Quick Start

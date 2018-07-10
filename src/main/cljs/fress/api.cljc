@@ -122,7 +122,10 @@
    (extend-protocol fressian/FressianReadable
      BytesOutputStream
      (to-input-stream [stream]
-        (fressian/to-input-stream (ByteBuffer/wrap (.internalBuffer stream) 0 (.length stream))))))
+        (fressian/to-input-stream (ByteBuffer/wrap (.internalBuffer stream) 0 (.length stream))))
+     bytestream
+     (to-input-stream [stream]
+      (fressian/to-input-stream (deref stream)))))
 
 (defn- ^boolean fressian-reader? [in]
   #?(:clj (instance? org.fressian.FressianReader in)
@@ -280,17 +283,9 @@
          (w/writeObject w value (boolean (cache-pred field))))
        (w/endList w))))
 
-(defn byte-stream []
+(defn ^byte-stream byte-stream []
   #?(:clj (fress.impl.bytestream.)
      :cljs (buf/byte-stream)))
-
-(defn ^ByteBuffer byte-stream->buf
-  "Create a byte-buffer (:clj), byte-array (:cljs) from the current
-   internal state of a BytesOutputStream"
-  [stream]
-  ;presumably bytebuffer is preferable to byte[] on jvm
-  #?(:clj (ByteBuffer/wrap (.internalBuffer ^bytestream stream) 0 (.length ^bytestream stream))
-     :cljs (buf/toByteArray stream))) ;fixed, will not change with more writes! call again
 
 #?(:cljs
    (defn flush-to
@@ -342,12 +337,12 @@
   [obj & options]
   #?(:clj
      (let [{:keys [footer?]} (apply hash-map options)
-           bos (BytesOutputStream.)
+           bos (byte-stream)
            writer ^Writer (apply create-writer bos options)]
        (.writeObject writer obj)
        (when footer?
          (.writeFooter writer))
-       (byte-stream->buf bos))
+       @bos)
      :cljs
      (let [{:keys [footer?]} (when options (apply hash-map options))
            bos (buf/byte-stream)

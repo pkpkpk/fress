@@ -19,8 +19,5 @@
      (let [next-slice (.slice bb)]
        (cons (.get next-slice) (byte-buffer-seq next-slice))))))
 
-; (defn bytevec [bytes]
-;   (into [] (byte-buffer-seq bytes)))
-
 (defn stream->bytevec [bytestream]
-  (into [] (byte-buffer-seq (fress/byte-stream->buf bytestream))))
+  (into [] (byte-buffer-seq @bytestream)))

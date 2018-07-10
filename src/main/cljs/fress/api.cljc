@@ -14,7 +14,7 @@
                    [fress.impl bytestream]
                    [java.io InputStream OutputStream EOFException])))
 
-(set! *warn-on-reflection* true)
+#?(:clj (set! *warn-on-reflection* true))
 
 #?(:clj
    (defn private-field [^Object obj name-string]
@@ -287,9 +287,9 @@
 (defn ^ByteBuffer byte-stream->buf
   "Create a byte-buffer (:clj), byte-array (:cljs) from the current
    internal state of a BytesOutputStream"
-  [^BytesOutputStream stream]
+  [stream]
   ;presumably bytebuffer is preferable to byte[] on jvm
-  #?(:clj (ByteBuffer/wrap (.internalBuffer stream) 0 (.length stream))
+  #?(:clj (ByteBuffer/wrap (.internalBuffer ^bytestream stream) 0 (.length ^bytestream stream))
      :cljs (buf/toByteArray stream))) ;fixed, will not change with more writes! call again
 
 #?(:cljs
@@ -317,11 +317,11 @@
 (defn read-batch
   "Read a fressian reader fully (until eof), returning a (possibly empty)
    vector of results."
-  [^Reader fin]
+  [fin]
   (assert (fressian-reader? fin))
   (let [sentinel #?(:clj (Object.) :cljs #js{})]
     (loop [objects (transient [])]
-      (let [obj #?(:clj (try (.readObject fin) (catch EOFException e sentinel))
+      (let [obj #?(:clj (try (.readObject ^Reader fin) (catch EOFException e sentinel))
                    :cljs (try (r/readObject fin) (catch js/Error e sentinel)))]
         (if (= obj sentinel)
           (persistent! objects)

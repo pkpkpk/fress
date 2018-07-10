@@ -38,14 +38,6 @@
             :default (throw (str "Invalid UTF-8: " ch))))))
     (.apply (.-fromCharCode js/String) nil buf)))
 
-(defn readUTF8
-  "this uses TextDecoder on raw utf8 bytes instead of using js on compressed
-   fressian string bytes"
-  [rdr]
-  (let [length (readCount- rdr)
-        bytes (rawIn/readFully (:raw-in rdr) length)]
-    (.decode util/TextDecoder bytes)))
-
 (defprotocol IFressianReader
   (read- [this code])
   (readNextCode [this])
@@ -67,6 +59,15 @@
   (getPriorityCache- [this])
   (getStructCache- [this])
   (resetCaches [this]))
+
+
+(defn readUTF8
+  "this uses TextDecoder on raw utf8 bytes instead of using js on compressed
+   fressian string bytes"
+  [rdr]
+  (let [length (readCount- rdr)
+        bytes (rawIn/readFully (:raw-in rdr) length)]
+    (.decode util/TextDecoder bytes)))
 
 (defn ^number internalReadDouble [rdr code]
   (cond
@@ -432,7 +433,7 @@
         (let [o (read- this code)]
           (if (number? o)
             o
-            (expected rdr "float" code o))))))
+            (expected this "float" code o))))))
   (readDouble ^number [this]
     (internalReadDouble this (readNextCode this)))
   (readBoolean ^boolean [this]
@@ -441,10 +442,10 @@
         true
         (if (== code codes/FALSE)
           false
-          (let [o (read- rdr code)]
+          (let [o (read- this code)]
             (if (boolean? o)
               o
-              (expected rdr "boolean" code o)))))))
+              (expected this "boolean" code o)))))))
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (getStructCache- [this]
     (or structCache
@@ -624,7 +625,7 @@
         rmap (readObject rdr)]
     (if-let [rcons (get name->map-ctor (name rname))]
       (rcons rmap)
-      (TaggedObject. "record" (into-array Object [rname rmap])))))
+      (TaggedObject. "record" #js[rname rmap]))))
 
 (def default-read-handlers
   {"list" (fn [objectArray] (vec objectArray)) ;;diff sig, called by internalReadList

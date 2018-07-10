@@ -49,7 +49,7 @@
         low (readRawInt40L this)]
     (.add (.shiftLeft high 40) low)))
 
-(defn ^Long readRawInt64L [this]
+(defn ^Long readRawInt64L [this] ;; return long on unsafe?
   (let [a (readRawByte this)
         b (readRawByte this)
         c (readRawByte this)
@@ -61,9 +61,9 @@
     (when *throw-on-unsafe?*
       (if (<= a 127)
         (when (or (<= 32 b) (< 1561 (+ b c d e f g h)))
-          (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds js/Number.MAX_SAFE_INTEGER"))))
+          (throw (js/Error. (str  "i64 exceeds js/Number.MAX_SAFE_INTEGER"))))
         (when (or (< a 255) (< b 224) (zero? h) )
-          (throw (js/Error. (str  "i64 at byte index " bytesRead " exceeds js/Number.MIN_SAFE_INTEGER"))))))
+          (throw (js/Error. (str  "i64 exceeds js/Number.MIN_SAFE_INTEGER"))))))
     (let [a  (.and (Long.fromNumber a) L_U8_MAX_VALUE)
           b  (.and (Long.fromNumber b) L_U8_MAX_VALUE)
           c  (.and (Long.fromNumber c) L_U8_MAX_VALUE)

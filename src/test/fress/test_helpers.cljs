@@ -159,7 +159,7 @@
        (if (or (zero? a) (zero? b) (< d util/F32_MIN_NORMAL))
          ;;;extremely close, relative error less meaningful
          (< d (* eps util/F32_MIN_NORMAL))
-         (< (/ diff (js/Math.min (+ absA absB) util/F32_MAX_VALUE)) eps))))))
+         (< (/ d (js/Math.min (+ absA absB) util/F32_MAX_VALUE)) eps))))))
 
 (defn precision=
   ([a b](precision= a b 8))

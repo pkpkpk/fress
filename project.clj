@@ -1,6 +1,8 @@
 ;  https://clojureverse.org/t/combining-tools-deps-with-leiningen/658/4
 (require '[clojure.edn :as edn])
 
+; {foo {:mvn/verion "string"}
+;  bar {:mvn/version "string"}... } => [[foo "string" :exculsions [...]] ...]
 (defn deps->vec [deps]
   (into []
     (map
@@ -9,19 +11,27 @@
           exclusions (conj :exclusions exclusions))))
     deps))
 
-(let [raw-deps (edn/read-string (slurp "deps.edn"))
-      proj-deps (deps->vec (get raw-deps :deps))
+(def raw-deps (edn/read-string (slurp "deps.edn")))
+(def config   (edn/read-string (slurp "config.edn")))
+
+(let [proj-deps (deps->vec (get raw-deps :deps))
       src-paths (vec (get raw-deps :paths))
       test-paths (get-in raw-deps [:aliases :test :extra-paths])
       dev-deps (deps->vec (get-in raw-deps [:aliases :dev :extra-deps]))
-      config (edn/read-string (slurp "config.edn"))]
+      profiles (for [[alias-key {:keys [builds]}] (get config :aliases)]
+                 (when (some? builds)
+                   (let [deps (get-in raw-deps [:aliases alias-key :extra-deps])]
+                     [alias-key {:dependencies (deps->vec deps)
+                                 :cljsbuild {:builds builds}}])))]
   (defproject fress "0.1.0"
     :description "Fressian for clojurescript"
     :url "https://github.com/pkpkpk/fress"
     :license {:name "Eclipse Public License"
               :url "http://www.eclipse.org/legal/epl-v10.html"}
+    :plugins [[lein-cljsbuild "1.1.7"]]
     :dependencies ~proj-deps
     :source-paths ~src-paths
     :test-paths ~test-paths
-    :aot ~(get config :aot)))
+    :aot ~(get config :aot)
+    :profiles ~(into {} profiles)))
 

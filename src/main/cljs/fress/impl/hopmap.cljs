@@ -56,9 +56,9 @@
   (set! (.-count this) 0)
   (dotimes [i (.-cap this)]
     (aset (.-keys this) i nil))
-  (let [cap2 (<< cap 2)]
+  (let [cap2 (<< (.-cap this) 2)]
     (dotimes [i cap2]
-      (aset (.-hopidx n) i 0))))
+      (aset (.-hopidx this) i 0))))
 
 (defn ^number _oldIndex
   "Puts k in the map if it was not already present.
@@ -88,10 +88,6 @@
         mask (dec (.-cap this))
         bkt (atom (bit-and hash mask))
         bhash (aget hopidx (<< @bkt 2))
-        _(assert (int? hash)  (str "hash should be an int, got" (pr-str hash)))
-        _(assert (int? mask)  (str "mask should be an int, got" (pr-str mask)))
-        _(assert (int? @bkt)   (str "bkt should be an int, got" (pr-str bkt)))
-        _(assert (int? bhash) (str "bhash should be an int, got" (pr-str bhash)))
         slot (atom 0)]
     (when (zero? bhash) ; not found hopidx lookup
       (reset! slot (<< @bkt 2)))
@@ -136,7 +132,7 @@
        (aset hopidx (inc @slot) i)
        (aset keys i k)
        (set! (.-count this) (inc (.-count this)))
-       (when (== (.-count this) cap)
+       (when (== (.-count this) (.-cap this))
          (resize this))
        i))))
 

@@ -1,4 +1,5 @@
-(ns fress.util)
+(ns fress.util
+  (:require [goog.crypt :as gcrypt]))
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
 
@@ -9,8 +10,19 @@
     (when *debug*
       (apply log args))))
 
-(def TextEncoder (js/TextEncoder. "utf8"))
-(def TextDecoder (js/TextDecoder. "utf8"))
+(def TextEncoder
+  (if (exists? js/TextEncoder)
+    (js/TextEncoder. "utf8")
+    (reify Object
+      (encode [_ s]
+        (js/Int8Array. (gcrypt/stringToUtf8ByteArray s))))))
+
+(def TextDecoder
+  (if (exists? js/TextDecoder)
+    (js/TextDecoder. "utf8")
+    (reify Object
+      (decode [this bytes]
+        (gcrypt/utf8ByteArrayToString bytes)))))
 
 (extend-type ArrayList
   Object

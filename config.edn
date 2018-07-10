@@ -1,1 +1,13 @@
-{:aot [fress.impl.bytestream]}
+{:aot [fress.impl.bytestream]
+ :aliases
+ {:test
+  {:builds
+  [{:id "test"
+    :source-paths ["src/main" "src/test"]
+    :compiler {:main fress.runner
+               :output-to "target/test/fress.js"
+               :output-dir "target/test"
+               :target :nodejs
+               :parallel-build true
+               ; :optimizations :advanced
+               :elide-asserts true}}]}}}

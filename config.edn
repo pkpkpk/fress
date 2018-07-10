@@ -10,4 +10,15 @@
                :target :nodejs
                :parallel-build true
                ; :optimizations :advanced
+               :elide-asserts true}}]}
+  :bench
+  {:builds
+  [{:id "bench"
+    :source-paths ["src/main" "src/bench"]
+    :compiler {:main fress.bench
+               :output-to "target/bench/bench.js"
+               :output-dir "target/bench"
+               :target :nodejs
+               :parallel-build true
+               :optimizations :advanced
                :elide-asserts true}}]}}}

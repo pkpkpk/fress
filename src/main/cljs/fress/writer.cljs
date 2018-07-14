@@ -1,9 +1,9 @@
 (ns fress.writer
   (:require-macros [fress.macros :refer [>>>]])
-  (:require [fress.impl.codes :as codes]
+  (:require [clojure.string :as string]
+            [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
             [fress.impl.raw-output :as rawOut]
-            [fress.impl.uuid :as uuid]
             [fress.impl.hopmap :as hop]
             [fress.util :as util :refer [log dbg]]))
 
@@ -388,8 +388,16 @@
   (writeString wtr (.-source re)))
 
 (defn writeUUID [wtr u]
+  ; adapted from https://github.com/kawasima/fressian-cljs/blob/master/src/cljs/fressian_cljs/uuid.cljs
   (writeTag wtr "uuid" 1)
-  (writeBytes wtr (uuid/uuid->bytes u)))
+  (let [buf (make-array 16)
+        idx (atom 0)]
+    (string/replace (.toLowerCase (.-uuid u)) #"[0-9a-f]{2}"
+      (fn [oct]
+        (when (< @idx 16)
+          (aset buf @idx (js/parseInt (str "0x" oct)))
+          (swap! idx inc))))
+    (writeBytes wtr (js/Uint8Array. buf))))
 
 (defn writeByteArray [wrt bytes]
   (writeBytes wrt bytes))

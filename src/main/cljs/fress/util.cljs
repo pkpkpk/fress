@@ -96,3 +96,15 @@
 (defmethod f64-array ArrayList [al] (js/Float64Array. (.toArray al)))
 
 (defn time->inst [time] (doto (js/Date.) (.setTime time)))
+
+(def i8->u8
+  (let [bytea (js/Uint8Array. 1)]
+    (fn ^number [i8]
+      (aset bytea 0 i8)
+      (aget bytea 0))))
+
+(def u8->i8
+  (let [bytea (js/Int8Array. 1)]
+    (fn ^number [u8]
+      (aset bytea 0 u8)
+      (aget bytea 0))))

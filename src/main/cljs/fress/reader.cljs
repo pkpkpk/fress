@@ -3,7 +3,6 @@
   (:require [fress.impl.raw-input :as rawIn]
             [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
-            [fress.impl.uuid :as uuid]
             [fress.util :as util :refer [expected byte-array log]])
   (:import [goog.math Long]))
 
@@ -596,13 +595,24 @@
     arr))
 
 (defn readUUID [rdr _ _]
-  (let [bytes (readObject rdr)]
-    (assert (= (alength bytes) 16) (str "invalid UUID buffer size:" (alength bytes)))
-    (uuid/bytes->uuid bytes)))
+  ; adapted from https://github.com/kawasima/fressian-cljs/blob/master/src/cljs/fressian_cljs/uuid.cljs
+  (let [bytes (readObject rdr)
+        _(assert (== (alength bytes) 16) (str "invalid UUID buffer size:" (alength bytes)))
+        offset (atom 0)
+        acc #js[]]
+    (doseq [n [4 2 2 2 6]]
+      (let [token (map (fn [i8]
+                         (-> (+ (util/i8->u8 i8) 0x100)
+                             (.toString 16)
+                             (.substr 1)))
+                       (take n (drop @offset (array-seq bytes))))]
+        (swap! offset + n)
+        (.push acc (apply str token))))
+    (UUID. (.join acc "-") nil)))
 
 (defn readRegex [rdr _ _]
   (let [source (readObject rdr)]
-    (js/RegExp. source)))
+    (re-pattern source)))
 
 (defn readUri [rdr _ _]
   (let [uri (readObject rdr)]

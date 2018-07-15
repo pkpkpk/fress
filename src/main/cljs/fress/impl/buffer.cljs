@@ -227,6 +227,12 @@
      (implements? IBufferReader backing)
      backing
 
+     (vector? backing)
+     (readable-buffer (js/Int8Array. (into-array backing)) backing-offset)
+
+     (array? backing)
+     (readable-buffer (js/Int8Array. backing) backing-offset)
+
      (instance? BytesOutputStream backing)
      (readable-buffer (toByteArray backing) backing-offset)
 

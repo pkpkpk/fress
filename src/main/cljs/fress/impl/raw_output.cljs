@@ -24,7 +24,7 @@
 
 (deftype RawOutput [out checksum]
   IRawOutput
-  (getChecksum [this] @checksum)
+  (getChecksum ^number [this] (if-not checksum 0 @checksum))
 
   (reset [this]
     (buf/reset out)
@@ -36,15 +36,18 @@
 
   (writeRawByte [this byte]
     (buf/writeByte out byte)
-    (adler/update! checksum byte))
+    (when checksum
+      (adler/update! checksum byte)))
 
   (writeRawBytes [this bytes]
     (buf/writeBytes out bytes)
-    (adler/update! checksum bytes 0 (alength bytes)))
+    (when checksum
+      (adler/update! checksum bytes 0 (alength bytes))))
 
   (writeRawBytes [this bytes offset length]
     (buf/writeBytes out bytes offset length)
-    (adler/update! checksum bytes offset length))
+    (when checksum
+      (adler/update! checksum bytes offset length)))
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -105,10 +108,10 @@
           (writeRawBytes this (.reverse bytes) 0 (alength bytes)))))))
 
 (defn raw-output
-  ([](raw-output nil ))
-  ([out] (raw-output out 0))
-  ([out offset]
+  ([](raw-output nil))
+  ([out] (raw-output out {}))
+  ([out {:keys [offset checksum?]}]
    (let [out (buf/writable-buffer out offset)
-         checksum (adler/adler32)]
+         checksum (when checksum? (adler/adler32))]
      (RawOutput. out checksum))))
 

@@ -553,11 +553,11 @@
 (defn writer
   "Create a writer that combines userHandlers with the normal type handlers
    built into Fressian."
-  [out & {:keys [handlers record->name] :as opts}]
+  [out & {:keys [handlers record->name checksum? offset] :as opts}]
   (when handlers (assert (valid-user-handlers? handlers)))
   (when record->name (assert (valid-record->name? record->name)))
   (let [lookup-fn (build-handler-lookup handlers record->name)
-        raw-out (rawOut/raw-output out)
+        raw-out (rawOut/raw-output out {:offset (or offset 0) :checksum? checksum?})
         priorityCache nil ;added when needed
         structCache nil]
     (FressianWriter. out raw-out priorityCache structCache lookup-fn)))

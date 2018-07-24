@@ -557,6 +557,7 @@
   (when handlers (assert (valid-user-handlers? handlers)))
   (when record->name (assert (valid-record->name? record->name)))
   (let [lookup-fn (build-handler-lookup handlers record->name)
+        checksum? (if (some? checksum?) checksum? true)
         raw-out (rawOut/raw-output out {:offset (or offset 0) :checksum? checksum?})
         priorityCache nil ;added when needed
         structCache nil]

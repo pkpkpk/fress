@@ -59,23 +59,31 @@
                   ", got " (type o) " " (pr-str o) "instead")]
      (throw (js/Error. msg)))))
 
-(defmulti byte-array type)
+
+(defmulti
+  ^{:doc "signed byte array. allocates new buffer"}
+  byte-array type)
 
 (defmethod byte-array js/Number [n] (js/Int8Array. n))
 (defmethod byte-array PersistentVector [v] (js/Int8Array. (into-array v)))
 (defmethod byte-array js/Array [a] (js/Int8Array. a))
 (defmethod byte-array ArrayList [al] (js/Int8Array. (.toArray al)))
 (defmethod byte-array js/String [s] (.encode TextEncoder s))
+(defmethod byte-array js/Uint8Array [a] (js/Int8Array. a))
 (defmethod byte-array js/Int8Array [a] (js/Int8Array. a))
 
 (def i8-array byte-array)
 
-(defmulti  u8-array type)
+(defmulti
+  ^{:doc "unsigned byte array. allocates new buffer"}
+  u8-array type)
 (defmethod u8-array js/Number [n] (js/Uint8Array. n))
 (defmethod u8-array PersistentVector [v] (js/Uint8Array. (into-array v)))
 (defmethod u8-array js/Array [a] (js/Uint8Array. a))
 (defmethod u8-array ArrayList [al] (js/Uint8Array. (.toArray al)))
 (defmethod u8-array js/String [s] (.encode TextEncoder s))
+(defmethod u8-array js/Int8Array [a] (js/Uint8Array. a))
+(defmethod u8-array js/Uint8Array [a] (js/Uint8Array. a))
 
 (defmulti  i32-array type)
 (defmethod i32-array js/Number [n] (js/Int32Array. n))

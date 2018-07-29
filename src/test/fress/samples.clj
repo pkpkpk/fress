@@ -1,6 +1,7 @@
 (ns fress.samples
   (:require [fress.api :refer [write-handlers read-handlers] :as api]
             [clojure.data.fressian :as fressian]
+            [clojure.edn :as edn]
             [clojure.java.io :as io])
   (:import [fress.api utf8]
            [java.io ByteArrayOutputStream ByteArrayInputStream EOFException]
@@ -46,7 +47,8 @@
   [obj & {:keys [handlers footer]}]
   (let [BYTES-os (BytesOutputStream.)
         write-handlers (or handlers write-handlers)
-        writer (fressian/create-writer BYTES-os :handlers write-handlers)]
+        handlers (or handlers {})
+        writer (api/create-writer BYTES-os :handlers handlers)]
     (.writeObject writer obj)
     (when footer (.writeFooter writer))
     (bytestream->buf BYTES-os)))
@@ -106,6 +108,7 @@
            bytes (mapv long (bytevec value :footer footer))
            base {:form (pr-str form)
                  :bytes bytes
+                 :ubytes (ubytevec value :footer footer)
                  :byte-count (count bytes)
                  :footer footer}]
        (cond
@@ -177,3 +180,73 @@
      :author (:author book)
      :title (:title book)
      :class-sym (class-sym book)}))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def js_max_safe_int  9007199254740991)
+(def js_min_safe_int -9007199254740991)
+
+(defn js-unsafe? [l]
+  (if (pos? l)
+    (< js_max_safe_int l)
+    (< l js_min_safe_int)))
+
+(defn bit-switch [^Long l]
+  (let [l (if (< l 0) (bit-not l) l)]
+    (Long/numberOfLeadingZeros l)))
+
+(defn raw-int-sample [n]
+  (assert (int? n))
+  (let [s (bit-switch n)
+        bytesv (ubytevec n)
+        bytes (mapv long (bytevec n))]
+    (cond
+      (<= 58 s 64)
+      {:switch s
+       :fn :raw-byte
+       :ubytes bytesv
+       :bytes bytes}
+
+      (<= 52 s 57)
+      {:switch s
+       :fn :raw-byte
+       :ubytes bytesv
+       :bytes bytes}
+
+      (<= 45 s 51)
+      {:switch s
+       :fn :raw-i16
+       :ubytes bytesv
+       :bytes bytes}
+
+      (<= 39 s 44)
+      {:switch s
+       :fn :raw-i24
+       :ubytes bytesv
+       :bytes bytes}
+
+      (<= 31 s 38)
+      {:switch s
+       :fn :raw-i32
+       :ubytes bytesv
+       :bytes bytes}
+
+      (<= 23 s 30)
+      {:switch s
+       :fn :raw-i40
+       :ubytes bytesv
+       :bytes bytes}
+
+      (<= 15 s 22)
+      {:switch s
+       :fn :raw-i48
+       :ubytes bytesv
+       :bytes bytes}
+
+      :else
+      {:switch s
+       :fn :raw-i64
+       :ubytes bytesv
+       :bytes bytes})))
+

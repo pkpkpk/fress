@@ -1,8 +1,6 @@
 (ns fress.test-helpers
-  (:require-macros [cljs.core.async.macros :refer [go-loop go]]
-                   [fress.test-macros :as tm])
+  (:require-macros [fress.test-macros :as tm])
   (:require [cljs.test :as test :refer-macros [deftest is testing async]]
-            [cljs-node-io.core :as io :refer [slurp spit]]
             [cljs.tools.reader :refer [read-string]]
             [fress.impl.raw-input :as rawIn]
             [fress.util :as util]))

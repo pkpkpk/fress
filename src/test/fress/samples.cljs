@@ -1,7 +1,9 @@
 (ns fress.samples
   (:require-macros [fress.test-macros :as mac])
-  (:require [cljs-node-io.core :as io :refer [slurp spit]]
-            [cljs-node-io.fs :as fs]
+  (:require
+
+            ; [cljs-node-io.core :as io :refer [slurp spit]]
+            ; [cljs-node-io.fs :as fs]
             [cljs.tools.reader :refer [read-string]]))
 
 (def int-samples
@@ -36,17 +38,45 @@
   [{:form "Double/MIN_VALUE", :value 4.9E-324, :bytes [-6 0 0 0 0 0 0 0 1], :rawbytes [250 0 0 0 0 0 0 0 1]}
    {:form "Double/MAX_VALUE", :value 1.7976931348623157E308, :bytes [-6 127 -17 -1 -1 -1 -1 -1 -1], :rawbytes [250 127 239 255 255 255 255 255 255]}])
 
-(defn local-dir [] (fs/dirname (mac/filename)))
-(def path (js/require "path"))
+; (defn local-dir [] (fs/dirname (mac/filename)))
+; (def path (js/require "path"))
+;
+; (defonce chunked_bytes_sample
+;   (let [path (path.join (local-dir) "chunked_bytes_sample.edn")]
+;     (delay
+;      (do
+;        (js/console.info "slurping path:" path)
+;        (let [_str (slurp path)]
+;          (js/console.info "reading edn...")
+;          (read-string _str))))))
 
-(defonce chunked_bytes_sample
-  (let [path (path.join (local-dir) "chunked_bytes_sample.edn")]
-    (delay
-     (do
-       (js/console.info "slurping path:" path)
-       (let [_str (slurp path)]
-         (js/console.info "reading edn...")
-         (read-string _str))))))
+; (defn byte-samples []
+;   [{:form "(byte-array [-1 -2 -3 0 1 2 3])"
+;     :bytes [-41 -1 -2 -3 0 1 2 3]
+;     :input [-1 -2 -3 0 1 2 3]}
+;    {:form "(byte-array [-4 -3 -2 -1 0 1 2 3 4])",
+;     :bytes [-39 9 -4 -3 -2 -1 0 1 2 3 4]
+;     :input [-4 -3 -2 -1 0 1 2 3 4]}
+;    (assoc @chunked_bytes_sample
+;           :chunked? true
+;           :input (vec (take 70000 (repeat 99))))])
+;
+; (defonce chunked_string_sample
+;   (let [path (path.join (local-dir) "chunked_string_sample.edn")]
+;     (delay
+;      (do
+;        (js/console.info "slurping path:" path)
+;        (let [_str (slurp path)]
+;          (js/console.info "reading edn...")
+;          (read-string _str))))))
+
+; (defn string-samples []
+;   [{:form "\"hola\"", :bytes [-34 104 111 108 97], :value "hola"}
+;    {:form "(apply str (take 20 (repeat \\A)))", :bytes [-29 20 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65 65], :value "AAAAAAAAAAAAAAAAAAAA"}
+;    {:form "\"😉 😎 🤔 😐 🙄\"",
+;     :bytes [-29 34 -19 -96 -67 -19 -72 -119 32 -19 -96 -67 -19 -72 -114 32 -19 -96 -66 -19 -76 -108 32 -19 -96 -67 -19 -72 -112 32 -19 -96 -67 -19 -71 -124]
+;     :value "😉 😎 🤔 😐 🙄"}
+;    (assoc @chunked_string_sample :chunked? true)])
 
 (defn byte-samples []
   [{:form "(byte-array [-1 -2 -3 0 1 2 3])"
@@ -55,18 +85,9 @@
    {:form "(byte-array [-4 -3 -2 -1 0 1 2 3 4])",
     :bytes [-39 9 -4 -3 -2 -1 0 1 2 3 4]
     :input [-4 -3 -2 -1 0 1 2 3 4]}
-   (assoc @chunked_bytes_sample
+   (assoc (mac/inline-edn "chunked_bytes_sample.edn")
           :chunked? true
           :input (vec (take 70000 (repeat 99))))])
-
-(defonce chunked_string_sample
-  (let [path (path.join (local-dir) "chunked_string_sample.edn")]
-    (delay
-     (do
-       (js/console.info "slurping path:" path)
-       (let [_str (slurp path)]
-         (js/console.info "reading edn...")
-         (read-string _str))))))
 
 (defn string-samples []
   [{:form "\"hola\"", :bytes [-34 104 111 108 97], :value "hola"}
@@ -74,7 +95,7 @@
    {:form "\"😉 😎 🤔 😐 🙄\"",
     :bytes [-29 34 -19 -96 -67 -19 -72 -119 32 -19 -96 -67 -19 -72 -114 32 -19 -96 -66 -19 -76 -108 32 -19 -96 -67 -19 -72 -112 32 -19 -96 -67 -19 -71 -124]
     :value "😉 😎 🤔 😐 🙄"}
-   (assoc @chunked_string_sample :chunked? true)])
+   (assoc (mac/inline-edn "chunked_string_sample.edn") :chunked? true)])
 
 (def utf8-samples
   [{:tag? true :form "(->utf8 \"hello\")", :bytes [-17 -34 117 116 102 56 2 5 104 101 108 108 111], :rawbytes [239 222 117 116 102 56 2 5 104 101 108 108 111], :value "hello"}

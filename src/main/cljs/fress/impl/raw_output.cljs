@@ -28,7 +28,8 @@
 
   (reset [this]
     (buf/reset out)
-    (adler/reset checksum))
+    (when checksum
+      (adler/reset checksum)))
 
   (getByte [this ^number index] (buf/getByte out index))
 

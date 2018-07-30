@@ -10,3 +10,4 @@ pom.xml
 .lein*
 .nrepl*
 *.asc
+resources/public/js*

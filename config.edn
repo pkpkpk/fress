@@ -2,14 +2,21 @@
  :aliases
  {:test
   {:builds
-  [{:id "test"
+  [{:id "node"
     :source-paths ["src/main" "src/test"]
     :compiler {:main fress.runner
                :output-to "target/test/fress.js"
                :output-dir "target/test"
                :target :nodejs
                :parallel-build true
-               ; :optimizations :advanced
+               :optimizations :advanced
+               :elide-asserts true}}
+   {:id "browser"
+    :source-paths ["src/main" "src/test"]
+    :compiler {:main fress.browser-runner
+               :output-to "resources/public/js/fress.js"
+               :parallel-build true
+               :optimizations :advanced
                :elide-asserts true}}]}
   :bench
   {:builds

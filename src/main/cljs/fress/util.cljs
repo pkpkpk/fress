@@ -1,4 +1,5 @@
 (ns fress.util
+  (:require-macros [fress.macros :as mac])
   (:require [goog.crypt :as gcrypt]))
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
@@ -13,16 +14,22 @@
 (def TextEncoder
   (if (exists? js/TextEncoder)
     (js/TextEncoder. "utf8")
-    (reify Object
-      (encode [_ s]
-        (js/Int8Array. (gcrypt/stringToUtf8ByteArray s))))))
+    (if ^boolean (mac/nodejs?)
+      (let [te (.-TextEncoder (js/require "util"))]
+        (new te))
+      (reify Object
+        (encode [_ s]
+          (js/Int8Array. (gcrypt/stringToUtf8ByteArray s)))))))
 
 (def TextDecoder
   (if (exists? js/TextDecoder)
     (js/TextDecoder. "utf8")
-    (reify Object
-      (decode [this bytes]
-        (gcrypt/utf8ByteArrayToString bytes)))))
+    (if ^boolean (mac/nodejs?)
+      (let [td (.-TextDecoder (js/require "util"))]
+        (new td "utf8"))
+      (reify Object
+        (decode [this bytes]
+          (gcrypt/utf8ByteArrayToString bytes))))))
 
 (extend-type ArrayList
   Object

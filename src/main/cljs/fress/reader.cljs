@@ -21,17 +21,14 @@
             (<=  0 ch>>4 7) (do (.push buf ch) (recur (inc pos)))
             (<= 12 ch>>4 13) (let [ch1 (aget source (inc pos))]
                                (.push buf (bit-or
-                                           (bit-shift-left
-                                            (bit-and ch 0x1f) 6)
+                                           (<< (bit-and ch 0x1f) 6)
                                            (bit-and ch1 0x3f)))
                                (recur (+ pos 2)))
             (= ch>>4 14) (let [ch1 (aget source (inc pos))
                                ch2 (aget source (+ pos 2))]
                            (.push buf (bit-or
-                                       (bit-shift-left
-                                        (bit-and ch 0x0f) 12)
-                                       (bit-shift-left
-                                        (bit-and ch1 0x03f) 6)
+                                       (<< (bit-and ch 0x0f) 12)
+                                       (<< (bit-and ch1 0x03f) 6)
                                        (bit-and ch2 0x3f)))
                            (recur (+ pos 3)))
             :default (throw (str "Invalid UTF-8: " ch))))))
@@ -195,77 +192,81 @@
 
 (def magicL (.shiftLeft (Long.fromNumber codes/FOOTER) 24))
 
+
 (defn internalRead [rdr ^number code]
   (let []
     (cond
+
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      ;; primitives
+
+      ;;need char!
+
+      (== code codes/UTF8) ;; first just because its a core use case
+      (readUTF8 rdr)
+
+      (== code codes/TRUE)
+      true
+
+      (== code codes/FALSE)
+      false
+
+      (== code codes/NULL)
+      nil
+
       (or (== code 0xFF)
           (<= 0x00 code 0x7F)
           (== code codes/INT))
       (internalReadInt rdr code)
 
-      (== code codes/UTF8)
-      (readUTF8 rdr)
+      (or (== code codes/DOUBLE)
+          (== code codes/DOUBLE_0)
+          (== code codes/DOUBLE_1))
+      (internalReadDouble rdr code)
 
-      (== code codes/PUT_PRIORITY_CACHE)
-      (readAndCacheObject- rdr (getPriorityCache- rdr))
+      (== code codes/FLOAT)
+      (rawIn/readRawFloat (:raw-in rdr))
 
-      (== code codes/GET_PRIORITY_CACHE)
-      (lookupCache rdr (getPriorityCache- rdr) (readInt32 rdr))
+      (<= codes/BYTES_PACKED_LENGTH_START code 215)
+      (internalReadBytes rdr (- code codes/BYTES_PACKED_LENGTH_START))
 
-      (or
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 0))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 1))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 2))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 3))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 4))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 5))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 6))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 7))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 8))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 9))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 10))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 11))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 12))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 13))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 14))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 15))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 16))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 17))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 18))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 19))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 20))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 21))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 22))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 23))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 24))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 25))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 26))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 27))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 28))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 29))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 30))
-       (== code (+ codes/PRIORITY_CACHE_PACKED_START 31)))
-      (lookupCache rdr (getPriorityCache- rdr) (- code codes/PRIORITY_CACHE_PACKED_START))
+      (== code codes/BYTES)
+      (internalReadBytes rdr (readCount- rdr))
 
-      (or
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 0))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 1))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 2))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 3))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 4))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 5))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 6))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 7))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 8))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 9))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 10))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 11))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 12))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 13))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 14))
-       (== code (+ codes/STRUCT_CACHE_PACKED_START 15)))
-      (let [struct-type (lookupCache rdr (getStructCache- rdr) (- code codes/STRUCT_CACHE_PACKED_START))]
-        (handleStruct- rdr (.-tag struct-type) (.-fields struct-type)))
+      (== code codes/BYTES_CHUNK)
+      (internalReadChunkedBytes rdr)
+
+      (<= codes/STRING_PACKED_LENGTH_START code 225)
+      (internalReadString rdr (- code codes/STRING_PACKED_LENGTH_START))
+
+      (== code codes/STRING)
+      (internalReadString rdr (readCount- rdr))
+
+      (== code codes/STRING_CHUNK)
+      (internalReadChunkedString rdr (readCount- rdr))
+
+      (<= codes/LIST_PACKED_LENGTH_START code 235)
+      (internalReadList rdr (- code codes/LIST_PACKED_LENGTH_START))
+
+      (== code codes/LIST)
+      (internalReadList rdr (readCount- rdr))
+
+      (== code codes/BEGIN_CLOSED_LIST)
+      (let [handler (getHandler- rdr "list")]
+        (handler (readClosedList rdr)))
+
+      (== code codes/BEGIN_OPEN_LIST)
+      (let [handler (getHandler- rdr "list")]
+        (handler (readOpenList rdr)))
+
+      (== code codes/FOOTER)
+      (let [calculatedLength (dec (rawIn/getBytesRead (.-raw-in rdr)))
+            i24L (Long.fromNumber (rawIn/readRawInt24 (.-raw-in rdr)))]
+        (validateFooter rdr calculatedLength (.toNumber (.add magicL i24L)))
+        (readObject rdr))
+
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      ;; extended types
 
       (== code codes/MAP)
       (handleStruct- rdr "map" 1)
@@ -297,6 +298,9 @@
       (== code codes/KEY)
       (handleStruct- rdr "key" 2)
 
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      ;; typed arrays
+
       (== code codes/INT_ARRAY)
       (handleStruct- rdr "int[]" 2)
 
@@ -315,85 +319,21 @@
       (== code codes/OBJECT_ARRAY)
       (handleStruct- rdr "Object[]" 2)
 
-      (or
-       (== code (+ codes/BYTES_PACKED_LENGTH_START 0))
-       (== code (+ codes/BYTES_PACKED_LENGTH_START 1))
-       (== code (+ codes/BYTES_PACKED_LENGTH_START 2))
-       (== code (+ codes/BYTES_PACKED_LENGTH_START 3))
-       (== code (+ codes/BYTES_PACKED_LENGTH_START 4))
-       (== code (+ codes/BYTES_PACKED_LENGTH_START 5))
-       (== code (+ codes/BYTES_PACKED_LENGTH_START 6))
-       (== code (+ codes/BYTES_PACKED_LENGTH_START 7)))
-      (internalReadBytes rdr (- code codes/BYTES_PACKED_LENGTH_START))
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-      (== code codes/BYTES)
-      (internalReadBytes rdr (readCount- rdr))
+      (== code codes/PUT_PRIORITY_CACHE)
+      (readAndCacheObject- rdr (getPriorityCache- rdr))
 
-      (== code codes/BYTES_CHUNK)
-      (internalReadChunkedBytes rdr)
+      (== code codes/GET_PRIORITY_CACHE)
+      (lookupCache rdr (getPriorityCache- rdr) (readInt32 rdr))
 
-      (or
-       (== code (+ codes/STRING_PACKED_LENGTH_START 0))
-       (== code (+ codes/STRING_PACKED_LENGTH_START 1))
-       (== code (+ codes/STRING_PACKED_LENGTH_START 2))
-       (== code (+ codes/STRING_PACKED_LENGTH_START 3))
-       (== code (+ codes/STRING_PACKED_LENGTH_START 4))
-       (== code (+ codes/STRING_PACKED_LENGTH_START 5))
-       (== code (+ codes/STRING_PACKED_LENGTH_START 6))
-       (== code (+ codes/STRING_PACKED_LENGTH_START 7)))
-      (internalReadString rdr (- code codes/STRING_PACKED_LENGTH_START))
+      ;; this and struct cache need testing
+      (<= codes/PRIORITY_CACHE_PACKED_START code 159)
+      (lookupCache rdr (getPriorityCache- rdr) (- code codes/PRIORITY_CACHE_PACKED_START))
 
-      (== code codes/STRING)
-      (internalReadString rdr (readCount- rdr))
-
-      (== code codes/STRING_CHUNK)
-      (internalReadChunkedString rdr (readCount- rdr))
-
-      (or
-       (== code (+ codes/LIST_PACKED_LENGTH_START 0))
-       (== code (+ codes/LIST_PACKED_LENGTH_START 1))
-       (== code (+ codes/LIST_PACKED_LENGTH_START 2))
-       (== code (+ codes/LIST_PACKED_LENGTH_START 3))
-       (== code (+ codes/LIST_PACKED_LENGTH_START 4))
-       (== code (+ codes/LIST_PACKED_LENGTH_START 5))
-       (== code (+ codes/LIST_PACKED_LENGTH_START 6))
-       (== code (+ codes/LIST_PACKED_LENGTH_START 7)))
-      (internalReadList rdr (- code codes/LIST_PACKED_LENGTH_START))
-
-      (== code codes/LIST)
-      (internalReadList rdr (readCount- rdr))
-
-      (== code codes/BEGIN_CLOSED_LIST)
-      (let [handler (getHandler- rdr "list")]
-        (handler (readClosedList rdr)))
-
-      (== code codes/BEGIN_OPEN_LIST)
-      (let [handler (getHandler- rdr "list")]
-        (handler (readOpenList rdr)))
-
-      (== code codes/TRUE)
-      true
-
-      (== code codes/FALSE)
-      false
-
-      (== code codes/NULL)
-      nil
-
-      (or
-       (== code codes/DOUBLE)
-       (== code codes/DOUBLE_0)
-       (== code codes/DOUBLE_1))
-      (internalReadDouble rdr code)
-
-      (== code codes/FLOAT)
-      (rawIn/readRawFloat (:raw-in rdr))
-
-      (== code codes/FOOTER)
-      (let [calculatedLength (dec (rawIn/getBytesRead (.-raw-in rdr)))
-            i24L (Long.fromNumber (rawIn/readRawInt24 (.-raw-in rdr)))]
-        (validateFooter rdr calculatedLength (.toNumber (.add magicL i24L)))
-        (readObject rdr))
+      (<= codes/STRUCT_CACHE_PACKED_START code 175)
+      (let [struct-type (lookupCache rdr (getStructCache- rdr) (- code codes/STRUCT_CACHE_PACKED_START))]
+        (handleStruct- rdr (.-tag struct-type) (.-fields struct-type)))
 
       (== code codes/STRUCTTYPE)
       (let [tag (readObject rdr)

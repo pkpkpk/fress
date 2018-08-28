@@ -456,6 +456,7 @@
    js/Date writeInst
    js/RegExp writeRegex
    js/Int8Array writeByteArray
+   js/Uint8Array writeByteArray
    js/Int32Array writeIntArray
    js/Float32Array writeFloatArray
    js/Float64Array writeDoubleArray

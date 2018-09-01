@@ -609,15 +609,12 @@
 
 (defn build-lookup
   [user-handlers name->map-ctor]
-  (let [handlers (reduce add-handler default-read-handlers user-handlers)
-        record-handler (if-let [custom-record-rdr (get user-handlers :record)]
-                         (fn [rdr tag field-count]
-                           (custom-record-rdr rdr tag field-count name->map-ctor))
-                         (fn [rdr tag field-count]
-                           (readRecord rdr tag field-count name->map-ctor)))]
+  (let [handlers (reduce add-handler default-read-handlers user-handlers)]
     (fn lookup [rdr tag]
       (if (= "record" tag)
-        record-handler
+        (get user-handlers :record
+             (fn [rdr tag field-count]
+               (readRecord rdr tag field-count name->map-ctor)))
         (get handlers tag)))))
 
 (defn valid-user-handlers? [uh]
@@ -635,8 +632,6 @@
          :or {handlers nil, offset 0, checksum? false} :as opts}]
   (when handlers
     (assert (valid-user-handlers? handlers)))
-  (when-let [rh (get handlers :record)]
-    (assert (and (fn? rh) (== (.-length rh) 4))))
   (when name->map-ctor
     (assert (valid-name->map-ctor? name->map-ctor)))
   (let [lookup (build-lookup (merge default-read-handlers handlers) name->map-ctor)

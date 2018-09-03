@@ -612,7 +612,7 @@
   (let [handlers (reduce add-handler default-read-handlers user-handlers)]
     (fn lookup [rdr tag]
       (if (= "record" tag)
-        (get user-handlers :record
+        (get user-handlers "record"
              (fn [rdr tag field-count]
                (readRecord rdr tag field-count name->map-ctor)))
         (get handlers tag)))))

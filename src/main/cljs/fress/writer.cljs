@@ -281,28 +281,26 @@
       (number? o) (or (== 0.0 o) (== 1.0 o))
       :default false))
 
-  (doWrite- [this tag o handler cache?]
-    (if ^boolean cache?
-      (if ^boolean (shouldSkipCache- this o)
-        (doWrite- this tag o handler false)
-        (let [index (hop/oldIndex (getPriorityCache this) o)]
-          (if (= index -1)
-            (do
-              (writeCode this codes/PUT_PRIORITY_CACHE)
-              (doWrite- this tag o handler false))
-            (if (< index ranges/PRIORITY_CACHE_PACKED_END)
-              (writeCode this (+ codes/PRIORITY_CACHE_PACKED_START index))
-              (do
-                (writeCode this codes/GET_PRIORITY_CACHE)
-                (writeInt this index))))))
-      (handler this o)))
+  (doWrite- [this tag o handler ^boolean cache?]
+    (if ^boolean (or (not cache?) (shouldSkipCache- this o))
+      (handler this o)
+      (let [index (hop/oldIndex (getPriorityCache this) o)]
+        (if (== index -1)
+          (do ;;newly interned, write PUT + object
+            (writeCode this codes/PUT_PRIORITY_CACHE)
+            (doWrite- this tag o handler false))
+          ;;already cached
+          (if (< index ranges/PRIORITY_CACHE_PACKED_END)
+            (writeCode this (+ codes/PRIORITY_CACHE_PACKED_START index))
+            (do ;;past cache packing
+              (writeCode this codes/GET_PRIORITY_CACHE)
+              (writeInt this index)))))))
 
   (writeList [this lst]
     (if (nil? lst)
       (writeNull this)
       (let [length (count lst)]
         (if (< length ranges/LIST_PACKED_LENGTH_END)
-          ;;;packed means when just skip count, rely on reader to read up to packed-length
           (rawOut/writeRawByte raw-out (+ length codes/LIST_PACKED_LENGTH_START))
           (do
             (writeCode this codes/LIST)

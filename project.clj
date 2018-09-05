@@ -23,9 +23,10 @@
                    (let [deps (get-in raw-deps [:aliases alias-key :extra-deps])]
                      [alias-key {:dependencies (deps->vec deps)
                                  :cljsbuild {:builds builds}}])))]
-  (defproject fress "0.2.0-SNAPSHOT"
+  (defproject fress "0.2.0"
     :description "Fressian for clojurescript"
     :url "https://github.com/pkpkpk/fress"
+    :repositories [["clojars" {:sign-releases false}]]
     :license {:name "Eclipse Public License"
               :url "http://www.eclipse.org/legal/epl-v10.html"}
     :plugins [[lein-cljsbuild "1.1.7"]]

@@ -1,5 +1,5 @@
-# `[fress "0.1.0"]`
-## `fress {:mvn/version  "0.1.0"}`
+# `[fress "0.2.0"]`
+## `fress {:mvn/version  "0.2.0"}`
 
 [![Clojars Project](https://img.shields.io/clojars/v/fress.svg)](https://clojars.org/fress)
 
@@ -32,7 +32,7 @@
 
 In javascript, binary data is kept in [ArrayBuffers][4]. [TypedArrays][9] are simply [interpretive views][8] on array buffer instances. Both are fixed size and there are no streaming constructs. If you want to 'grow' a typed array, you need to allocate a new buffer and copy over the old buffer's contents. Doing so on every write is prohibitively slow, so `fress.api/byte-stream` addresses this by pushing bytes onto a plain javascript array which is realized into a [byte-array][5] only when deref'd or closed.
 
-On the jvm, `fress.api/byte-stream` is the BytesOutputStream [provided by fressian][6] extended with `clojure.lang.IDeref`. Dereferencing returns a [java.nio.ByteBuffer][7].
+On the jvm, `fress.api/byte-stream` is the BytesOutputStream [provided by fressian][6] extended with `clojure.lang.IDeref`. Dereferencing returns a [java.nio.ByteBuffer][7] that realizes the current state of its stream.
 
 + `fress.api/create-reader` will automatically coerce byte-streams into a readable buffer
   - jvm too
@@ -41,6 +41,7 @@ On the jvm, `fress.api/byte-stream` is the BytesOutputStream [provided by fressi
   - If you deref a byte-stream and then continue to write, you will need to deref again to see the new bytes output in the buffer
 + `fress.api/create-writer` also accepts any typed-array or arraybuffer instance
   - you are responsible for making sure you have enough room to write.
++ in cljs, byte-streams can be recycled by calling `reset`
 
 
 
@@ -154,7 +155,7 @@ Our write-error function chose to write each individual component sequentially, 
 
 <hr>
 
-### Lists
+### Fressian is just S-Expressions.
 
 + Fixed sized vectors, lists, and sequences are all written as generic lists and are read back as vectors.
 

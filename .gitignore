@@ -11,3 +11,4 @@ pom.xml
 .nrepl*
 *.asc
 resources/public/js*
+resources/wasm-test/target/*

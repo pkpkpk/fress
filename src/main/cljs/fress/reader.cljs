@@ -205,6 +205,9 @@
       (== code codes/UTF8) ;; first just because its a core use case
       (readUTF8 rdr)
 
+      (== code codes/ERROR)
+      (handleStruct- rdr "error" 1)
+
       (== code codes/TRUE)
       true
 

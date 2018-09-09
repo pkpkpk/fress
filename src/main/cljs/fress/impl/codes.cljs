@@ -23,6 +23,7 @@
 (def ^:const INST 0xC8)
 (def ^:const SYM 0xC9)
 (def ^:const KEY 0xCA)
+(def ^:const ERROR 0xCB) ;; 203 <= WASM ONLY //////////////
 (def ^:const GET_PRIORITY_CACHE 0xCC)
 (def ^:const PUT_PRIORITY_CACHE 0xCD)
 (def ^:const PRECACHE 0xCE)

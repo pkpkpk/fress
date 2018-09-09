@@ -29,3 +29,10 @@
         _ (assert (.exists file))
         data (edn/read-string (slurp file))]
     data))
+
+(defmacro root []
+  (let [caller-file (io/file ana/*cljs-file*)]
+    (loop [f (.getParentFile caller-file)]
+      (if (= "src" (.getName f))
+        (.getPath (.getParentFile f))
+        (recur (.getParentFile f))))))

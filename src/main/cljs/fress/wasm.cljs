@@ -16,3 +16,6 @@
 (deftype Error [])
 
 (defn read-bytes [Mod ptr]) ;=> [?Error ?Value]
+
+
+; (defn read [])

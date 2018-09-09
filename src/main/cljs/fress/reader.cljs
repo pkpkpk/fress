@@ -7,6 +7,7 @@
   (:import [goog.math Long]))
 
 (def ^:dynamic *EOF-after-footer?* true) ;goog define?
+(def *keywordize-keys* true) ;; this can be lossy!
 
 (defrecord StructType [tag fields])
 (defrecord TaggedObject [tag value]) ;meta
@@ -471,8 +472,14 @@
     (into #{} lst)))
 
 (defn readMap [rdr _ _]
-  (let [lst (readObject rdr)]
-    (apply hash-map lst)))
+  (if-not ^boolean *keywordize-keys*
+    (apply hash-map (readObject rdr))
+    (loop [in (readObject rdr) out (transient (.-EMPTY PersistentHashMap))]
+      (if in
+        (let [k (first in)
+              key (if (string? k) (keyword k) k)]
+          (recur (nnext in) (assoc! out key (second in))))
+        (persistent! out)))))
 
 (defn readIntArray [rdr _ _]
   (let [length (readInt rdr)

@@ -7,6 +7,10 @@
             [fress.impl.hopmap :as hop]
             [fress.util :as util :refer [log dbg]]))
 
+(def ^:dynamic *write-raw-utf8* false)
+(def ^:dynamic *write-utf8-tag* false)
+(def ^:dynamic *stringify-keys* false)
+
 (defn utf8-encoding-size
   "src/org/fressian/impl/Fns.java:117:4"
   [ch]
@@ -135,9 +139,6 @@
     (rawOut/writeRawInt32 raw-out codes/FOOTER_MAGIC)
     (rawOut/writeRawInt32 raw-out length)
     (rawOut/writeRawInt32 raw-out (rawOut/getChecksum raw-out))))
-
-(def ^:dynamic *write-raw-utf8* false)
-(def ^:dynamic *write-utf8-tag* false)
 
 (defn writeRawUTF8
   "We can use native TextEncoder to remove some dirty work, also chunking is
@@ -362,7 +363,13 @@
 
 (defn writeMap [wrt m]
   (writeTag wrt "map" 1)
-  (writeList wrt (mapcat identity (seq m))))
+  (if-not ^boolean *stringify-keys*
+    (writeList wrt (mapcat identity (seq m)))
+    (writeList wrt (mapcat (fn [[k v :as entry]]
+                             (if (keyword? k)
+                               [(str k) v]
+                               entry))
+                           (seq m)))))
 
 (defn- writeNamed [tag wtr s]
   (writeTag wtr tag 2)

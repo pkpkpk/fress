@@ -67,17 +67,19 @@
      (let [bytes (api/write any)
            write-ptr (wasm-api/write-bytes Mod bytes)
            read-ptr ((.. Mod -exports -echo) write-ptr (alength bytes))]
-       (fress.api/read-all (.. Mod -exports -memory) :offset read-ptr))
+       (wasm-api/read-all Mod read-ptr))
      (throw (js/Error "missing module")))))
 
 (defn get-err
   ([]
    (if-let [Mod @module]
      (let [read-ptr ((.. Mod -exports -get_err))]
-       (fress.api/read-all (.. Mod -exports -memory) :offset read-ptr)
-       )
+       (wasm-api/read-all Mod read-ptr))
      (throw (js/Error "missing module")))))
 
 
 (defn mod-tests [Mod])
 
+
+
+; :stringify-keys!

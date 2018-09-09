@@ -123,3 +123,6 @@
     (fn ^number [u8]
       (aset bytea 0 u8)
       (aget bytea 0))))
+
+(defn valid-pointer? [ptr]
+  (and (number? ptr) (js/isFinite ptr) (pos? ptr) (integer? ptr)))

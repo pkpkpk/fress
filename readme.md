@@ -13,7 +13,7 @@
 (def writer (fress/create-writer buf))
 
 (def data [{::sym 'foo/bar
-            :inst #?(:cljs (js/Date.now)
+            :inst #?(:cljs (js/Date.)
                      :clj (java.util.Date.))
             :set #{42 true nil "string"}}])
 

@@ -70,16 +70,21 @@
        (wasm-api/read-all Mod read-ptr))
      (throw (js/Error "missing module")))))
 
-(defn get-err
+(defn get-errors ;=> [?err ?[[err0 err1 err2 err3]]]
   ([]
    (if-let [Mod @module]
-     (let [read-ptr ((.. Mod -exports -get_err))]
+     (let [read-ptr ((.. Mod -exports -get_errors))]
        (wasm-api/read-all Mod read-ptr))
      (throw (js/Error "missing module")))))
 
+(defn errors-test []
+  (let [[_ [errors]] (get-errors)]
+    (is (= (nth errors 0) {:type "serde-fressian"
+                           :category "Misc"
+                           :ErrorCode "Message"
+                           :value "some message"
+                           :position 0}))
+    ))
 
 (defn mod-tests [Mod])
 
-
-
-; :stringify-keys!

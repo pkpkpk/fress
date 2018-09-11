@@ -207,7 +207,7 @@
       (readUTF8 rdr)
 
       (== code codes/ERROR)
-      (handleStruct- rdr "error" 1)
+      (readObject rdr)
 
       (== code codes/TRUE)
       true

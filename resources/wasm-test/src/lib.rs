@@ -17,24 +17,28 @@ pub extern "C" fn hello() -> *mut c_void {
     wasm::to_js(data)
 }
 
-
 #[no_mangle]
 pub extern "C" fn echo(ptr: *mut u8, cap: usize) -> *mut c_void
 {
     let bytes: Vec<u8> = wasm::ptr_to_vec(ptr, cap);
     let val: Result<Value> = de::from_vec(&bytes);
-
     wasm::to_js(val)
-
-    // wasm::to_js( format!("bytes: {:?}, ptr: {:?}, cap: {:?}", bytes, ptr, cap))
 }
 
+#[no_mangle]
+pub extern "C" fn single_error() -> *mut c_void
+{
+    let err: Error = Error::msg("a single error.".to_string());
+    wasm::to_js(err)
+}
 
 #[no_mangle]
-pub extern "C" fn get_err(ptr: *mut u8, cap: usize) -> *mut c_void
+pub extern "C" fn get_errors() -> *mut c_void
 {
+    let msg: Error = Error::msg("some message".to_string());
+    // let unmatched_code: Error =  Error
 
-    let val: Error = Error::msg("woohoo".to_string());
+    let errors: Vec<Error> = vec![msg];
 
-    wasm::to_js(val)
+    wasm::to_js(errors)
 }

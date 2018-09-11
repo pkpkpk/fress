@@ -1,5 +1,6 @@
 (ns fress.wasm
   (:require [fress.api :as api]
+            [fress.impl.codes :as codes]
             [fress.util :as util]))
 
 (defn wasm-module? [o] (instance? js/WebAssembly.Instance o))
@@ -18,23 +19,14 @@
     (.set view bytes ptr)
     ptr))
 
-
-(defrecord Error [category position])
-
-;; should there be Ok(value) type that returns read length so
-;; it can be freed?
-
 (defn read-all [Mod ptr]
   (assert-fress-mod! Mod)
   (assert (util/valid-pointer? ptr))
-  (let [res (fress.api/read-all (.. Mod -exports -memory)
-                                :offset ptr
-                                ;; bake-in
-                                :handlers {"error" (fn [rdr tag fields]
-                                                     (map->Error (api/read-object rdr)))})]
+  (let [view (js/Uint8Array. (.. Mod -exports -memory -buffer))
+        result (fress.api/read-all view :offset ptr)]
     ;; ...free....
-    (if (instance? Error res)
-      [res]
-      [nil res])))
+    (if (== codes/ERROR (aget view ptr))
+      [result]
+      [nil result])))
 
 (defn write [v]) ;; stringify-keys

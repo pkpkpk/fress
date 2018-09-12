@@ -29,18 +29,10 @@
 (defonce module (atom nil))
 
 (defn build []
-  (js/console.clear)
-  (take! (cargo/build! cfg)
-    (fn [[e buffer]]
-      (if e
-        (cargo/report-error e)
-        (let [importOptions #js{}]
-          (take! (cargo/init-module buffer importOptions)
-            (fn [[e compiled]]
-              (if e
-                (cargo/report-error e)
-                (do
-                  (reset! module (.. compiled -instance)))))))))))
+  (take! (cargo/build-wasm! cfg)
+    (fn [[e Mod]]
+      (if-not e
+        (reset! module Mod)))))
 
 (declare mod-tests)
 
@@ -80,11 +72,20 @@
 (defn errors-test []
   (let [[_ [errors]] (get-errors)]
     (is (= (nth errors 0) {:type "serde-fressian"
-                           :category "Misc"
+                           :category "misc"
                            :ErrorCode "Message"
                            :value "some message"
                            :position 0}))
-    ))
+    (is (= (nth errors 1) {:type "serde-fressian"
+                           :category "de"
+                           :ErrorCode "UnmatchedCode"
+                           :value 42
+                           :position 43}))
+    (is (= (nth errors 2) {:type "serde-fressian"
+                           :category "ser"
+                           :ErrorCode "UnsupportedCacheType"
+                           :position 99}))))
 
-(defn mod-tests [Mod])
+(defn mod-tests [Mod]
+  (errors-test))
 

@@ -5,11 +5,12 @@ extern crate serde_fressian;
 
 use std::os::raw::{c_void};
 // use serde::Serialize;
-// use serde_fressian::ser::{self,Serializer};
+
 use serde_fressian::de::{self};
-use serde_fressian::wasm::{self};
+use serde_fressian::ser::{self};
 use serde_fressian::error::{Error, ErrorCode, Result};
 use serde_fressian::value::{self, Value};
+use serde_fressian::wasm::{self};
 
 #[no_mangle]
 pub extern "C" fn hello() -> *mut c_void {
@@ -36,9 +37,10 @@ pub extern "C" fn single_error() -> *mut c_void
 pub extern "C" fn get_errors() -> *mut c_void
 {
     let msg: Error = Error::msg("some message".to_string());
-    // let unmatched_code: Error =  Error
+    let unmatched_code: Error = Error::unmatched_code(42, 43);
+    let unsupported = Error::syntax(ErrorCode::UnsupportedCacheType, 99);
 
-    let errors: Vec<Error> = vec![msg];
+    let errors: Vec<Error> = vec![msg, unmatched_code, unsupported];
 
     wasm::to_js(errors)
 }

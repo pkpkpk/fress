@@ -170,6 +170,12 @@
         buffer nil]
     (BytesOutputStream. #js[] bytesWritten open? buffer)))
 
+(defn with-capacity [n]
+  (let [bytesWritten 0
+        open? true
+        buffer nil]
+    (BytesOutputStream. (make-array n) bytesWritten open? buffer)))
+
 (deftype
   ^{:doc "used on fixed size buffers"}
   BufferWriter [memory ^number memory-offset ^number bytesWritten]
@@ -217,6 +223,12 @@
   ([backing](readable-buffer backing 0))
   ([backing backing-offset]
    (cond
+     (some? (.-buffer backing))
+     (BufferReader. backing (int (or backing-offset 0)) 0 true)
+
+     (instance? js/ArrayBuffer backing)
+     (readable-buffer (js/Int8Array. backing) backing-offset)
+
      (implements? IBufferReader backing)
      backing
 
@@ -231,12 +243,6 @@
 
      (instance? BufferWriter backing)
      (readable-buffer (.-memory backing) backing-offset)
-
-     (instance? js/ArrayBuffer backing)
-     (readable-buffer (js/Int8Array. backing) backing-offset)
-
-     (some? (.-buffer backing))
-     (BufferReader. backing (int (or backing-offset 0)) 0 true)
 
      :else
      (throw

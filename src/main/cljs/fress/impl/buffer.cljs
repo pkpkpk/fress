@@ -1,4 +1,5 @@
-(ns fress.impl.buffer)
+(ns fress.impl.buffer
+  (:require [fress.util :as util]))
 
 (defprotocol IBuffer
   (getByte [this index])
@@ -97,29 +98,22 @@
   (-deref [this] (or buffer (toByteArray this)))
   IBuffer
   (reset [this]
+    ; (.fill arr nil)
     (set! (.-bytesWritten this) 0)
     (set! (.-buffer this) nil))
   (close [this]
     (set! (.-open? this) false)
     (toByteArray this))
   IStreamingWriter
-  ; (wrap [this buf](wrap this buf 0))
-  ; (wrap [this buf off]
-  ;   (let []))
   (flushTo [this buf] (flushTo this buf 0))
-  (flushTo [this buf off]
-    (assert (some? (.-buffer buf)) "flushTo requires an arraybuffer backed byte-array")
-    (let [free (- (.. buf -buffer -byteLength) off)]
-      (if-not (<= bytesWritten free)
-        (throw (js/Error. "flush-to buffer is too small"))
-        (let [ba (if (= (type buf) js/Int8Array)
-                   buf
-                   (js/Int8Array. (.. buf -buffer)))]
-          (assert (and (int? off) (<= 0 off)) "flush-to offset must be a positive integer")
-          (loop [i 0]
-            (when (< i bytesWritten)
-              (aset ba (+ i off) (aget arr i))
-              (recur (inc i))))))))
+  (flushTo [this buf ptr]
+    (assert (some? (.-buffer buf)) "flushTo requires an arraybuffer backed typed-array")
+    (assert (util/valid-pointer? ptr))
+    (let [bytes (if (== (alength arr) bytesWritten)
+                  arr
+                  (.slice arr 0 bytesWritten))]
+      (assert (= (alength bytes) bytesWritten))
+      (.set buf bytes ptr)))
   (toByteArray [this]
     (or buffer
         (let [ba (if (== bytesWritten (alength arr))

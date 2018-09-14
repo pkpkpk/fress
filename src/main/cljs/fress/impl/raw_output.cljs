@@ -103,10 +103,10 @@
   (writeRawDouble [this f]
     (let [f64array (js/Float64Array. 1)]
       (aset f64array 0 f)
-      (let [bytes (js/Int8Array. (. f64array -buffer))]
+      (let [bytes (js/Uint8Array. (. f64array -buffer))]
         (if ^boolean isBigEndian
-          (writeRawBytes this bytes 0 (alength bytes))
-          (writeRawBytes this (.reverse bytes) 0 (alength bytes)))))))
+          (writeRawBytes this bytes)
+          (writeRawBytes this (.reverse bytes)))))))
 
 (defn raw-output
   ([](raw-output nil))

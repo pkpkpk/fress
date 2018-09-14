@@ -144,24 +144,23 @@
     (when open?
       (loop [i 0]
         (when-let [byte (aget bytes i)]
-          (if (< (+ i bytesWritten) (alength arr))
-            (aset arr i byte)
+          (if (<= bytesWritten (alength arr))
+            (aset arr bytesWritten byte)
             (.push arr byte))
+          (notifyBytesWritten this 1)
           (recur (inc i))))
-      (notifyBytesWritten this (alength bytes))
       (set! (.-buffer this) nil)
       true))
   (writeBytes [this bytes offset length]
     (when open?
       (loop [i offset]
-        (if-let [byte (and (< (- i offset) length)
-                             (aget bytes i))]
+        (if-let [byte (and (< (- i offset) length) (aget bytes i))]
           (do
-            (if (< (+ i bytesWritten) (alength arr))
+            (if (<= (+ i bytesWritten) (alength arr))
               (aset arr i byte)
               (.push arr byte))
-            (recur (inc i)))
-          (notifyBytesWritten this (- i offset))))
+            (notifyBytesWritten this 1)
+            (recur (inc i)))))
       (set! (.-buffer this) nil)
       true)))
 

@@ -97,8 +97,8 @@
       (aset f32array 0 f)
       (let [bytes (js/Int8Array. (.-buffer f32array))]
         (if ^boolean isBigEndian
-          (writeRawBytes this bytes 0 (alength bytes))
-          (writeRawBytes this (.reverse bytes) 0 (alength bytes))))))
+          (writeRawBytes this bytes)
+          (writeRawBytes this (.reverse bytes))))))
 
   (writeRawDouble [this f]
     (let [f64array (js/Float64Array. 1)]

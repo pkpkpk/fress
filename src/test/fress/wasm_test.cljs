@@ -56,9 +56,14 @@
   ([](echo "hello from javascript"))
   ([any]
    (if-let [Mod @module]
-     (let [bytes (api/write any)
-           write-ptr (wasm-api/write-bytes Mod bytes)
-           read-ptr ((.. Mod -exports -echo) write-ptr (alength bytes))]
+     (let [
+           ; bytes (api/write any)
+           ; _(log "old bytes:" bytes)
+           ; write-ptr (wasm-api/write-bytes Mod bytes)
+           ; length (alength bytes)
+           [write-ptr length :as foo] (wasm-api/write Mod any)
+
+           read-ptr ((.. Mod -exports -echo) write-ptr length)]
        (wasm-api/read-all Mod read-ptr))
      (throw (js/Error "missing module")))))
 
@@ -86,6 +91,55 @@
                            :ErrorCode "UnsupportedCacheType"
                            :position 99}))))
 
+(extend-type goog.Uri
+  IEquiv
+  (-equiv [this that] (= (.toString this) (.toString that))))
+
+(extend-type js/RegExp
+  IEquiv
+  (-equiv [this that] (= (.toString this) (.toString that))))
+
+(extend-type js/Int32Array
+  IEquiv
+  (-equiv [this that] (= (array-seq this) (array-seq that))))
+
+(extend-type js/Float32Array
+  IEquiv
+  (-equiv [this that] (= (array-seq this) (array-seq that))))
+
+(extend-type js/Float64Array
+  IEquiv
+  (-equiv [this that] (= (array-seq this) (array-seq that))))
+
+(defn echo-primitives []
+  (are [x y] (= (echo x) y)
+       nil [nil [nil]]
+       true [nil [true]]
+       false [nil [false]]
+       0 [nil [0]]
+       -5 [nil [-5]]
+       js/Number.MIN_SAFE_INTEGER [nil [js/Number.MIN_SAFE_INTEGER]]
+       js/Number.MAX_SAFE_INTEGER [nil [js/Number.MAX_SAFE_INTEGER]]
+       0.0 [nil [0.0]]
+       1.0 [nil [1.0]]
+       ;;; 99.999 [nil [99.999]]
+       1e2 [nil [1e2]]
+       1.0e2 [nil [1.0e2]]
+       1.1e2 [nil [1.1e2]]
+       ;;; 1.23e-4 [nil [1.23e-4]]
+       js/Number.MIN_VALUE [nil [js/Number.MIN_VALUE]]
+       js/Number.MAX_VALUE [nil [js/Number.MAX_VALUE]]
+       (js/Int8Array. #js[-2 -1 0 1 2]) [nil [(js/Int8Array. #js[-2 -1 0 1 2])]]
+       (js/Uint8Array. #js[-2 -1 0 1 2]) [nil [(js/Int8Array. #js[-2 -1 0 1 2])]]
+       "" [nil [""]]
+       "hello" [nil ["hello"]]
+       "cellar door" [nil ["cellar door"]]
+       "😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄" [nil ["😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄"]]))
+
+
+
+
 (defn mod-tests [Mod]
-  (errors-test))
+  (errors-test)
+  (echo-primitives))
 

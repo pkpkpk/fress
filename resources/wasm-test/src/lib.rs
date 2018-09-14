@@ -27,13 +27,6 @@ pub extern "C" fn echo(ptr: *mut u8, cap: usize) -> *mut c_void
 }
 
 #[no_mangle]
-pub extern "C" fn single_error() -> *mut c_void
-{
-    let err: Error = Error::msg("a single error.".to_string());
-    wasm::to_js(err)
-}
-
-#[no_mangle]
 pub extern "C" fn get_errors() -> *mut c_void
 {
     let msg: Error = Error::msg("some message".to_string());

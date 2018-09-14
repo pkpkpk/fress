@@ -474,12 +474,14 @@
 (defn readMap [rdr _ _]
   (if-not ^boolean *keywordize-keys*
     (apply hash-map (readObject rdr))
-    (loop [in (readObject rdr) out (transient (.-EMPTY PersistentHashMap))]
-      (if in
-        (let [k (first in)
-              key (if (string? k) (keyword k) k)]
-          (recur (nnext in) (assoc! out key (second in))))
-        (persistent! out)))))
+    (if-let [in (not-empty (readObject rdr))]
+      (loop [in in out (transient (.-EMPTY PersistentHashMap))]
+        (if-not in
+          (persistent! out)
+          (let [k (first in)
+                key (if (string? k) (keyword k) k)]
+            (recur (nnext in) (assoc! out key (second in))))))
+      {})))
 
 (defn readIntArray [rdr _ _]
   (let [length (readInt rdr)

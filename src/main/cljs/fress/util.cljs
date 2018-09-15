@@ -11,6 +11,12 @@
     (when *debug*
       (apply log args))))
 
+(defn valid-pointer? [ptr]
+  (and (number? ptr)
+       (js/isFinite ptr)
+       (<= 0 ptr)
+       (integer? ptr)))
+
 (def TextEncoder
   (if (exists? js/TextEncoder)
     (js/TextEncoder. "utf8")
@@ -124,5 +130,3 @@
       (aset bytea 0 u8)
       (aget bytea 0))))
 
-(defn valid-pointer? [ptr]
-  (and (number? ptr) (js/isFinite ptr) (pos? ptr) (integer? ptr)))

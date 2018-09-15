@@ -7,7 +7,7 @@
   (:import [goog.math Long]))
 
 (def ^:dynamic *EOF-after-footer?* true) ;goog define?
-(def *keywordize-keys* true) ;; this can be lossy!
+(def ^:dynamic *keywordize-keys* false) ;; this can be lossy!
 
 (defrecord StructType [tag fields])
 (defrecord TaggedObject [tag value]) ;meta

@@ -58,17 +58,22 @@
    and return a tuple containing a pointer and the length of the bytes written.
    The pointer+length should be given synchronously to an exported wasm
    function to claim and deserialize fressian data.
-     + currently opts is :handlers only, no :record->name, :checksum?
+     + opts
+       - :handlers {type write-handler}
+       - :stringify-keys bool
+       - no :record->name, :checksum?
    => [pointer length]"
   (let [buffer (buf/with_capacity 128)]
-    (fn [Mod obj & {:keys [handlers]}]
+    (fn [Mod obj & {:keys [handlers stringify-keys]}]
       (assert-fress-mod! Mod)
-      (binding [w/*stringify-keys* true]
-        (let [writer (w/writer buffer :handlers handlers)
-              _ (w/writeObject writer obj)
-              byte-length (buf/getBytesWritten buffer)
-              ptr ((.. Mod -exports -fress_alloc) byte-length)
-              view (js/Uint8Array. (.. Mod -exports -memory -buffer))]
-          (buf/flushTo buffer view ptr)
-          (buf/reset buffer)
-          [ptr byte-length])))))
+      (let [writer (w/writer buffer :handlers handlers)
+            _ (if stringify-keys
+                (binding [w/*stringify-keys* stringify-keys]
+                  (w/writeObject writer obj))
+                (w/writeObject writer obj))
+            byte-length (buf/getBytesWritten buffer)
+            ptr ((.. Mod -exports -fress_alloc) byte-length)
+            view (js/Uint8Array. (.. Mod -exports -memory -buffer))]
+        (buf/flushTo buffer view ptr)
+        (buf/reset buffer)
+        [ptr byte-length]))))

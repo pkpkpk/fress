@@ -361,13 +361,20 @@
       (writeDouble this n)))
   this)
 
+(defn fullname [kw]
+  (if-not (qualified-keyword? kw)
+    (name kw)
+    (let [_ns (namespace kw)
+          _name (name kw)]
+      (str _ns "/" _name))))
+
 (defn writeMap [wrt m]
   (writeTag wrt "map" 1)
   (if-not ^boolean *stringify-keys*
     (writeList wrt (mapcat identity (seq m)))
     (writeList wrt (mapcat (fn [[k v :as entry]]
                              (if (keyword? k)
-                               [(str k) v]
+                               [(fullname k) v]
                                entry))
                            (seq m)))))
 

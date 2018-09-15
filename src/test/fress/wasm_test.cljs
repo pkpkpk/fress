@@ -56,22 +56,19 @@
   ([](echo "hello from javascript"))
   ([any]
    (if-let [Mod @module]
-     (let [
-           ; bytes (api/write any)
-           ; _(log "old bytes:" bytes)
-           ; write-ptr (wasm-api/write-bytes Mod bytes)
-           ; length (alength bytes)
-           [write-ptr length :as foo] (wasm-api/write Mod any)
-
-           read-ptr ((.. Mod -exports -echo) write-ptr length)]
-       (wasm-api/read-all Mod read-ptr))
+     (binding [fress.reader/*keywordize-keys* false
+               fress.writer/*stringify-keys* false]
+       (let [[write-ptr length :as foo] (wasm-api/write Mod any)
+             read-ptr ((.. Mod -exports -echo) write-ptr length)]
+         (wasm-api/read-all Mod read-ptr)))
      (throw (js/Error "missing module")))))
 
 (defn get-errors ;=> [?err ?[[err0 err1 err2 err3]]]
   ([]
    (if-let [Mod @module]
      (let [read-ptr ((.. Mod -exports -get_errors))]
-       (wasm-api/read-all Mod read-ptr))
+       (binding [fress.reader/*keywordize-keys* true]
+         (wasm-api/read-all Mod read-ptr)))
      (throw (js/Error "missing module")))))
 
 (defn errors-test []
@@ -129,17 +126,60 @@
        ;;; 1.23e-4 [nil [1.23e-4]]
        js/Number.MIN_VALUE [nil [js/Number.MIN_VALUE]]
        js/Number.MAX_VALUE [nil [js/Number.MAX_VALUE]]
-       (js/Int8Array. #js[-2 -1 0 1 2]) [nil [(js/Int8Array. #js[-2 -1 0 1 2])]]
-       (js/Uint8Array. #js[-2 -1 0 1 2]) [nil [(js/Int8Array. #js[-2 -1 0 1 2])]]
+       (js/Int8Array.  #js[-2 -1 0 1 2])  [nil [(js/Int8Array. #js[-2 -1 0 1 2])]]
+       (js/Uint8Array. #js[-2 -1 0 1 2])  [nil [(js/Int8Array. #js[-2 -1 0 1 2])]]
        "" [nil [""]]
        "hello" [nil ["hello"]]
        "cellar door" [nil ["cellar door"]]
        "😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄" [nil ["😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄"]]))
 
 
+(defn echo-test []
+  (are [x y] (= (echo x) y)
+       :foo [nil [:foo]]
+       ::foo [nil [::foo]]
+       'foo [nil ['foo]]
+       'foo/bar [nil ['foo/bar]]
+       'foo.bar/baz [nil ['foo.bar/baz]]
+
+       [] [nil [[]]]
+       [true false true] [nil [[true false true]]]
+       [true true true] [nil [[true true true]]]
+       [0 1 2] [nil [[0 1 2]]]
+       [-4 -3 -2 -1 0 1 2 3 4] [nil [[-4 -3 -2 -1 0 1 2 3 4]]]
+       [:foo :foo :foo :foo] [nil [[:foo :foo :foo :foo]]]
+       [::foo ::foo ::foo ::foo] [nil [[::foo ::foo ::foo ::foo]]]
+
+       {:foo :bar} [nil [{:foo :bar}]]
+       {:foo {::foo {":bar" "baz"}}} [nil [{:foo {::foo {":bar" "baz"}}}]]
+       {:foo 0 ::bar [0 1 2]} [nil [{:foo 0 ::bar [0 1 2]}]]
+       {"string" 0} [nil [{"string" 0}]]
+
+       [true -99 nil "😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄" (js/Int8Array. #js[-2 -1 0 1 2])]
+       [nil [[true -99 nil "😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄" (js/Int8Array. #js[-2 -1 0 1 2])]]]
+
+       #{:foo "bar" [1 2 3]} [nil [#{:foo "bar" [1 2 3]}]]
+       #inst "2018-09-14T08:48:33.569-00:00" [nil [#inst "2018-09-14T08:48:33.569-00:00"]]
+       #"\n" [nil [#"\n"]]
+       (goog.Uri. "https://www.youtube.com/watch?v=PJfeoo5GW-w") [nil [(goog.Uri. "https://www.youtube.com/watch?v=PJfeoo5GW-w")]]
+       #uuid "e2a1e404-5d43-40f2-8cbf-a4820bfe0f27" [nil [#uuid "e2a1e404-5d43-40f2-8cbf-a4820bfe0f27"]]
+       (js/Int32Array. #js[1 2 3]) [nil [(js/Int32Array. #js[1 2 3])]]
+       (js/Float32Array. #js[1 2 3]) [nil [(js/Float32Array. #js[1 2 3])]]
+       (js/Float64Array. #js[1 2 3]) [nil [(js/Float64Array. #js[1 2 3])]]))
+
+
+; BIGINT
+; BIGDEC
+; LONG_ARRAY
+; BOOLEAN_ARRAY
+; OBJECT_ARRAY
+; struct
+; (defrecord SomeRec [f0])
+; TaggedObject
 
 
 (defn mod-tests [Mod]
   (errors-test)
-  (echo-primitives))
+  (echo-primitives)
+  (echo-test))
 

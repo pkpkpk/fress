@@ -19,6 +19,12 @@ pub extern "C" fn hello() -> *mut c_void {
 }
 
 #[no_mangle]
+pub extern "C" fn big_string() -> *mut c_void {
+    let data = vec!["😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄"];
+    wasm::to_js(data)
+}
+
+#[no_mangle]
 pub extern "C" fn echo(ptr: *mut u8, cap: usize) -> *mut c_void
 {
     let bytes: Vec<u8> = wasm::ptr_to_vec(ptr, cap);

@@ -209,6 +209,15 @@
       (== code codes/ERROR)
       (readObject rdr)
 
+      (== code codes/STR)
+      (let [length (readInt rdr)]
+        (if (zero? length)
+          ""
+          (let [ptr (readInt rdr) ;can be uncompressed u32
+                memory (.-memory (:in (:raw-in rdr)))
+                buf (.-buffer memory)]
+            (.decode util/TextDecoder (js/Int8Array. buf ptr length)))))
+
       (== code codes/TRUE)
       true
 
@@ -641,13 +650,14 @@
 
 (defn reader
   [in & {:keys [handlers checksum? offset name->map-ctor]
-         :or {handlers nil, offset 0, checksum? false} :as opts}]
+         :or {handlers nil, checksum? false} :as opts}]
   (when handlers
     (assert (valid-user-handlers? handlers)))
   (when name->map-ctor
     (assert (valid-name->map-ctor? name->map-ctor)))
   (when offset ;; doesn't check in memory range or size
     (assert (util/valid-pointer? offset)))
-  (let [lookup (build-lookup (merge default-read-handlers handlers) name->map-ctor)
+  (let [offset (or offset 0)
+        lookup (build-lookup (merge default-read-handlers handlers) name->map-ctor)
         raw-in (rawIn/raw-input in offset checksum?)]
     (FressianReader. in raw-in lookup nil nil)))

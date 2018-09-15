@@ -23,7 +23,7 @@
 (def ^:const INST 0xC8)
 (def ^:const SYM 0xC9)
 (def ^:const KEY 0xCA)
-(def ^:const ERROR 0xCB) ;; 203 <= WASM ONLY //////////////
+(def ^:const ERROR 0xCB) ;; 203 extended
 (def ^:const GET_PRIORITY_CACHE 0xCC)
 (def ^:const PUT_PRIORITY_CACHE 0xCD)
 (def ^:const PRECACHE 0xCE)
@@ -45,6 +45,7 @@
 (def ^:const STRUCTTYPE 0xEF)
 (def ^:const STRUCT 0xF0 );240
 (def ^:const META 0xF1)
+(def ^:const STR 0xF2) ;; WASM read-only
 (def ^:const ANY 0xF4)
 (def ^:const TRUE 0xF5)
 (def ^:const FALSE 0xF6)

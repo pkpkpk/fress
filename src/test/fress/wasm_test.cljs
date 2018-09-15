@@ -52,6 +52,18 @@
                   (set! cargo/*verbose* true)
                   (done))))))))))
 
+(defn hello []
+  (if-let [Mod @module]
+    (let [read-ptr ((.. Mod -exports -hello))]
+      (wasm-api/read-all Mod read-ptr))
+    (throw (js/Error "missing module"))))
+
+(defn big-string []
+  (if-let [Mod @module]
+    (let [read-ptr ((.. Mod -exports -big-string))]
+      (wasm-api/read-all Mod read-ptr))
+    (throw (js/Error "missing module"))))
+
 (defn echo
   ([](echo "hello from javascript"))
   ([any]

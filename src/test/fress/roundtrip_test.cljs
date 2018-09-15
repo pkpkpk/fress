@@ -294,7 +294,7 @@
 (defn write-error [writer err]
   (let [name (.-name err)
         msg (.-message err)
-        stack (.-stack err)]
+        stack "elided"] ;(.-stack err)
     (w/writeTag writer "js-error" 3) ;<-- don't forget field count!
     (w/writeObject writer name)
     (w/writeObject writer msg)
@@ -327,10 +327,13 @@
         (is (nil? (w/writeObject wrt te)))
         (is (nil? (w/writeObject wrt ce)))
         (testing "no read fn"
-          (let [rdr (api/create-reader out)]
-            (is (api/tagged-object? (api/read-object rdr)))
-            (is (api/tagged-object? (api/read-object rdr)))
-            (is (api/tagged-object? (api/read-object rdr)))))
+          (let [rdr (api/create-reader out)
+                [a b c :as tos] (api/read-all rdr)]
+            (is (every? api/tagged-object? tos))
+            (is (= ["js-error" "js-error" "js-error"] (map :tag tos)))
+            (is (= (vec (get a :value)) ["Error" "a generic error" "elided"]))
+            (is (= (vec (get b :value)) ["TypeError" "a type error" "elided"]))
+            (is (= (vec (get c :value)) ["a name!" "a msg!" "elided"]))))
         (testing "with read fn"
           (let [rdr (api/create-reader out :handlers {tag read-error})]
             (let [{:keys [name msg]} (r/readObject rdr)]

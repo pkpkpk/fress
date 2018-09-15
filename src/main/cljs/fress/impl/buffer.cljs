@@ -20,6 +20,7 @@
   (getFreeCapacity [this] "remaining free bytes to write")
   (room? [this length])
   (getBytesWritten [this])
+  (-writeByte [this byte])
   (writeByte [this byte])
   (writeBytes [this bytes] [this bytes offset length])
   (notifyBytesWritten [this ^int count]))
@@ -93,9 +94,9 @@
      is only realized into an byte-array when close() is called.
 
      In future can use ArrayBuffer.transfer()"}
-  BytesOutputStream [arr ^number bytesWritten ^boolean open? buffer]
+  BytesOutputStream [arr ^number bytesWritten ^boolean open?]
   IDeref
-  (-deref [this] (or buffer (toByteArray this)))
+  (-deref [this] (toByteArray this))
   IBuffer
   (reset [this]
     ; (.fill arr nil)
@@ -115,66 +116,49 @@
       (assert (= (alength bytes) bytesWritten))
       (.set buf bytes ptr)))
   (toByteArray [this]
-    (or buffer
-        (let [ba (if (== bytesWritten (alength arr))
-                   (js/Int8Array. arr)
-                   (let [ba (js/Int8Array. bytesWritten)]
-                     (loop [i 0]
-                       (when (< i bytesWritten)
-                         (aset ba i (aget arr i))
-                         (recur (inc i))))
-                     ba))]
-          (set! (.-buffer this) ba)
-          ba)))
+    (if (== bytesWritten (alength arr))
+      (js/Int8Array. arr)
+      (js/Int8Array. (.slice arr 0 bytesWritten))))
   IBufferWriter
   (room? ^boolean [this _] open?)
   (getBytesWritten ^number [this] bytesWritten)
   (notifyBytesWritten [this ^number n]
     (assert (int? n) "written byte count must be an int")
     (set! (.-bytesWritten this) (+ n bytesWritten)))
+  (-writeByte [this byte]
+    (if (<= bytesWritten (alength arr))
+      (aset arr bytesWritten byte)
+      (.push arr byte))
+    (notifyBytesWritten this 1))
   (writeByte [this byte]
     (when open?
-      (if (<= bytesWritten (alength arr))
-        (aset arr bytesWritten byte)
-        (.push arr byte))
-      (notifyBytesWritten this 1)
-      (set! (.-buffer this) nil)
+      (-writeByte this byte)
       true))
   (writeBytes [this bytes]
     (when open?
       (loop [i 0]
         (when-let [byte (aget bytes i)]
-          (if (<= bytesWritten (alength arr))
-            (aset arr bytesWritten byte)
-            (.push arr byte))
-          (notifyBytesWritten this 1)
+          (-writeByte this byte)
           (recur (inc i))))
-      (set! (.-buffer this) nil)
       true))
   (writeBytes [this bytes offset length]
     (when open?
       (loop [i offset]
         (if-let [byte (and (< (- i offset) length) (aget bytes i))]
           (do
-            (if (<= (+ i bytesWritten) (alength arr))
-              (aset arr i byte)
-              (.push arr byte))
-            (notifyBytesWritten this 1)
+            (-writeByte this byte)
             (recur (inc i)))))
-      (set! (.-buffer this) nil)
       true)))
 
 (defn byte-stream []
   (let [bytesWritten 0
-        open? true
-        buffer nil]
-    (BytesOutputStream. #js[] bytesWritten open? buffer)))
+        open? true]
+    (BytesOutputStream. #js[] bytesWritten open?)))
 
 (defn with-capacity [n]
   (let [bytesWritten 0
-        open? true
-        buffer nil]
-    (BytesOutputStream. (make-array n) bytesWritten open? buffer)))
+        open? true]
+    (BytesOutputStream. (make-array n) bytesWritten open?)))
 
 (deftype
   ^{:doc "used on fixed size buffers"}

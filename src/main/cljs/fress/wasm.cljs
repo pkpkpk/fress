@@ -16,7 +16,7 @@
   (assert (some? (.. Mod -exports -memory))))
 
 ; will break on imported memory
-(defn read-all
+(defn read
   "Given a WASM module, a pointer, and opts, read off fressian objects and
    automatically free the used memory. Call this synchronously after
    obtaining the ptr and before any other calls on the same module/memory
@@ -30,12 +30,10 @@
         _(assert (some? memory))
         view (js/Uint8Array. (.-buffer memory))
         rdr (r/reader view :offset ptr :handlers handlers)
-        ;; relying on footer induced EOF in absence of knowing length
-        result (fress.api/read-batch rdr)
-        bytes_read (rawIn/getBytesRead (get rdr :raw-in))
         ret (if (== codes/ERROR (aget view ptr))
-              [result]
-              [nil result])]
+              [(api/read-object rdr)]
+              [nil (api/read-object rdr)])
+        bytes_read (rawIn/getBytesRead (get rdr :raw-in))]
     ((.. Mod -exports -fress_free) ptr bytes_read) ;; dealloc after reading
     ret))
 

@@ -65,9 +65,8 @@
     (fn [Mod obj & {:keys [handlers stringify-keys]}]
       (assert-fress-mod! Mod)
       (let [writer (w/writer buffer :handlers handlers)
-            _ (if stringify-keys
-                (binding [w/*stringify-keys* stringify-keys]
-                  (w/writeObject writer obj))
+            _ (binding [w/*write-raw-utf8* false ;; somehow slower
+                        w/*stringify-keys* (or w/*stringify-keys* stringify-keys)]
                 (w/writeObject writer obj))
             byte-length (buf/getBytesWritten buffer)
             ptr ((.. Mod -exports -fress_alloc) byte-length)

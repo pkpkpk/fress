@@ -11,41 +11,6 @@
 (def ^:dynamic *write-utf8-tag* false)
 (def ^:dynamic *stringify-keys* false)
 
-(defn utf8-encoding-size
-  "src/org/fressian/impl/Fns.java:117:4"
-  [ch]
-  (assert (int? ch) "ch should be charCode taken from string index")
-  (if (<= ch 0x007f)
-    1
-    (if (< 0x07ff ch)
-      3
-      2)))
-
-(defn buffer-string-chunk-utf8
-  "starting with position start in s, write as much of s as possible into byteBuffer
-   using UTF-8.
-   returns {stringpos, bufpos}"
-  [s start buf]
-  (loop [string-pos start
-         buffer-pos 0]
-    (if (< string-pos (alength s))
-      (let [ ch (.charCodeAt s string-pos)
-            encoding-size (utf8-encoding-size ch)]
-        (if (< (alength buf) (+ buffer-pos encoding-size))
-          [string-pos buffer-pos]
-          (do
-            (case encoding-size
-              1 (aset buf buffer-pos ch)
-              2 (do
-                  (aset buf buffer-pos       (bit-or 0xc0 (bit-and (bit-shift-right ch 6) 0x1f)))
-                  (aset buf (inc buffer-pos) (bit-or 0x80 (bit-and (bit-shift-right ch 0) 0x3f))))
-              3 (do
-                  (aset buf buffer-pos       (bit-or 0xe0 (bit-and (bit-shift-right ch 12) 0x0f)))
-                  (aset buf (inc buffer-pos) (bit-or 0x80 (bit-and (bit-shift-right ch 6)  0x3f)))
-                  (aset buf (+ buffer-pos 2) (bit-or 0x80 (bit-and (bit-shift-right ch 0)  0x3f)))))
-            (recur (inc string-pos) (+ buffer-pos encoding-size)))))
-      [string-pos buffer-pos])))
-
 (defprotocol IFressianWriter
   (writeNull ^FressianWriter [this])
   (writeBoolean ^FressianWriter [this b])
@@ -57,7 +22,6 @@
   (writeString ^FressianWriter [this s])
   (writeList ^FressianWriter [this o])
   (writeBytes ^FressianWriter [this bs] [this bs offset length])
-  ; (writeFooterFor [this byteBuffer])
   (writeFooter ^FressianWriter [this])
   (clearCaches [this])
   (resetCaches ^FressianWriter [this])
@@ -70,19 +34,12 @@
   (writeAs ^FressianWriter [this tag o] [this tag o cache?])
   (writeObject ^FressianWriter [this o] [this o cache?])
   (writeCode [this code])
-  (beginOpenList ^FressianWriter [this]
-   "Writes fressian code to begin an open list.  An
-    open list can be terminated either by a call to end-list,
-    or by simply closing the stream.  Used to write sequential
-    data whose size is not known in advance, in contexts where
-    stream failure can safely be interpreted as end of list.")
-  (beginClosedList ^FressianWriter [this]
-    "Begin writing a fressianed list.  To end the list, call end-list.
-     Used to write sequential data whose size is not known in advance.")
-  (endList ^FressianWriter [this] "Ends a list begun with begin-closed-list."))
+  (beginOpenList ^FressianWriter [this])
+  (beginClosedList ^FressianWriter [this])
+  (endList ^FressianWriter [this]))
 
 (defn ^number bit-switch
-  "@return {number}(bits not needed to represent this number) + 1"
+  "@return {number} bits not needed to represent this number"
   [l]
   (- 64 (.-length (.toString (.abs js/Math l) 2))))
 
@@ -158,8 +115,34 @@
     (rawOut/writeRawBytes (.-raw-out this) bytes 0 length))
   this)
 
+(defn buffer-string-chunk-utf8
+  "starting with position start in s, write as much of s as possible into byteBuffer
+   using UTF-8.
+   returns {stringpos, bufpos}"
+  [s start buf]
+  (loop [string-pos start
+         buffer-pos 0]
+    (if-not (< string-pos (alength s))
+      [string-pos buffer-pos]
+      (let [ch (.charCodeAt s string-pos)
+            ;; "src/org/fressian/impl/Fns.java:117:4"
+            encoding-size (if (<= ch 0x007f) 1 (if (< 0x07ff ch) 3 2))]
+        (if (< (alength buf) (+ buffer-pos encoding-size))
+          [string-pos buffer-pos]
+          (do
+            (case encoding-size
+              1 (aset buf buffer-pos ch)
+              2 (do
+                  (aset buf buffer-pos       (bit-or 0xc0 (bit-and (>>> ch 6) 0x1f)))
+                  (aset buf (inc buffer-pos) (bit-or 0x80 (bit-and (>>> ch 0) 0x3f))))
+              3 (do
+                  (aset buf buffer-pos       (bit-or 0xe0 (bit-and (>>> ch 12) 0x0f)))
+                  (aset buf (inc buffer-pos) (bit-or 0x80 (bit-and (>>> ch 6)  0x3f)))
+                  (aset buf (+ buffer-pos 2) (bit-or 0x80 (bit-and (>>> ch 0)  0x3f)))))
+            (recur (inc string-pos) (+ buffer-pos encoding-size))))))))
+
 (defn defaultWriteString [this s]
-  (let [max-buf-needed (min (* (count s) 3) 65536) ;;
+  (let [max-buf-needed (min (* (count s) 3) 65536)
         string-buffer (js/Int8Array. (js/ArrayBuffer. max-buf-needed))]
     (loop [[string-pos buf-pos] (buffer-string-chunk-utf8 s 0 string-buffer)]
       (if (< buf-pos ranges/STRING_PACKED_LENGTH_END)
@@ -334,7 +317,7 @@
           (do
             (assert (string? tag) "tag needs to be a string")
             (writeCode this codes/STRUCTTYPE)
-            (defaultWriteString this tag)
+            (writeString this tag)
             (writeInt this component-count))
 
           (< index ranges/STRUCT_CACHE_PACKED_END)

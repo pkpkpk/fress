@@ -1,14 +1,19 @@
-// #[macro_use]
-// extern crate serde_derive;
+#![feature(custom_attribute)]
+
+#[macro_use]
+extern crate serde_derive;
+
 extern crate serde;
 extern crate serde_fressian;
 
 use std::os::raw::{c_void};
-// use serde::Serialize;
+use std::error::Error;
+use std::fmt;
+use serde::ser::{Serialize, Serializer, SerializeMap};
 
 use serde_fressian::de::{self};
 use serde_fressian::ser::{self};
-use serde_fressian::error::{Error, ErrorCode, Result};
+use serde_fressian::error::{Error as FressError, ErrorCode};
 use serde_fressian::value::{self, Value};
 use serde_fressian::wasm::{self};
 
@@ -28,18 +33,64 @@ pub extern "C" fn big_string() -> *mut c_void {
 pub extern "C" fn echo(ptr: *mut u8, cap: usize) -> *mut c_void
 {
     let bytes: Vec<u8> = wasm::ptr_to_vec(ptr, cap);
-    let val: Result<Value> = de::from_vec(&bytes);
+    let val: Result<Value, FressError> = de::from_vec(&bytes);
     wasm::to_js(val)
 }
 
 #[no_mangle]
 pub extern "C" fn get_errors() -> *mut c_void
 {
-    let msg: Error = Error::msg("some message".to_string());
-    let unmatched_code: Error = Error::unmatched_code(42, 43);
-    let unsupported = Error::syntax(ErrorCode::UnsupportedCacheType, 99);
+    let msg = FressError::msg("some message".to_string());
+    let unmatched_code = FressError::unmatched_code(42, 43);
+    let unsupported = FressError::syntax(ErrorCode::UnsupportedCacheType, 99);
 
-    let errors: Vec<Error> = vec![msg, unmatched_code, unsupported];
+    let errors: Vec<FressError> = vec![msg, unmatched_code, unsupported];
 
     wasm::to_js(errors)
+}
+
+
+// #[derive(Debug, Serialize)]
+#[derive(Debug)]
+struct CustomError {
+    field_0: String,
+}
+
+impl std::error::Error for CustomError {
+    fn description(&self) -> &str {
+        "A custom Error"
+    }
+}
+
+impl fmt::Display for CustomError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "A custom Error")
+    }
+}
+
+impl Serialize for CustomError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut map_state = serializer.serialize_map(None)?;
+
+        map_state.serialize_key("type")?;
+        map_state.serialize_value("test_lib_error")?;
+
+        map_state.serialize_key("field_0")?;
+        map_state.serialize_value(&self.field_0)?;
+
+        map_state.end()
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn get_custom_error() -> *mut c_void
+{
+    let err: CustomError = CustomError{field_0: "some message".to_string()};
+
+    let res: Result<(), CustomError> = Err(err);
+
+    wasm::to_js(res)
 }

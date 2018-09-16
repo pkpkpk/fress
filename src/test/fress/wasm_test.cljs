@@ -10,6 +10,26 @@
 
 (def path (js/require "path"))
 
+(extend-type goog.Uri
+  IEquiv
+  (-equiv [this that] (= (.toString this) (.toString that))))
+
+(extend-type js/RegExp
+  IEquiv
+  (-equiv [this that] (= (.toString this) (.toString that))))
+
+(extend-type js/Int32Array
+  IEquiv
+  (-equiv [this that] (= (array-seq this) (array-seq that))))
+
+(extend-type js/Float32Array
+  IEquiv
+  (-equiv [this that] (= (array-seq this) (array-seq that))))
+
+(extend-type js/Float64Array
+  IEquiv
+  (-equiv [this that] (= (array-seq this) (array-seq that))))
+
 (def cfg
   {:project-name "wasm-test"
    :dir (path.join (tmac/root) "resources" "wasm-test")
@@ -48,7 +68,8 @@
               (if-not (is (and (nil? e) (instance? js/WebAssembly.Instance (.. compiled -instance))))
                 (done)
                 (do
-                  (mod-tests (reset! module (.. compiled -instance)))
+                  (reset! module (.. compiled -instance))
+                  (mod-tests)
                   (set! cargo/*verbose* true)
                   (done))))))))))
 
@@ -106,26 +127,10 @@
                            :ErrorCode "UnsupportedCacheType"
                            :position 99}))))
 
-(extend-type goog.Uri
-  IEquiv
-  (-equiv [this that] (= (.toString this) (.toString that))))
-
-(extend-type js/RegExp
-  IEquiv
-  (-equiv [this that] (= (.toString this) (.toString that))))
-
-(extend-type js/Int32Array
-  IEquiv
-  (-equiv [this that] (= (array-seq this) (array-seq that))))
-
-(extend-type js/Float32Array
-  IEquiv
-  (-equiv [this that] (= (array-seq this) (array-seq that))))
-
-(extend-type js/Float64Array
-  IEquiv
-  (-equiv [this that] (= (array-seq this) (array-seq that))))
-
+(defn custom-error-test []
+  (let [[err] (get-custom-error)]
+    (is (= err {"type" "test_lib_error"
+                "field_0" "some message"}))))
 
 (def ts
   [nil
@@ -191,7 +196,8 @@
 ; TaggedObject
 
 
-(defn mod-tests [Mod]
+(defn mod-tests []
   (echo-test)
-  (errors-test))
+  (errors-test)
+  (custom-error-test))
 

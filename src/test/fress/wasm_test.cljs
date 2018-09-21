@@ -3,7 +3,7 @@
                    [fress.test-macros :as tmac])
   (:require [cljs.core.async :as casync :refer [close! put! take! alts! <! >! chan promise-chan]]
             [cljs.test :refer-macros [deftest is testing async are run-tests] :as test]
-            [cargo.cargo :as cargo]
+            [cargo.api :as cargo]
             [fress.api :as api]
             [fress.wasm :as wasm-api]
             [fress.util :as util :refer [expected byte-array log]]))
@@ -35,43 +35,17 @@
    :dir (path.join (tmac/root) "resources" "wasm-test")
    :target :wasm
    :release? true
-   :rustflags {:allow [
-                       :non_snake_case
-                       :unused_parens
-                       :unused_variables
-
-                       :unused_imports
-                       :dead_code
-
-                       :non_camel_case_types
-                       ]}})
+   :rustflags {:allow []}})
 
 (defonce module (atom nil))
 
 (defn build []
-  (take! (cargo/build-wasm! cfg)
-    (fn [[e Mod]]
-      (if-not e
+  (take! (cargo/build-wasm-local! cfg)
+    (fn [[err Mod]]
+      (if err
+        (cargo/report-error err)
         (reset! module Mod)))))
 
-(declare mod-tests)
-
-(deftest wasm-test
-  (async done
-    (set! cargo/*verbose* false)
-    (take! (cargo/build! cfg)
-      (fn [[e buffer]]
-        (if-not (is (and (nil? e) (instance? js/Buffer buffer)))
-          (done)
-          (take! (cargo/init-module buffer #js{})
-            (fn [[e compiled]]
-              (if-not (is (and (nil? e) (instance? js/WebAssembly.Instance (.. compiled -instance))))
-                (done)
-                (do
-                  (reset! module (.. compiled -instance))
-                  (mod-tests)
-                  (set! cargo/*verbose* true)
-                  (done))))))))))
 
 (defn hello []
   (if-let [Mod @module]
@@ -97,7 +71,7 @@
    (if-let [Mod @module]
      (binding [fress.reader/*keywordize-keys* false
                fress.writer/*stringify-keys* false]
-       (let [[write-ptr length :as foo] (wasm-api/write Mod any)
+       (let [[write-ptr length] (wasm-api/write Mod any)
              read-ptr ((.. Mod -exports -echo) write-ptr length)]
          (wasm-api/read Mod read-ptr)))
      (throw (js/Error "missing module")))))
@@ -113,17 +87,17 @@
 (defn errors-test []
   (let [[_ errors] (get-errors)]
     (is (= (nth errors 0) {:type "serde-fressian"
-                           :category "misc"
+                           :category "Misc"
                            :ErrorCode "Message"
                            :value "some message"
                            :position 0}))
     (is (= (nth errors 1) {:type "serde-fressian"
-                           :category "de"
+                           :category "De"
                            :ErrorCode "UnmatchedCode"
                            :value 42
                            :position 43}))
     (is (= (nth errors 2) {:type "serde-fressian"
-                           :category "ser"
+                           :category "Ser"
                            :ErrorCode "UnsupportedCacheType"
                            :position 99}))))
 

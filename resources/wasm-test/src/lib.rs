@@ -1,4 +1,5 @@
-#![feature(custom_attribute)]
+// #![feature(custom_attribute)]
+#![allow(unused_imports)]
 
 #[macro_use]
 extern crate serde_derive;
@@ -7,7 +8,6 @@ extern crate serde;
 extern crate serde_fressian;
 
 use std::os::raw::{c_void};
-use std::error::Error;
 use std::fmt;
 use serde::ser::{Serialize, Serializer, SerializeMap};
 
@@ -32,8 +32,7 @@ pub extern "C" fn big_string() -> *mut c_void {
 #[no_mangle]
 pub extern "C" fn echo(ptr: *mut u8, cap: usize) -> *mut c_void
 {
-    let bytes: Vec<u8> = wasm::ptr_to_vec(ptr, cap);
-    let val: Result<Value, FressError> = de::from_vec(&bytes);
+    let val: Result<Value, FressError> = wasm::from_ptr(ptr, cap);
     wasm::to_js(val)
 }
 

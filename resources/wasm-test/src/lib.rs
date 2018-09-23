@@ -7,7 +7,6 @@ extern crate serde_derive;
 extern crate serde;
 extern crate serde_fressian;
 
-use std::os::raw::{c_void};
 use std::fmt;
 use serde::ser::{Serialize, Serializer, SerializeMap};
 
@@ -18,26 +17,29 @@ use serde_fressian::value::{self, Value};
 use serde_fressian::wasm::{self};
 
 #[no_mangle]
-pub extern "C" fn hello() -> *mut c_void {
+pub extern "C" fn hello() -> *mut u8
+{
     let data = vec![["hello", "from", "wasm!"], ["isn't", "this", "exciting?!"]];
     wasm::to_js(data)
 }
 
 #[no_mangle]
-pub extern "C" fn big_string() -> *mut c_void {
+pub extern "C" fn big_string() -> *mut u8
+{
     let data = vec!["😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄😉 😎 🤔 😐 🙄"];
     wasm::to_js(data)
 }
 
 #[no_mangle]
-pub extern "C" fn echo(ptr: *mut u8, cap: usize) -> *mut c_void
+pub extern "C" fn echo(ptr: *mut u8, len: usize) ->*mut u8
 {
-    let val: Result<Value, FressError> = wasm::from_ptr(ptr, cap);
+    let val: Result<Value, FressError> = wasm::from_ptr(ptr, len);
+    wasm::fress_dealloc(ptr, len); //this will break with STR
     wasm::to_js(val)
 }
 
 #[no_mangle]
-pub extern "C" fn get_errors() -> *mut c_void
+pub extern "C" fn get_errors() -> *mut u8
 {
     let msg = FressError::msg("some message".to_string());
     let unmatched_code = FressError::unmatched_code(42, 43);
@@ -85,7 +87,7 @@ impl Serialize for CustomError {
 }
 
 #[no_mangle]
-pub extern "C" fn get_custom_error() -> *mut c_void
+pub extern "C" fn get_custom_error() -> *mut u8
 {
     let err: CustomError = CustomError{field_0: "some message".to_string()};
 
@@ -93,3 +95,6 @@ pub extern "C" fn get_custom_error() -> *mut c_void
 
     wasm::to_js(res)
 }
+
+
+

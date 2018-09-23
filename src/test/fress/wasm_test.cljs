@@ -45,44 +45,42 @@
     (fn [[err Mod]]
       (if err
         (cargo/report-error err)
-        (reset! module Mod)))))
+        (reset! module (wasm-api/attach-protocol! Mod))))))
 
 
 (defn hello []
   (if-let [Mod @module]
     (let [read-ptr ((.. Mod -exports -hello))]
-      (wasm-api/read-object Mod read-ptr))
+      (wasm-api/read Mod read-ptr))
     (throw (js/Error "missing module"))))
 
 (defn big-string []
   (if-let [Mod @module]
     (let [read-ptr ((.. Mod -exports -big_string))]
-      (wasm-api/read-object Mod read-ptr))
+      (wasm-api/read Mod read-ptr))
     (throw (js/Error "missing module"))))
 
 (defn get-custom-error []
   (if-let [Mod @module]
     (let [read-ptr ((.. Mod -exports -get_custom_error))]
-      (wasm-api/read-object Mod read-ptr))
+      (wasm-api/read Mod read-ptr))
     (throw (js/Error "missing module"))))
 
-(defn echo
-  ([](echo "hello from javascript"))
-  ([any]
+(defn echo [any]
    (if-let [Mod @module]
      (binding [fress.reader/*keywordize-keys* false
                fress.writer/*stringify-keys* false]
-       (let [[write-ptr length] (wasm-api/write-object Mod any)
+       (let [[write-ptr length] (wasm-api/write Mod any)
              read-ptr ((.. Mod -exports -echo) write-ptr length)]
-         (wasm-api/read-object Mod read-ptr)))
-     (throw (js/Error "missing module")))))
+         (wasm-api/read Mod read-ptr)))
+     (throw (js/Error "missing module"))))
 
 (defn get-errors ;=> [?err ?[[err0 err1 err2 err3]]]
   ([]
    (if-let [Mod @module]
      (let [read-ptr ((.. Mod -exports -get_errors))]
        (binding [fress.reader/*keywordize-keys* true]
-         (wasm-api/read-object Mod read-ptr)))
+         (wasm-api/read Mod read-ptr)))
      (throw (js/Error "missing module")))))
 
 

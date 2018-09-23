@@ -40,6 +40,7 @@
 (defonce module (atom nil))
 
 (defn build []
+  (js/console.clear)
   (take! (cargo/build-wasm-local! cfg)
     (fn [[err Mod]]
       (if err
@@ -50,19 +51,19 @@
 (defn hello []
   (if-let [Mod @module]
     (let [read-ptr ((.. Mod -exports -hello))]
-      (wasm-api/read Mod read-ptr))
+      (wasm-api/read-object Mod read-ptr))
     (throw (js/Error "missing module"))))
 
 (defn big-string []
   (if-let [Mod @module]
     (let [read-ptr ((.. Mod -exports -big_string))]
-      (wasm-api/read Mod read-ptr))
+      (wasm-api/read-object Mod read-ptr))
     (throw (js/Error "missing module"))))
 
 (defn get-custom-error []
   (if-let [Mod @module]
     (let [read-ptr ((.. Mod -exports -get_custom_error))]
-      (wasm-api/read Mod read-ptr))
+      (wasm-api/read-object Mod read-ptr))
     (throw (js/Error "missing module"))))
 
 (defn echo
@@ -71,9 +72,9 @@
    (if-let [Mod @module]
      (binding [fress.reader/*keywordize-keys* false
                fress.writer/*stringify-keys* false]
-       (let [[write-ptr length] (wasm-api/write Mod any)
+       (let [[write-ptr length] (wasm-api/write-object Mod any)
              read-ptr ((.. Mod -exports -echo) write-ptr length)]
-         (wasm-api/read Mod read-ptr)))
+         (wasm-api/read-object Mod read-ptr)))
      (throw (js/Error "missing module")))))
 
 (defn get-errors ;=> [?err ?[[err0 err1 err2 err3]]]
@@ -81,8 +82,18 @@
    (if-let [Mod @module]
      (let [read-ptr ((.. Mod -exports -get_errors))]
        (binding [fress.reader/*keywordize-keys* true]
-         (wasm-api/read Mod read-ptr)))
+         (wasm-api/read-object Mod read-ptr)))
      (throw (js/Error "missing module")))))
+
+
+(defn write-bytes-test []
+  (let [bytes (util/u8-array [99 100 101])
+        [ptr length] (wasm-api/write-bytes @module bytes)
+        view (js/Uint8Array. (.. @module -exports -memory -buffer))]
+    (is (== 99 (aget view ptr)))
+    (is (== 100 (aget view (+ ptr 1))))
+    (is (== 101 (aget view (+ ptr 2))))
+    ((.. @module -exports -fress_dealloc) ptr length)))
 
 (defn errors-test []
   (let [[_ errors] (get-errors)]
@@ -160,6 +171,8 @@
     (run! f ts)))
 
 
+
+
 ; BIGINT
 ; BIGDEC
 ; LONG_ARRAY
@@ -171,7 +184,9 @@
 
 
 (defn mod-tests []
-  (echo-test)
+  (write-bytes-test)
   (errors-test)
-  (custom-error-test))
+  (custom-error-test)
+  (echo-test)
+  )
 

@@ -14,7 +14,7 @@
   (assert (some? (.. Mod -exports -memory))))
 
 ; will break on imported memory
-(defn read
+(defn read-object
   "Given a WASM module, a pointer, and opts, read off fressian objects and
    automatically free the used memory. Call this synchronously after
    obtaining the ptr and before any other calls on the same module/memory
@@ -42,14 +42,14 @@
    claim and deserialize fressian data.
    => [pointer length]"
   [Mod bytes]
-  (assert-fress-mod! Mod)
+  ; (assert-fress-mod! Mod)
   (assert (goog.isArrayLike bytes))
   (let [ptr ((.. Mod -exports -fress_alloc) (alength bytes))
         view (js/Uint8Array. (.. Mod -exports -memory -buffer))]
     (.set view bytes ptr)
     [ptr (alength bytes)]))
 
-(def write
+(def write-object
   "Given a WASM module, object, and opts, write the object into wasm memory
    and return a tuple containing a pointer and the length of the bytes written.
    The pointer+length should be given synchronously to an exported wasm

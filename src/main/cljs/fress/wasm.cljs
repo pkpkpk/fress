@@ -7,12 +7,10 @@
             [fress.impl.raw-input :as rawIn]
             [fress.util :as util :refer [log]]))
 
-(defn wasm-module? [o] (instance? js/WebAssembly.Instance o))
-
 (defn assert-fress-mod! [Mod]
-  (assert (wasm-module? Mod))
+  (assert (instance? js/WebAssembly.Instance Mod))
   (assert (some? (.. Mod -exports -fress_alloc)))
-  (assert (some? (.. Mod -exports -fress_free)))
+  (assert (some? (.. Mod -exports -fress_dealloc)))
   (assert (some? (.. Mod -exports -memory))))
 
 ; will break on imported memory
@@ -34,7 +32,7 @@
               [(api/read-object rdr)]
               [nil (api/read-object rdr)])
         bytes_read (rawIn/getBytesRead (get rdr :raw-in))]
-    ((.. Mod -exports -fress_free) ptr bytes_read) ;; dealloc after reading
+    ((.. Mod -exports -fress_dealloc) ptr bytes_read) ;; dealloc after reading
     ret))
 
 (defn write-bytes

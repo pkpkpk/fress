@@ -39,13 +39,29 @@
 
 (defonce module (atom nil))
 
+(defn p->ch
+  "convert promise to nodeback style [?err ?data] yielding promise-chan"
+  ([promise](p->ch promise (promise-chan)))
+  ([promise c]
+   (let []
+      (.then promise
+        (fn [value] (put! c [nil value]))
+        (fn [reason](put! c [reason])))
+     c)))
+
 (defn build []
   (js/console.clear)
-  (take! (cargo/build-wasm-local! cfg)
-    (fn [[err Mod]]
+  (take! (cargo/build-wasm! cfg)
+    (fn [[err {:keys [buffer]}]]
       (if err
         (cargo/report-error err)
-        (reset! module (wasm-api/attach-protocol! Mod))))))
+        (take! (p->ch (wasm-api/instantiate buffer))
+          (fn [[err Mod :as init-res]]
+            (if err
+              (js/console.error err)
+              (do
+                (assert (implements? wasm-api/IFressWasmModule Mod))
+                (reset! module Mod)))))))))
 
 
 (defn hello []

@@ -6,15 +6,8 @@
             [fress.impl.raw-input :as rawIn]
             [fress.util :as util :refer [log]]))
 
-(defn assert-fress-mod! [Mod]
-  (assert (instance? js/WebAssembly.Instance Mod))
-  (assert (some? (.. Mod -exports -fress_alloc)))
-  (assert (some? (.. Mod -exports -fress_dealloc)))
-  (assert (some? (.. Mod -exports -memory))))
-
 (defonce ^:private _buffer (buf/with_capacity 128))
 
-; will break on imported memory
 (defprotocol IFressWasmModule
   (get-view [Mod])
   (get-memory [Mod])
@@ -24,7 +17,6 @@
   (dealloc
     [Mod fptr]
     [Mod ptr len])
-  ; (read-bytes [Mod])
   (copy-bytes [Mod ptr len])
   (write-bytes [Mod bytes])
   (read
@@ -33,7 +25,6 @@
   (write
     [Mod any]
     [Mod any opts])
-  ;;;;;;;;;;;;;;;;;;;;;;;
   (call
     [Mod export-name]
     [Mod export-name fptr]))
@@ -96,19 +87,16 @@
     (FatPtr. ptr (alength bytes))))
 
 (defn attach-protocol! [Mod]
-  (assert-fress-mod! Mod)
   (let []
     (specify! Mod
-      ; ILookup
-      ; (-lookup [])
       IFressWasmModule
-      (get-view [_]
-        (js/Uint8Array. (.. Mod -exports -memory -buffer)))
-      (get-memory [_]
-        (or (.. Mod -exports -memory) (.. Mod -imports -memory)))
-      (get-exports [_] (.-exports Mod))
       (get-imports [_] (.-imports Mod))
-      (alloc [_ len]
+      (get-exports [_] (.-exports Mod))
+      (get-memory [_]
+        (or (.. Mod -exports -memory) (.. Mod -imports -env -memory)))
+      (get-view [this]
+        (js/Uint8Array. (.-buffer (get-memory this))))
+      (alloc [_ byte-length]
         ((.. Mod -exports -fress_alloc) byte-length)) ;=> ptr
       (dealloc
        ([Mod fptr]
@@ -143,9 +131,22 @@
             (f (.-ptr fptr) (.-len fptr))
             (throw (js/Error. (str "missing exported fn '" export-name "'"))))))))))
 
+(defn assert-fress-mod! [Mod]
+  (assert (instance? js/WebAssembly.Instance Mod))
+  (assert (some? (.. Mod -exports -fress_alloc)))
+  (assert (some? (.. Mod -exports -fress_dealloc)))
+  (assert (some? (.. Mod -exports -memory))))
 
-; (defn instantiate [arraybuffer importOptions] ;=> promise
-;   (let [Mod #js{}]
-;
-;     ))
-
+(defn instantiate
+  ([array-buffer] (instantiate array-buffer #js{})) ;panic hook!
+  ([array-buffer importOptions]
+   (js/Promise.
+    (fn [_resolve reject]
+      (.then (js/WebAssembly.instantiate array-buffer importOptions)
+        (fn [module]
+          (try
+            (assert-fress-mod! (.-instance module))
+            (_resolve (attach-protocol! (.-instance module)))
+            (catch js/Error e
+              (reject e))))
+        (fn [reason] (reject reason)))))))

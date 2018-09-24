@@ -70,9 +70,9 @@
    (if-let [Mod @module]
      (binding [fress.reader/*keywordize-keys* false
                fress.writer/*stringify-keys* false]
-       (let [[write-ptr length] (wasm-api/write Mod any)
-             read-ptr ((.. Mod -exports -echo) write-ptr length)]
-         (wasm-api/read Mod read-ptr)))
+      (let [fptr (wasm-api/write Mod any)
+            read-ptr (wasm-api/call Mod "echo" fptr)]
+        (wasm-api/read Mod read-ptr)))
      (throw (js/Error "missing module"))))
 
 (defn get-errors ;=> [?err ?[[err0 err1 err2 err3]]]
@@ -86,12 +86,14 @@
 
 (defn write-bytes-test []
   (let [bytes (util/u8-array [99 100 101])
-        [ptr length] (wasm-api/write-bytes @module bytes)
+        fptr (wasm-api/write-bytes @module bytes)
+        length (.-len fptr)
+        ptr (.-ptr fptr)
         view (js/Uint8Array. (.. @module -exports -memory -buffer))]
     (is (== 99 (aget view ptr)))
     (is (== 100 (aget view (+ ptr 1))))
     (is (== 101 (aget view (+ ptr 2))))
-    ((.. @module -exports -fress_dealloc) ptr length)))
+    (wasm-api/dealloc @module ptr length)))
 
 (defn errors-test []
   (let [[_ errors] (get-errors)]

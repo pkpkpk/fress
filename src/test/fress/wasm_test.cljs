@@ -66,40 +66,34 @@
 
 (defn hello []
   (if-let [Mod @module]
-    (let [read-ptr ((.. Mod -exports -hello))]
-      (wasm-api/read Mod read-ptr))
+    (wasm-api/call Mod "hello")
     (throw (js/Error "missing module"))))
 
 (defn big-string []
   (if-let [Mod @module]
-    (let [read-ptr ((.. Mod -exports -big_string))]
-      (wasm-api/read Mod read-ptr))
+    (wasm-api/call Mod "big_string")
     (throw (js/Error "missing module"))))
 
 (defn get-custom-error []
   (if-let [Mod @module]
-    (let [read-ptr ((.. Mod -exports -get_custom_error))]
-      (wasm-api/read Mod read-ptr))
+    (wasm-api/call Mod "get_custom_error")
     (throw (js/Error "missing module"))))
 
 (defn echo [any]
    (if-let [Mod @module]
      (binding [fress.reader/*keywordize-keys* false
                fress.writer/*stringify-keys* false]
-      (let [fptr (wasm-api/write Mod any)
-            read-ptr (wasm-api/call Mod "echo" fptr)]
-        (wasm-api/read Mod read-ptr)))
+      (wasm-api/call Mod "echo" any)) ;<-------- (wasm-api/write Mod any)
      (throw (js/Error "missing module"))))
 
 (defn get-errors ;=> [?err ?[[err0 err1 err2 err3]]]
   ([]
    (if-let [Mod @module]
-     (let [read-ptr ((.. Mod -exports -get_errors))]
-       (binding [fress.reader/*keywordize-keys* true]
-         (wasm-api/read Mod read-ptr)))
+     (binding [fress.reader/*keywordize-keys* true]
+       (wasm-api/call Mod "get_errors"))
      (throw (js/Error "missing module")))))
 
-(defn induce-panic []
+(defn induce-panic [] ;=> [{:type :panic, :msg "..."}]
   (if-let [Mod @module]
     (wasm-api/call Mod "induce_panic")
     (throw (js/Error "missing module"))))
@@ -185,7 +179,8 @@
    #uuid "e2a1e404-5d43-40f2-8cbf-a4820bfe0f27"
    (js/Int32Array. #js[1 2 3])
    (js/Float32Array. #js[1 2 3])
-   (js/Float64Array. #js[1 2 3])])
+   (js/Float64Array. #js[1 2 3])
+   ])
 
 (defn echo-test []
   (let [f (fn [any] (is (= (echo any) [nil any])))]
@@ -205,8 +200,8 @@
 
 
 (defn mod-tests []
-  (write-bytes-test)
-  (errors-test)
+  ; (write-bytes-test)
+  ; (errors-test)
   (custom-error-test)
   (echo-test)
   )

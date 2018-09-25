@@ -6,9 +6,6 @@
             [fress.impl.raw-input :as rawIn]
             [fress.util :as util :refer [log]]))
 
-(defonce ^:private _buffer (buf/with_capacity 128))
-(defonce ^:private _panic_ptr (atom nil)) ;=> binding this on calls to local module
-
 (defprotocol IFressWasmModule
   (get-view [Mod])
   (get-memory [Mod])
@@ -28,7 +25,8 @@
     [Mod any opts])
   (call
     [Mod export-name]
-    [Mod export-name fptr]))
+    [Mod export-name obj]
+    [Mod export-name obj opts]))
 
 (deftype FatPtr [ptr len])
 
@@ -51,6 +49,8 @@
         bytes_read (rawIn/getBytesRead (get rdr :raw-in))]
     ((.. Mod -exports -fress_dealloc) ptr bytes_read)
     ret))
+
+(defonce ^:private _buffer (buf/with_capacity 128))
 
 (defn- module-write ;=> FatPtr
   "Given a WASM module, object, and opts, write the object into wasm memory
@@ -87,27 +87,32 @@
     (.set view bytes ptr)
     (FatPtr. ptr (alength bytes))))
 
-(defn module-call ;=> [?err]
+;; should we carry state on local module via bindings?
+(defonce ^:private _panic_ptr (atom nil))
+(defonce ^:private _call_sentinel #js{})
+
+(defn module-call ;=> [err], [nil], [nil ok]
   ""
   ([Mod export-name]
+   (module-call Mod export-name _call_sentinel nil))
+  ([Mod export-name obj]
+    (module-call Mod export-name obj nil))
+  ([Mod export-name obj opts] ;=> need to distinguish read and write opts
+   (assert (string? export-name))
    (let [f (goog.object.get (.-exports Mod) export-name nil)]
      (if (some? f)
        (try
-         [nil (f)]
-         (catch js/Error e ;=> wasm runtime-error
-           (let [ptr @_panic_ptr
-                 _ (reset! _panic_ptr nil)
-                 [err panic :as res] (module-read Mod ptr nil)]
-             (if err
-               res
-               [{:type :panic :msg panic}]))))
-       (throw (js/Error. (str "missing exported fn '" export-name "'"))))))
-  ([Mod export-name fptr]
-   (assert (instance? FatPtr fptr) "fress.wasm/call arity-3 requires a FatPtr")
-   (let [f (goog.object.get (.-exports Mod) export-name nil)]
-     (if (some? f)
-       (try
-         [nil (f (.-ptr fptr) (.-len fptr))]
+         (if (identical? obj _call_sentinel)
+           (if-let [ptr (f)]
+             (module-read Mod ptr nil)
+             [nil])
+           (let [fptr (if (instance? FatPtr obj)
+                        obj
+                        (module-write Mod obj opts))]
+             (assert (instance? FatPtr fptr))
+             (if-let [ptr (f (.-ptr fptr) (.-len fptr))]
+               (module-read Mod ptr opts)
+               [nil])))
          (catch js/Error e ;=> wasm runtime-error
            (let [ptr @_panic_ptr
                  _ (reset! _panic_ptr nil)
@@ -151,7 +156,8 @@
         (module-write-bytes this bytes))
       (call ;=> [?err ?ok]
        ([Mod export-name] (module-call Mod export-name))
-       ([Mod export-name fptr] (module-call Mod export-name fptr))))))
+       ([Mod export-name obj] (module-call Mod export-name obj))
+       ([Mod export-name obj opts] (module-call Mod export-name obj opts))))))
 
 (defn assert-fress-mod! [Mod]
   (assert (instance? js/WebAssembly.Instance Mod))

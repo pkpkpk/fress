@@ -7,6 +7,7 @@
             [fress.util :as util :refer [log]]))
 
 (defonce ^:private _buffer (buf/with_capacity 128))
+(defonce ^:private _panic_ptr (atom nil)) ;=> binding this on calls to local module
 
 (defprotocol IFressWasmModule
   (get-view [Mod])
@@ -31,7 +32,7 @@
 
 (deftype FatPtr [ptr len])
 
-(defn- module-read
+(defn- module-read ;=> [?err ?ok]
   "Given a WASM module, a pointer, and opts, read off a fressian object and
    automatically free the used memory. Call this synchronously after
    obtaining the ptr and before any other calls on the same module/memory
@@ -51,7 +52,7 @@
     ((.. Mod -exports -fress_dealloc) ptr bytes_read)
     ret))
 
-(defn- module-write
+(defn- module-write ;=> FatPtr
   "Given a WASM module, object, and opts, write the object into wasm memory
    and return a tuple containing a pointer and the length of the bytes written.
    The pointer+length should be given synchronously to an exported wasm
@@ -73,7 +74,7 @@
     (buf/reset _buffer)
     (FatPtr. ptr byte-length)))
 
-(defn module-write-bytes
+(defn module-write-bytes ;=> FatPtr
   "Given a WASM module and a byte array, write the bytes into memory and return
    a tuple containing a pointer and the length of the bytes written. The
    pointer+length should be given synchronously to an exported wasm function to
@@ -85,6 +86,36 @@
         view (js/Uint8Array. (.. Mod -exports -memory -buffer))]
     (.set view bytes ptr)
     (FatPtr. ptr (alength bytes))))
+
+(defn module-call ;=> [?err]
+  ""
+  ([Mod export-name]
+   (let [f (goog.object.get (.-exports Mod) export-name nil)]
+     (if (some? f)
+       (try
+         [nil (f)]
+         (catch js/Error e ;=> wasm runtime-error
+           (let [ptr @_panic_ptr
+                 _ (reset! _panic_ptr nil)
+                 [err panic :as res] (module-read Mod ptr nil)]
+             (if err
+               res
+               [{:type :panic :msg panic}]))))
+       (throw (js/Error. (str "missing exported fn '" export-name "'"))))))
+  ([Mod export-name fptr]
+   (assert (instance? FatPtr fptr) "fress.wasm/call arity-3 requires a FatPtr")
+   (let [f (goog.object.get (.-exports Mod) export-name nil)]
+     (if (some? f)
+       (try
+         [nil (f (.-ptr fptr) (.-len fptr))]
+         (catch js/Error e ;=> wasm runtime-error
+           (let [ptr @_panic_ptr
+                 _ (reset! _panic_ptr nil)
+                 [err panic :as res] (module-read Mod ptr nil)]
+             (if err
+               res
+               [{:type :panic :msg panic}]))))
+       (throw (js/Error. (str "missing exported fn '" export-name "'")))))))
 
 (defn attach-protocol! [Mod]
   (let []
@@ -110,7 +141,7 @@
         (assert (util/valid-pointer? ptr) (str "copy-bytes given invalid pointer : '" (pr-str ptr) "'"))
         (assert (and (number? len) (int? len) (<= 0 len)) (str "copy-bytes given bad length: '" (pr-str len) "'"))
         (.slice (get-view this) ptr (+ ptr len)))
-      (read ;=> object
+      (read ;=> [?err ?ok]
        ([this ptr] (module-read this ptr nil))
        ([this ptr opts] (module-read this ptr opts)))
       (write ;=> FatPtr
@@ -118,27 +149,22 @@
         ([this any opts] (module-write this any opts)))
       (write-bytes [this bytes] ;=> FatPtr
         (module-write-bytes this bytes))
-      (call
-       ([Mod export-name]
-        (let [f (goog.object.get (.-exports Mod) export-name nil)]
-          (if (some? f)
-            (f)
-            (throw (js/Error. (str "missing exported fn '" export-name "'"))))))
-       ([Mod export-name fptr]
-        (assert (instance? FatPtr fptr) "fress.wasm/call arity-3 requires a FatPtr")
-        (let [f (goog.object.get (.-exports Mod) export-name nil)]
-          (if (some? f)
-            (f (.-ptr fptr) (.-len fptr))
-            (throw (js/Error. (str "missing exported fn '" export-name "'"))))))))))
+      (call ;=> [?err ?ok]
+       ([Mod export-name] (module-call Mod export-name))
+       ([Mod export-name fptr] (module-call Mod export-name fptr))))))
 
 (defn assert-fress-mod! [Mod]
   (assert (instance? js/WebAssembly.Instance Mod))
+  (assert (some? (.. Mod -exports -fress_init)))
   (assert (some? (.. Mod -exports -fress_alloc)))
   (assert (some? (.. Mod -exports -fress_dealloc)))
   (assert (some? (.. Mod -exports -memory))))
 
+(defn panic-hook [ptr] (reset! _panic_ptr ptr))
+
 (defn instantiate
-  ([array-buffer] (instantiate array-buffer #js{})) ;panic hook!
+  "instantiates wasm module and adds IFressWasmModule"
+  ([array-buffer] (instantiate array-buffer #js{"env" #js{"js_panic_hook" panic-hook}})) ;panic hook!
   ([array-buffer importOptions]
    (js/Promise.
     (fn [_resolve reject]
@@ -146,7 +172,9 @@
         (fn [module]
           (try
             (assert-fress-mod! (.-instance module))
-            (_resolve (attach-protocol! (.-instance module)))
+            (let [Mod (attach-protocol! (.-instance module))]
+              ((.. Mod -exports -fress_init))
+              (_resolve Mod))
             (catch js/Error e
               (reject e))))
-        (fn [reason] (reject reason)))))))
+        (fn [reason] (reject reason))))))) ;=>compile-error

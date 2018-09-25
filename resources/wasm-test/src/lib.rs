@@ -97,4 +97,9 @@ pub extern "C" fn get_custom_error() -> *mut u8
 }
 
 
+#[no_mangle]
+pub extern "C" fn induce_panic()
+{
+    assert_eq!(2 + 2, 5)
+}
 

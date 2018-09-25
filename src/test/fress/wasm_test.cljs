@@ -99,6 +99,11 @@
          (wasm-api/read Mod read-ptr)))
      (throw (js/Error "missing module")))))
 
+(defn induce-panic []
+  (if-let [Mod @module]
+    (wasm-api/call Mod "induce_panic")
+    (throw (js/Error "missing module"))))
+
 
 (defn write-bytes-test []
   (let [bytes (util/u8-array [99 100 101])

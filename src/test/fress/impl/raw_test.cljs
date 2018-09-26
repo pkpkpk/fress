@@ -81,10 +81,8 @@
       (let [buffer (buf/byte-stream)
             wrt (w/writer buffer)]
         (doseq [d data] (w/writeObject wrt d))
-        (is  (.-open? buffer))
-        (let [bytes (buf/close buffer)
+        (let [bytes (deref buffer)
               rdr (r/reader bytes)]
-          (is (not (.-open? buffer)))
           (is= 42 (r/readObject rdr))
           (is= :foo (r/readObject rdr))
           (is= 'bar (r/readObject rdr))

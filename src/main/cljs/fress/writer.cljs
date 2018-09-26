@@ -259,11 +259,15 @@
     this)
 
   (shouldSkipCache- ^boolean [this o]
-    (cond
-      (or (nil? o) (= (type o) js/Boolean)) true
-      (= (type o) js/String) (= (count o) 0)
-      (number? o) (or (== 0.0 o) (== 1.0 o))
-      :default false))
+    (or
+     (nil? o)
+     (boolean? o)
+     ^boolean
+     (and (string? o)
+          (zero? (.-length o)))
+     ^boolean
+     (and (number? o)
+          (or (== 0.0 o) (== 1.0 o)))))
 
   (doWrite- [this tag o handler ^boolean cache?]
     (if ^boolean (or (not cache?) (shouldSkipCache- this o))
@@ -317,7 +321,9 @@
           (do
             (assert (string? tag) "tag needs to be a string")
             (writeCode this codes/STRUCTTYPE)
-            (writeString this tag)
+            ;; cannot control how keys are written on JVM so leaving as default
+            ; (writeString this tag)
+            (defaultWriteString this tag)
             (writeInt this component-count))
 
           (< index ranges/STRUCT_CACHE_PACKED_END)

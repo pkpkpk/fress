@@ -98,6 +98,10 @@
     (wasm-api/call Mod "induce_panic")
     (throw (js/Error "missing module"))))
 
+(defn panic-test []
+  (let [[err ok :as res] (induce-panic)]
+    (is (= :panic (get err :type)))))
+
 
 (defn write-bytes-test []
   (let [bytes (util/u8-array [99 100 101])
@@ -201,6 +205,7 @@
 
 (defn mod-tests []
   (write-bytes-test)
+  (panic-test)
   (errors-test)
   (custom-error-test)
   (echo-test)

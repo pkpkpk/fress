@@ -27,7 +27,6 @@
 
 (defprotocol IStreamingWriter
   (toByteArray [this] "get byte-array of current buffer contents. does not close.")
-  ; (close [this] "disable further writing, return byte-array")
   (flushTo [this out] [this out offset]
     "write bytes to externally provided arraybuffer source at the given offset")
   (wrap [this out] [this out offset]
@@ -39,48 +38,47 @@
 ;; wasm users need to trigger EOF using footer or agree on single object
 ;; add arity to readBytes for array to  copy into?
 (deftype BufferReader
-  [memory ^number memory-offset ^number bytesRead ^boolean open?]
+  [backing ^number backing-offset ^number bytesRead ^boolean open?]
   IBuffer
   (reset [this]
     (do
       (set! (.-bytesRead this) 0)
       (set! (.-open? this) true)))
-  (close [this]
-    (set! (.-open? this) false))
+  (close [this] (set! (.-open? this) false))
   IBufferReader
   (getBytesRead ^number [this] bytesRead)
   (notifyBytesRead [this ^number n]
     (assert (and (int? bytesRead) (<= 0 bytesRead)))
     (set! (.-bytesRead this) (+ bytesRead n)))
   (readUnsignedByte ^number [this]
-    (if open?
-      (let [byteview (js/Uint8Array. (.-buffer memory))
-            byte (aget byteview (+ memory-offset bytesRead))]
+    (if ^boolean open?
+      (let [byteview (js/Uint8Array. (.-buffer backing))
+            byte (aget byteview (+ backing-offset bytesRead))]
         (when (or (neg? byte) (nil? byte)) (throw (js/Error. "EOF")))
         (notifyBytesRead this 1)
         byte)
       (throw (js/Error. "EOF"))))
   (readSignedByte ^number [this]
-    (if open?
-      (let [byteview (js/Int8Array. (.-buffer memory))
-            byte (aget byteview (+ memory-offset bytesRead))]
+    (if ^boolean open?
+      (let [byteview (js/Int8Array. (.-buffer backing))
+            byte (aget byteview (+ backing-offset bytesRead))]
         (when (nil? byte) (throw (js/Error. "EOF")))
         (notifyBytesRead this 1)
         byte)
       (throw (js/Error. "EOF"))))
-  (readSignedBytes [this  length]
-    (if open?
+  (readSignedBytes [this length]
+    (if ^boolean open?
       (do
-        (assert (<= 0 (+ bytesRead length) (.. memory -buffer -byteLength)))
-        (let [bytes (js/Int8Array. (.-buffer memory) (+  memory-offset bytesRead) length)]
+        (assert (<= 0 (+ bytesRead length) (.. backing -buffer -byteLength)))
+        (let [bytes (js/Int8Array. (.-buffer backing) (+  backing-offset bytesRead) length)]
           (notifyBytesRead this length)
           bytes))
       (throw (js/Error. "EOF"))))
   (readUnsignedBytes [this  length]
-    (if open?
+    (if ^boolean open?
       (do
-        (assert (<= 0 (+ bytesRead length) (.. memory -buffer -byteLength)))
-        (let [bytes (js/Uint8Array. (.-buffer memory) (+  memory-offset bytesRead) length)]
+        (assert (<= 0 (+ bytesRead length) (.. backing -buffer -byteLength)))
+        (let [bytes (js/Uint8Array. (.-buffer backing) (+ backing-offset bytesRead) length)]
           (notifyBytesRead this length)
           bytes))
       (throw (js/Error. "EOF")))))
@@ -98,10 +96,7 @@
   IDeref
   (-deref [this] (toByteArray this))
   IBuffer
-  (reset [this]
-    ; (.fill arr nil)
-    (set! (.-bytesWritten this) 0)
-    (set! (.-buffer this) nil))
+  (reset [this] (set! (.-bytesWritten this) 0))
   IStreamingWriter
   (flushTo [this buf] (flushTo this buf 0))
   (flushTo [this buf ptr]
@@ -186,7 +181,7 @@
   ([backing backing-offset]
    (cond
      (some? (.-buffer backing))
-     (BufferReader. backing (int (or backing-offset 0)) 0 true)
+     (BufferReader. backing (or backing-offset 0) 0 true)
 
      (instance? js/ArrayBuffer backing)
      (readable-buffer (js/Int8Array. backing) backing-offset)
@@ -204,7 +199,7 @@
      (readable-buffer (toByteArray backing) backing-offset)
 
      (instance? BufferWriter backing)
-     (readable-buffer (.-memory backing) backing-offset)
+     (readable-buffer (.-backing backing) backing-offset)
 
      :else
      (throw

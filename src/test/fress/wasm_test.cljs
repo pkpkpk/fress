@@ -200,8 +200,8 @@
 
 
 (defn mod-tests []
-  ; (write-bytes-test)
-  ; (errors-test)
+  (write-bytes-test)
+  (errors-test)
   (custom-error-test)
   (echo-test)
   )

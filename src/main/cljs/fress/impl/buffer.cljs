@@ -163,26 +163,21 @@
     (assert (int? n) "written byte count must be an int")
     (set! (.-bytesWritten this) (+ n bytesWritten)))
   (writeByte [this byte]
-    (when-not (room? this 1)
-      (if (some? (.-grow memory))
-        (.grow memory 1)
-        (throw (js/Error. "BufferWriter out of room"))))
-    (aset (js/Int8Array. (.. memory -buffer)) bytesWritten byte)
-    (notifyBytesWritten this 1)
-    this)
+    (if (room? this 1)
+      (do
+        (aset (js/Int8Array. (.. backing -buffer)) bytesWritten byte)
+        (notifyBytesWritten this 1)
+        this)
+      (throw (js/Error. "BufferWriter out of room"))))
   (writeBytes [this bytes] (writeBytes this bytes 0 (alength bytes)))
   (writeBytes [this bytes ^number offset ^number length]
     (assert (int? length))
-    (when-not (room? this length)
-      (if (some? (.-grow memory))
-        (let [bytes-needed length
-              pages-needed (js/Math.ceil (/ bytes-needed 65535))]
-          (.grow memory pages-needed))
-        (throw (js/Error. "BufferWriter out of room"))))
-    (let [i8array (js/Int8Array. (.. memory  -buffer))]
-      (.set i8array (.subarray bytes offset (+ offset length)) (+  bytesWritten memory-offset))
-      (notifyBytesWritten this length))
-      this))
+    (if (room? this length)
+      (let [i8array (js/Int8Array. (.. backing  -buffer))]
+        (.set i8array (.subarray bytes offset (+ offset length)) (+  bytesWritten backing-offset))
+        (notifyBytesWritten this length)
+        this)
+      (throw (js/Error. "BufferWriter out of room")))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

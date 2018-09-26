@@ -109,8 +109,8 @@
     + If no ptr is given it will return as [nil]
     + panics are automatically handled and returned as [{:type :panic, :msg '...'}]
     Note: read and write opts must be passed at module instantiation, otherwise
-    this function will become a tangled mess. In the future we may be able to go
-    which will obviate the need for this fn. Until then, this is as convenient as it gets
+    this function will become a tangled mess. In the future we may be able to
+    generate code which will obviate the need for this fn.
    => [?err ?ok]"
   (let [sentinel (js/Object.)]
    (fn

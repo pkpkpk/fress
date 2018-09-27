@@ -350,7 +350,7 @@
        (w/writeObject writer obj)
        (when footer?
          (w/writeFooter writer))
-       (buf/close bos))))
+       @bos)))
 
 
 

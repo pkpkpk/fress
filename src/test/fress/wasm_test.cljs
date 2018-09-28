@@ -34,6 +34,7 @@
   {:project-name "wasm-test"
    :dir (path.join (tmac/root) "resources" "wasm-test")
    :target :wasm
+   :verbose true
    :release? true
    :rustflags {:allow []}})
 
@@ -51,7 +52,7 @@
 
 (defn build []
   (js/console.clear)
-  (take! (cargo/build-wasm! cfg)
+  (take! (cargo/build-wasm cfg)
     (fn [[err {:keys [buffer]}]]
       (if err
         (cargo/report-error err)

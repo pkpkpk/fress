@@ -1,5 +1,5 @@
-# `[fress "0.2.0"]`
-## `fress {:mvn/version  "0.2.0"}`
+# `[fress "0.3.0"]`
+## `fress {:mvn/version  "0.3.0"}`
 
 [![Clojars Project](https://img.shields.io/clojars/v/fress.svg)](https://clojars.org/fress)
 

@@ -30,9 +30,13 @@
         data (edn/read-string (slurp file))]
     data))
 
-(defmacro root []
+(defmacro root
+  "get project-root of caller. This makes things friendly for 'checkout' compilations"
+  []
   (let [caller-file (io/file ana/*cljs-file*)]
-    (loop [f (.getParentFile caller-file)]
+    (loop [f caller-file]
       (if (= "src" (.getName f))
-        (.getPath (.getParentFile f))
+        (if-let [root (.getParentFile f)] ;; no clue why this doesnt work when hits cwd
+          (.getPath root)
+          (System/getProperty "user.dir"))
         (recur (.getParentFile f))))))

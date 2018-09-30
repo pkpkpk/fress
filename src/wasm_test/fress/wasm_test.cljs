@@ -212,3 +212,19 @@
   (echo-test)
   )
 
+(deftest wasm-test
+  (async done
+    (take! (cargo/build-wasm cfg)
+      (fn [[err {:keys [buffer]}]]
+        (if (is (nil? err))
+          (take! (p->ch (wasm-api/instantiate buffer))
+            (fn [[err Mod :as init-res]]
+              (if (is (some? Mod))
+                (do
+                  (reset! module Mod)
+                  (mod-tests)
+                  (done))
+                (done))))
+          (do
+            (cargo/report-error err)
+            (done)))))))

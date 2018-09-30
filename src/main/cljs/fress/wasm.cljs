@@ -55,7 +55,7 @@
     ((.. Mod -exports -fress_dealloc) ptr bytes_read)
     ret))
 
-(defonce ^:private _buffer (buf/with_capacity 128))
+(defonce ^:private _buffer (buf/with-capacity 128))
 
 (defn- module-write ;=> FatPtr
   "Given a WASM module, object, and opts, write the object into wasm memory

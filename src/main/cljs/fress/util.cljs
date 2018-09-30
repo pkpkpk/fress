@@ -37,6 +37,14 @@
         (decode [this bytes]
           (gcrypt/utf8ByteArrayToString bytes))))))
 
+(extend-type js/Int8Array
+  IEquiv
+  (-equiv [this that] (= (array-seq this) (array-seq that))))
+
+(extend-type js/Uint8Array
+  IEquiv
+  (-equiv [this that] (= (array-seq this) (array-seq that))))
+
 (extend-type ArrayList
   Object
   (get [this i] (aget (.-arr this) i)))

@@ -1,0 +1,15 @@
+[package]
+name = "wasm-test"
+version = "0.1.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+serde-fressian = "0.1.0"
+serde = "1.0.70"
+serde_derive = "1.0.70"
+maplit = "1.0.1"
+
+[profile.release]
+opt-level = "s"

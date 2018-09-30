@@ -30,6 +30,7 @@
     :license {:name "Eclipse Public License"
               :url "http://www.eclipse.org/legal/epl-v10.html"}
     :plugins [[lein-cljsbuild "1.1.7"]]
+    :jar-exclusions [#"^wasm-test/.*|public/.*"]
     :dependencies ~proj-deps
     :source-paths ~src-paths
     :test-paths ~test-paths

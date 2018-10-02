@@ -99,10 +99,47 @@
     (wasm-api/call Mod "induce_panic")
     (throw (js/Error "missing module"))))
 
+(defn bad-int []
+  (if-let [Mod @module]
+    (wasm-api/call Mod "bad_int")
+    (throw (js/Error "missing module"))))
+
+(defn get-raw-err []
+  (if-let [Mod @module]
+    (wasm-api/call Mod "get_raw_err")
+    (throw (js/Error "missing module"))))
+
+(defn get-res-err []
+  (if-let [Mod @module]
+    (wasm-api/call Mod "get_res_err")
+    (throw (js/Error "missing module"))))
+
 (defn panic-test []
   (let [[err ok :as res] (induce-panic)]
     (is (= :panic (get err :type)))))
 
+(defn serialization-error-test []
+  (testing "when serializing fails, it's derived error is picked up as [err]"
+    (is (= (bad-int) [{"position" 0,
+                       "ErrorCode" "IntTooLargeFori64",
+                       "type" "serde-fressian",
+                       "category" "Ser"}]))))
+
+(defn err-test []
+  (binding [fress.reader/*keywordize-keys* true]
+    (testing "naked errors serialize to [nil ok]"
+      (is (= (get-raw-err) [nil
+                            {:type "serde-fressian"
+                             :category "Misc"
+                             :ErrorCode "Message"
+                             :value "some message"
+                             :position 0}])))
+    (testing "Err(Error) serializes to [err]"
+      (is (= (get-res-err) [{:type "serde-fressian"
+                             :category "Misc"
+                             :ErrorCode "Message"
+                             :value "some message"
+                             :position 0}])))))
 
 (defn write-bytes-test []
   (let [bytes (util/u8-array [99 100 101])
@@ -207,6 +244,8 @@
 (defn mod-tests []
   (write-bytes-test)
   (panic-test)
+  (serialization-error-test)
+  (err-test)
   (errors-test)
   (custom-error-test)
   (echo-test)

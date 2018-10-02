@@ -39,6 +39,27 @@ pub extern "C" fn echo(ptr: *mut u8, len: usize) ->*mut u8
 }
 
 #[no_mangle]
+pub extern "C" fn get_raw_err() -> *mut u8
+{
+    let msg = FressError::msg("some message".to_string());
+    wasm::to_js(msg)
+}
+
+#[no_mangle]
+pub extern "C" fn get_res_err() -> *mut u8
+{
+    let msg = FressError::msg("some message".to_string());
+    let res: Result<(), FressError> = Err(msg);
+    wasm::to_js(res)
+}
+
+#[no_mangle]
+pub extern "C" fn bad_int() -> *mut u8
+{
+    wasm::to_js(std::u64::MAX)
+}
+
+#[no_mangle]
 pub extern "C" fn get_errors() -> *mut u8
 {
     let msg = FressError::msg("some message".to_string());

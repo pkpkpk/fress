@@ -1,5 +1,5 @@
 # Wasm Guide 0: The Result
-[`fress.wasm`](https://github.com/pkpkpk/fress/blob/master/src/main/cljs/fress/wasm.cljs) is designed to interop with the [`serde_fressian::wasm`](https://github.com/pkpkpk/serde-fressian/src/wasm/mod.rs) module
+[`fress.wasm`](https://github.com/pkpkpk/fress/blob/master/src/main/cljs/fress/wasm.cljs) is designed to interop with the [`serde_fressian::wasm`](https://github.com/pkpkpk/serde-fressian/blob/master/src/wasm/mod.rs) module
 
 
 #### Rust...

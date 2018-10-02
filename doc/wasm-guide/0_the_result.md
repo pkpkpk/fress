@@ -109,7 +109,7 @@ let vec: Vec<u8> = // 1
 1. We are expecting to bind a byte vec
 2. We try to serialize the value given to `to_js`, returning `Result<Vec<u8>,Error>`
 3. `result.unwrap_or_else()` means we unwrap the result if it is ok (returning `Vec<u8>`), but if it is not ok (a serialization-error) we pass that error to a closure
-4. Inside the closure, wrap the serialization-error in a result so that it will serialize as an Err, rather than just a value.
+4. Inside the closure, wrap the serialization-error in a result so that it will serialize as an Result::Err(err), rather than just a value.
 5. We serialize the `Err(err)` and no matter what call `result.unwrap()`.
 
 Calling unwrap at the end means that we are assuming that serializing serialization-errors will always succeed and that it produces `Vec<u8>`. At this point you can safely rely on this not happening, but if it does, the author has let you down and you should raise an issue. If in actuality it fails, and a `Vec<u8>` doesn't arrive where it is expected, then that unwrap causes a [`Panic`][Panic]

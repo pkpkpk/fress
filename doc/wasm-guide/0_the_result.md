@@ -1,4 +1,4 @@
-# Wasm Guide
+# Wasm Guide 0: The Result
 [`fress.wasm`](https://github.com/pkpkpk/fress/blob/master/src/main/cljs/fress/wasm.cljs) is designed to interop with the [`serde_fressian::wasm`](https://github.com/pkpkpk/serde-fressian/src/wasm/mod.rs) module
 
 
@@ -88,36 +88,44 @@ Wait, what if deserialization fails, and then (stay with me) serializing the des
 // from wasm/mod.rs
 pub fn to_js<S: Serialize>(value: S) -> *mut u8
 {
-    let vec: Vec<u8> = ser::to_vec(&value).unwrap_or_else(|err| ser::to_vec(&err).unwrap());
+    let vec: Vec<u8> = ser::to_vec(&value).unwrap_or_else(|err| {
+        let res: Result<(), error::Error> = Err(err);
+        ser::to_vec(&res).unwrap()
+    });
     bytes_to_js(vec)
 }
 ```
 
-Let's unpack that line:
+Let's unpack the main bit:
 
 ```rust
-ser::to_vec(&value) // 1
-  .unwrap_or_else(|err| // 2
-    ser::to_vec(&err).unwrap() // 3
-  )
+let vec: Vec<u8> = // 1
+  ser::to_vec(&value) // 2
+      .unwrap_or_else(|err| { // 3
+          let res: Result<(), error::Error> = Err(err); // 4
+          ser::to_vec(&res).unwrap() // 5
+      });
 ```
-1. we try to serialize the value given to `to_js`, returning `Result<Vec<u8>,Error>`
-2. `result.unwrap_or_else()` means we unwrap the result if it is ok (returning `Vec<u8>`), but if it is not ok (a serialization-error) we pass that error to a closure
-3. Inside the closure, we try to serialize the serialization-error and no matter what call `result.unwrap()`.
+1. We are expecting to bind a byte vec
+2. We try to serialize the value given to `to_js`, returning `Result<Vec<u8>,Error>`
+3. `result.unwrap_or_else()` means we unwrap the result if it is ok (returning `Vec<u8>`), but if it is not ok (a serialization-error) we pass that error to a closure
+4. Inside the closure, wrap the serialization-error in a result so that it will serialize as one (rather than just a value)
+5. serialize the `Err(err)` and no matter what call `result.unwrap()`.
 
-Calling unwrap means that we are gambling that the result is `Ok(Vec<u8>)`. If a `Vec<u8>` doesn't arrive where it is expected, then we get a [`Panic`][Panic]
+Calling unwrap at the end means that we are assuming that serializing serialization-errors will always succeed.
+and that the result is `Ok(Vec<u8>)`. If in actuality it fails, a `Vec<u8>` doesn't arrive where it is expected, and we get a [`Panic`][Panic]
 
 #### dont panic
 A panic is an unrecoverable fatal runtime error. Panics can come from inappropriately unwrapping Result and Option types, but also things such as failed assertions. In native rust it would kill the thread, but in WebAssembly it throws a [RuntimeError][Runtime] with a typically useless message.
 
-Rust offers a way to catch panics by offering to call a `panic_hook` function. When a panic occurs, rust will call the hook with a description of the error. Serde-fressian is configured to catch the panic, and serialize the description, and call an imported js function with a ptr to the serialized panic message. If `fress.wasm/call` catches a [RuntimeError][Runtime], it will read from the ptr and return an error map:
+Rust offers a way to catch panics by offering to call a `panic_hook` function. When a panic occurs, rust will call the hook with a description of the error. Serde-fressian is configured to catch the panic, serialize the description, and call an imported js function with a ptr to the serialized panic message. If `fress.wasm/call` catches a [RuntimeError][Runtime], it will read from the ptr and return an error map:
 
 ```clojure
 [{:type :panic
   :value "...assertion failed at..."}]
 ```
 
-#### error handling in summary:
+### error handling in summary:
 
 When working with fress you can expect wasm errors to fall into a few categories:
   1. serde-fressian errors
@@ -125,26 +133,17 @@ When working with fress you can expect wasm errors to fall into a few categories
       - ex: the data describes a map and you try to read a string
     - rare: primary serialization failed
       - ex: trying to fix a large u64 into a fressian int (i64)
-  2. 3rd party errors
-    - cannot expect them to conform to serialization needs. You may have to wrap them in your own error types with custom serialize impls
-    - ex: parsing a regex string into a Regex type returns a Result<Regex, RegexError>
+  2. errors from 3rd party crates
+    - cannot expect them to conform to serialization needs. You may have to wrap them in your own error types with custom serialize impls if you want to inspect them in js
+    - ex: parsing a regex string into a Regex type returns a `Result<Regex, RegexError>`
   3. custom errors you define
     - see [custom_errors.md](custom_errors.md)
   4. panics
     - something has gone horribly wrong.
     - An assertion failed, a Result/Option was mishandled, or theres a bug somewhere
 
-
-
-#### Lossy representations
-
-#### Still work to do
-
-#### Suggested Reading
-
-
 [serde-fressian]: https://github.com/pkpkpk/serde-fressian
 [Result]: https://doc.rust-lang.org/std/result
 [Panic]: https://doc.rust-lang.org/std/panic
 [Runtime]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/RuntimeError
-<hr>
+

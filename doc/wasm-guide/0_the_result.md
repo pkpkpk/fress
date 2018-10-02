@@ -74,7 +74,7 @@ let val: Result<Value, FressError> = wasm::from_ptr(ptr, len);
 wasm::to_js(val) //<--serialize result, even if error
 ```
 
-Wait, maybe deserializing a value from the ptr fails! If so, our cljs caller will receive:
+What if deserializing a `Value` from the ptr fails? If so, we get a deserialization-error, which is serialized to our cljs caller as:
 
 ```clojure
 [{:type "serde-fressian"
@@ -82,7 +82,7 @@ Wait, maybe deserializing a value from the ptr fails! If so, our cljs caller wil
   ...}]
 ```
 
-Wait, what if deserialization fails, and then (stay with me) serializing the deserialization-error fails. Then you will get a serialization-error, which you can probably guess, is serialized too. But what if serializing the serialization-error fails? At this point you can safely rely on this not happening, but if it does, the author has let you down and you should raise an issue. But we can anticipate what would happen by taking a peek at the source for `serde_fressian::wasm::to_js`:
+What if deserialization fails, and then (stay with me) serializing the deserialization-error fails. Then you will get a serialization-error, which you can probably guess, is serialized too. But what if serializing the serialization-error fails? We can anticipate what would happen by taking a peek at the source for `serde_fressian::wasm::to_js`:
 
 ```rust
 // from wasm/mod.rs
@@ -109,11 +109,12 @@ let vec: Vec<u8> = // 1
 1. We are expecting to bind a byte vec
 2. We try to serialize the value given to `to_js`, returning `Result<Vec<u8>,Error>`
 3. `result.unwrap_or_else()` means we unwrap the result if it is ok (returning `Vec<u8>`), but if it is not ok (a serialization-error) we pass that error to a closure
-4. Inside the closure, wrap the serialization-error in a result so that it will serialize as one (rather than just a value)
-5. serialize the `Err(err)` and no matter what call `result.unwrap()`.
+4. Inside the closure, wrap the serialization-error in a result so that it will serialize as an Err, rather than just a value.
+5. We serialize the `Err(err)` and no matter what call `result.unwrap()`.
 
-Calling unwrap at the end means that we are assuming that serializing serialization-errors will always succeed.
-and that the result is `Ok(Vec<u8>)`. If in actuality it fails, a `Vec<u8>` doesn't arrive where it is expected, and we get a [`Panic`][Panic]
+Calling unwrap at the end means that we are assuming that serializing serialization-errors will always succeed and that it produces `Vec<u8>`. At this point you can safely rely on this not happening, but if it does, the author has let you down and you should raise an issue. If in actuality it fails, and a `Vec<u8>` doesn't arrive where it is expected, then that unwrap causes a [`Panic`][Panic]
+
+
 
 #### dont panic
 A panic is an unrecoverable fatal runtime error. Panics can come from inappropriately unwrapping Result and Option types, but also things such as failed assertions. In native rust it would kill the thread, but in WebAssembly it throws a [RuntimeError][Runtime] with a typically useless message.
@@ -129,9 +130,9 @@ Rust offers a way to catch panics by offering to call a `panic_hook` function. W
 
 When working with fress you can expect wasm errors to fall into a few categories:
   1. serde-fressian errors
-    - most common: you tried to deserialize a type not described by the bytecode it is given
+    - __most common__: you tried to deserialize a type not described by the bytecode it is given
       - ex: the data describes a map and you try to read a string
-    - rare: primary serialization failed
+    - rare: serialization failed
       - ex: trying to fix a large u64 into a fressian int (i64)
   2. errors from 3rd party crates
     - cannot expect them to conform to serialization needs. You may have to wrap them in your own error types with custom serialize impls if you want to inspect them in js

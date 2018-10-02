@@ -129,19 +129,19 @@ Rust offers a way to catch panics by offering to call a `panic_hook` function. W
 ### error handling in summary:
 
 When working with fress you can expect wasm errors to fall into a few categories:
-  1. serde-fressian errors
-    - __most common__: you tried to deserialize a type not described by the bytecode it is given
-      - ex: the data describes a map and you try to read a string
-    - rare: serialization failed
-      - ex: trying to fix a large u64 into a fressian int (i64)
-  2. errors from 3rd party crates
-    - cannot expect them to conform to serialization needs. You may have to wrap them in your own error types with custom serialize impls if you want to inspect them in js
-    - ex: parsing a regex string into a Regex type returns a `Result<Regex, RegexError>`
-  3. custom errors you define
-    - see [custom_errors.md](custom_errors.md)
-  4. panics
-    - something has gone horribly wrong.
-    - An assertion failed, a Result/Option was mishandled, or theres a bug somewhere
+  1. __serde-fressian errors__
+     - most common: you tried to deserialize a type not described by the bytecode it is given
+       - ex: the data describes a map and you try to read a string
+     - rare: serialization failed
+       - ex: trying to fix a large u64 into a fressian int (i64)
+  2. __errors from 3rd party crates__
+     - cannot expect them to conform to serialization needs. You may have to wrap them in your own error types with custom serialize impls if you want to inspect them in js
+     - ex: parsing a regex string into a Regex type returns a `Result<Regex, RegexError>`
+  3. __custom errors you define__
+     - see [custom_errors.md](custom_errors.md)
+  4. __panics__
+     - something has gone horribly wrong.
+     - An assertion failed, a Result/Option was mishandled, or theres a bug somewhere
 
 [serde-fressian]: https://github.com/pkpkpk/serde-fressian
 [Result]: https://doc.rust-lang.org/std/result

@@ -60,18 +60,50 @@ The `fress.wasm/IFressWasmModule` protocol offers primitives for module interop 
 (assert (= (echo data) [nil data]))
 ```
 
+#### `Result<T,E>`
+Instead of exceptions, Rust has the [`Result<T,E>`][Result] enum. Functions that expect to sometimes fail return a Result (io, serialization...). These functions return `Result::Ok(T)` if they succeed, and `Result::Err(E)` if they fail. The `Result` type is so pervasive in Rust that the std prelude includes globally the `Ok(T)` and `Err(E)` functions as shorthands for creating `Result` variants. This is how we will refer to them moving forward.
 
-#### 2-tuple vectors: the poor man's Result enum
-Instead of exceptions, rust has the [Result&lt;T,E&gt;][Result] enum. Functions that have a expectation of sometimes failing (io, serialization...) return `Result::Ok(T)` if they succeed, and `Result::Err(E)` if they fail. In cljs we model this with a simple vector `[?err ?ok]` where err is present when the operation fails, and nil when it succeeds.
+In fressian wasm, we want to take the Result concept and use it to ***propagate all errors to javascript***. In cljs we model the `Result` type with a simple vector `[?err ?ok]`, where err is present when the operation fails, and nil when it succeeds. If your wasm function fails or you want your return value to be recognized as an error, then you need to call `wasm::to_js` with `Err(E)`. If your function already returns a `Result`, then you can use it as is.
 
-From the rust side of things, you do not need to worry about explicitly handling errors at the serialization border because Results themselves are serializable. If the result is `Ok(T)`, it will simply serialize `T`. If the result is `Err(E)`, `E` will be serialized but with an error code prefix. `fress.wasm` will pick up on this error code and deliver an appropriate `[?err ?ok]` tuple.  
+When it sees an `Err(E)`, serde_fressian will serialize `E` with an error code prefix. The `fress.wasm/read` function looks for this error code, and returns the next object as `[err]`. Any type given to `wasm::to_js` that is not a `Err(E)` will be written as is, even the `E` you are otherwise using as an error type. Errors are just values.
+
+
+| given to `wasm::to_js` | cljs reads as...
+|-----------------|------
+|`Result::Err(E)` | `[E]`
+|`E`              | `[nil E]`
+|`Result::Ok(T)`  | `[nil T]`
+|`T`              | `[nil T]`
+
+This all comes with an important caveat: in order to serialize a `Result<T,E>`, both `T` and `E` must implement the `serde::ser::Serialize` trait. From the serde src:
+
+```rust
+// from serde/src/ser/impls.rs
+impl<T, E> Serialize for Result<T, E>
+where
+    T: Serialize,
+    E: Serialize,
+{
+  // ...
+}
+```
+
+Rust will not even let your code compile if this condition is not met. Serde has its own [data model][data-model], which includes both both `serde::ser::Serialize` and `serde::de::Deserialize` impls for all basic rust types and collections. How serde interacts with fressian will be the subject a [later guide](TODO), but for now you can assume most basic rust types serialize into their obvious clojure counterparts, with some extra work required to utilize the full expressiveness of the fressian format.
+
+
+
+
+
+
+#### serde-fressian errors
+
 
 From the echo example:
 
 ```rust
 let val: Result<Value, FressError> = wasm::from_ptr(ptr, len);
 //...
-wasm::to_js(val) //<--serialize result, even if error
+wasm::to_js(val) // <-- serialize result, even if error
 ```
 
 What if deserializing a `Value` from the ptr fails? If so, we get a deserialization-error, which is serialized to our cljs caller as:
@@ -107,9 +139,9 @@ let vec: Vec<u8> = // 1
       });
 ```
 1. We are expecting to bind a byte vec
-2. We try to serialize the value given to `to_js`, returning `Result<Vec<u8>,Error>`
-3. `result.unwrap_or_else()` means we unwrap the result if it is ok (returning `Vec<u8>`), but if it is not ok (a serialization-error) we pass that error to a closure
-4. Inside the closure, wrap the serialization-error in a result so that it will serialize as an Result::Err(err), rather than just a value.
+2. We try to serialize the value given to `to_js`, returning `Result<Vec<u8>, serde_fressian::error::Error>`
+3. `result.unwrap_or_else()` means we unwrap the result if it is `Result::Ok(Vec<u8>)` (returning `Vec<u8>`), but if it is not ok (a serialization-error) we pass that error to a closure
+4. Inside the closure, wrap the serialization-error in a result so that it will serialize as an `Result::Err(err)`, rather than just a value.
 5. We serialize the `Err(err)` and no matter what call `result.unwrap()`.
 
 Calling unwrap at the end means that we are assuming that serializing serialization-errors will always succeed and that it produces `Vec<u8>`. At this point you can safely rely on this not happening, but if it does, the author has let you down and you should raise an issue. If in actuality it fails, and a `Vec<u8>` doesn't arrive where it is expected, then that unwrap causes a [`Panic`][Panic]
@@ -147,4 +179,4 @@ When working with fress you can expect wasm errors to fall into a few categories
 [Result]: https://doc.rust-lang.org/std/result
 [Panic]: https://doc.rust-lang.org/std/panic
 [Runtime]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/RuntimeError
-
+[data-model]: https://serde.rs/data-model

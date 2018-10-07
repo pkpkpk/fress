@@ -88,7 +88,7 @@ where
 }
 ```
 
- Serde has its own [data model][data-model], which includes `serde::ser::Serialize` and `serde::de::Deserialize` impls for all basic rust types and collections. How serde interacts with fressian will be the subject of [later guides][understanding_serde], but for now you can assume most basic rust types serialize into their obvious clojure counterparts, with some extra work required to utilize the full expressiveness of the fressian format. More immediately though, this means any error type `E` must implement `serde::ser::Serialize` if it is to be given to javascript. [Implementing your errors][custom_errors] deserves its own guide, but you can rely on serde_fressian to serialize it's own errors.
+ Serde has its own [data model][data-model], which includes `serde::ser::Serialize` and `serde::de::Deserialize` impls for all basic rust types and collections. How serde interacts with fressian will be the subject of [later guides][understanding_serde], but for now you can assume most basic rust types serialize into their obvious clojure counterparts, with some extra work required to utilize the full expressiveness of the fressian format. More immediately though, this means any error type `E` must implement `serde::ser::Serialize` if it is to be given to javascript. [Implementing your errors][custom_errors] deserves its own guide, but you can rely on serde_fressian to serialize its own errors.
 
 
 
@@ -107,12 +107,12 @@ wasm::to_js(val) // serialize the result
 `from_ptr`  attempts to deserialize a type param T and returns a `Result<T, serde_fressian::error::Error>`.
 So here the type param is a `serde_fressian::value::Value` enum, and at compile time rust looks for a `deserialize` impl for `Value`
 
-The purpose of the `Value` enum is to accomodate any [supported][supported] fressian type, so you can expect this to reliably return `Ok(Value(T))` where `T` is whatever value you sent from cljs. This is serde following the data exactly as it is described, so you'd have to put in some effort to break it.  A much more likely problem will occur when you try to deserialize a more specific type:
+The purpose of the `Value` enum is to accomodate any [supported][supported] fressian type, so you can expect this to reliably return `Ok(Value::TYPE(T))` where `TYPE/T` is whatever fressian value you sent from cljs. This is serde following the data exactly as it is described, so you'd have to put in some effort to break it.  A much more likely problem will occur when you try to deserialize a more specific type:
 
 ```rust
 let val: Result<Vec<String>, FressError> = wasm::from_ptr(ptr, len);
 ```
-This time we are specifically expecting the bytes to contain a collection of strings. What if they don't? If we try to read the wrong type, `wasm::from_ptr` will return `Err(E)` where `E` is a `serde_fressian::error::Error` with info about where the deserialization failed. We can serialize this error to cljs and it will read as:
+This time we are specifically expecting the bytes to contain a collection of strings. What if the bytes encode something else? If we try to read the wrong type, `wasm::from_ptr` will return `Err(E)` where `E` is a `serde_fressian::error::Error` with info about where the deserialization failed. We can serialize this error to cljs and it will read as:
 
 ```clojure
 [{:type "serde-fressian"
@@ -165,7 +165,7 @@ Calling unwrap at the end means that we are assuming that serializing serializat
 
 If in actuality it fails, and a `Vec<u8>` doesn't arrive where it is expected, then that unwrap causes a [__Panic__][Panic]. A panic is an unrecoverable fatal runtime error. Panics can come from inappropriately unwrapping Result and Option types, but also things such as failed assertions. In native rust it would kill the thread, but in WebAssembly it throws a [RuntimeError][Runtime] with a typically useless message.
 
-Rust offers a way to catch panics by offering to call a `panic_hook` function. When a panic occurs, rust will call the hook with a description of the error. Serde-fressian is configured to catch the panic, serialize the description, and call an imported js function with a ptr to the serialized panic message. If `fress.wasm/call` catches a [RuntimeError][Runtime], it will read from the ptr and return an error map:
+Rust offers a way to catch panics by calling a `panic_hook` function. When a panic occurs, rust will call the hook with a description of the error. Serde-fressian is configured to catch the panic, serialize the description, and call an imported js function with a ptr to the serialized panic message. If `fress.wasm/call` catches a [RuntimeError][Runtime], it will read from the ptr and return an error map:
 
 ```clojure
 [{:type :panic

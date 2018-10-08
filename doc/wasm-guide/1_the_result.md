@@ -111,7 +111,7 @@ The purpose of the `Value` enum is to accomodate any [supported][supported] fres
 let res: Result<String, FressError> = wasm::from_ptr(ptr, len);
 ```
 
-Any exported functions you wish to receive values from cljs must always accept `(ptr: *mut u8, len: usize)` in their parameter signature.  Those values should be given to `wasm::from_ptr` or owned and read with `de::from_vec`
++ Any exported functions you wish to receive values from cljs must always accept `(ptr: *mut u8, len: usize)` in their parameter signature.  Those values should be given to `wasm::from_ptr` or owned and read with `de::from_vec`
 
 TODO: Copying, ownership
 
@@ -125,8 +125,9 @@ TODO: Copying, ownership
 ```rust
 wasm::to_js(res) // serialize the result
 ```
-Any exported functions you wish to transport values to js must always return `*mut u8` in its  return signature
++ Any exported functions you wish to transport values to js must always return `*mut u8` in its  return signature
 
++ These bytes are [forgotten][forgotten] by rust and are effectively owned by the javascript consumer. This means that slice of memory is unreachable to the wasm allocator. If ownership is not returned to rust, this becomes a leak. Ownership can be returned by calling `wasm::fress_dealloc` with the original ptr and length. `fress.wasm/read` (and `call`) does this for you
 
 <hr>
 
@@ -228,5 +229,6 @@ When working with fress you can expect wasm errors to fall into a few categories
 [data-model]: https://serde.rs/data-model
 
 [supported]: TODO
-[custom_errors]: TODO
-[understanding_serde]: TODO
+[custom_errors]: 2_serde_fressian.md
+[understanding_serde]: 3_serde_fressian.md
+[forgotten]: https://doc.rust-lang.org/std/mem/fn.forget.html

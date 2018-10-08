@@ -1,6 +1,47 @@
 # Wasm Guide 0: The Result
-[`fress.wasm`](https://github.com/pkpkpk/fress/blob/master/src/main/cljs/fress/wasm.cljs) is designed to interop with the [`serde_fressian::wasm`](https://github.com/pkpkpk/serde-fressian/blob/master/src/wasm/mod.rs) module
+__Fressian-wasm__ is a way to easily exchange values between WebAssembly and Clojurescript. [`fress.wasm`][fress.wasm] is designed to interop with the [`serde_fressian::wasm`][wasm_mod] module. Working together, let's call them __fressian-wasm__.
 
+
+remove friction
+first class error handling
+
+
+In fressian wasm, we want to use the rust [__Result__][Result] type and use it to ***propagate all errors to javascript***.
+
+### `Result<T,E>`
+Instead of exceptions, Rust has the [`Result<T,E>`][Result] enum. Functions that expect to sometimes fail return a Result (io, serialization...). These functions return `Result::Ok(T)` if they succeed, and `Result::Err(E)` if they fail. The `Result` type is so pervasive in Rust that the std prelude includes globally the `Ok(T)` and `Err(E)` functions as shorthands for creating `Result` variants. This is how we will refer to them moving forward.
+
+In cljs we model the `Result` type with a simple vector `[?err ?ok]`, where err is present when the operation fails, and nil when it succeeds.
+
+If your wasm function fails or you want your return value to be recognized as an error, then you need to call `wasm::to_js` with `Err(E)`. When `serde_fressian::ser` sees an `Err(E)`, it will serialize `E` with an error code prefix. The `fress.wasm/read` function looks for this error code, and returns the next object as `[err]`. Any type given to `wasm::to_js` that is not a `Err(E)` will be written as is, even the `E` you are otherwise using as an error type. Errors are just values.
+
+
+| given to `wasm::to_js` | cljs reads as...
+|-----------------|------
+|`Result::Err(E)` | `[E]`
+|`E`              | `[nil E]`
+|`Result::Ok(T)`  | `[nil T]`
+|`T`              | `[nil T]`
+
+This all comes with an important caveat: in order to serialize a `Result<T,E>`, both `T` and `E` must implement the `serde::ser::Serialize` trait. Rust will not let your code compile if this condition is not met. From the serde src:
+
+```rust
+// from serde/src/ser/impls.rs
+impl<T, E> Serialize for Result<T, E>
+where
+    T: Serialize,
+    E: Serialize,
+{
+  // ...
+}
+```
+
+Serde has its own [data model][data-model], which includes `serde::ser::Serialize` and `serde::de::Deserialize` impls for all basic rust types and collections. How serde interacts with fressian will be the subject of [later guides][understanding_serde], but for now you can assume most basic rust types serialize into their obvious clojure counterparts, with some extra work required to utilize the full expressiveness of the fressian format. More immediately though, this means any error type `E` must implement `serde::ser::Serialize` if it is to be given to javascript. [Implementing your errors][custom_errors] deserves its own guide, but you can rely on serde_fressian to serialize its own errors.
+
+
+ <hr>
+
+## An example: Echo values across the wasm barrier
 
 #### Rust...
 ```rust
@@ -50,64 +91,56 @@ pub extern "C" fn echo(ptr: *mut u8, len: usize) -> *mut u8
 ```
 
 ### `fress.wasm/call`
+The `fress.wasm/IFressWasmModule` protocol offers primitives for module interop but in practice all you need is `fress.wasm/call`. The above `(fress.wasm/call Mod "echo" any)` 'callstack' broken down:
 
-The `fress.wasm/IFressWasmModule` protocol offers primitives for module interop but in practice all you need is `fress.wasm/call`. The above `(fress.wasm/call Mod "echo" any)` broken down:
+| step | location| description
+|------|---------|-----------|
+| 1    |  cljs   | pass `fress.wasm/call` an object, it is converted into fressian bytes and written into wasm memory
+| 2    |  cljs   | A pointer to those bytes (and their length) is passed to the exported `"echo"` function
+| 3    |  wasm   | The `echo` fn is called with a ptr and length. It deserializes those bytes into the `serde_fressian::value::Value` enum (which can represent any fressian type)
+| 4    |  wasm   | Rust `echo` takes the __Result__ of that deserialization and serializes it right back to javascript, returning a ptr
+| 5    |  cljs   | `fress.wasm/call` receives that pointer internally, reads from it, and returns its content back to the caller
 
-  1. __js:__ When we pass `fress.wasm/call` an object, it is converted into fressian bytes and written into wasm memory
-  2. __js:__ A pointer to those bytes (and their length) is passed to the exported `"echo"` function
-  3. __rust:__ The `echo` fn is called with a ptr and length. It deserializes those bytes into the `serde_fressian::value::Value` enum (which can represent any fressian type)
-    - notice val is of type `Result<serde_fressian::value::Value, serde_fressian::error::Error>`
-  4. __rust:__ Rust `echo` takes the __Result__ of that deserialization and serializes it right back to javascript, returning a ptr.
-  5. __js:__ `fress.wasm/call` receives that pointer internally, reads from it, and returns its content back to the caller
+### `serde_fressian::wasm::from_ptr<'a,T>(ptr: *mut u8, len: usize) -> Result<T, FressError>`
 
-### `Result<T,E>`
-Instead of exceptions, Rust has the [`Result<T,E>`][Result] enum. Functions that expect to sometimes fail return a Result (io, serialization...). These functions return `Result::Ok(T)` if they succeed, and `Result::Err(E)` if they fail. The `Result` type is so pervasive in Rust that the std prelude includes globally the `Ok(T)` and `Err(E)` functions as shorthands for creating `Result` variants. This is how we will refer to them moving forward.
-
-In fressian wasm, we want to take the Result concept and use it to ***propagate all errors to javascript***. In cljs we model the `Result` type with a simple vector `[?err ?ok]`, where err is present when the operation fails, and nil when it succeeds.
-
-If your wasm function fails or you want your return value to be recognized as an error, then you need to call `wasm::to_js` with `Err(E)`. When `serde_fressian::ser` sees an `Err(E)`, it will serialize `E` with an error code prefix. The `fress.wasm/read` function looks for this error code, and returns the next object as `[err]`. Any type given to `wasm::to_js` that is not a `Err(E)` will be written as is, even the `E` you are otherwise using as an error type. Errors are just values.
-
-
-| given to `wasm::to_js` | cljs reads as...
-|-----------------|------
-|`Result::Err(E)` | `[E]`
-|`E`              | `[nil E]`
-|`Result::Ok(T)`  | `[nil T]`
-|`T`              | `[nil T]`
-
-This all comes with an important caveat: in order to serialize a `Result<T,E>`, both `T` and `E` must implement the `serde::ser::Serialize` trait. Rust will not let your code compile if this condition is not met. From the serde src:
+This is the magic serde provides. `from_ptr` takes a ptr to some bytes and their length, and then attempts to __deserialize a type param `T`__ returning a `Result<T, serde_fressian::error::Error>`. From the echo example:
 
 ```rust
-// from serde/src/ser/impls.rs
-impl<T, E> Serialize for Result<T, E>
-where
-    T: Serialize,
-    E: Serialize,
-{
-  // ...
-}
+let res: Result<Value, FressError> = wasm::from_ptr(ptr, len);
+//              ^^^^^ --> the type used by wasm::from_ptr to deserialize
 ```
 
- Serde has its own [data model][data-model], which includes `serde::ser::Serialize` and `serde::de::Deserialize` impls for all basic rust types and collections. How serde interacts with fressian will be the subject of [later guides][understanding_serde], but for now you can assume most basic rust types serialize into their obvious clojure counterparts, with some extra work required to utilize the full expressiveness of the fressian format. More immediately though, this means any error type `E` must implement `serde::ser::Serialize` if it is to be given to javascript. [Implementing your errors][custom_errors] deserves its own guide, but you can rely on serde_fressian to serialize its own errors.
+ So here the type param is a `serde_fressian::value::Value` enum, and at compile time rust looks for a `deserialize` impl for `Value`.
 
+The purpose of the `Value` enum is to accomodate any [supported][supported] fressian type, so you can expect this to reliably return `Ok(Value::TYPE(T))`, where `TYPE/T` is whatever fressian value you sent from cljs. In practice `Value` is less useful than a more specific type. For example, if you know you will receive a string:
+
+```rust
+let res: Result<String, FressError> = wasm::from_ptr(ptr, len);
+```
+
+Any exported functions you wish to receive values from cljs must always accept `(ptr: *mut u8, len: usize)` in their parameter signature.  Those values should be given to `wasm::from_ptr` or owned and read with `de::from_vec`
+
+TODO: Copying, ownership
+
+
+
+
+
+### `serde_fressian::wasm::to_js`
+`to_js` is the inverse operation: it takes a value, serializes it into a fressian bytecode representation, and hands a ptr to those bytes off to javascript.
+
+```rust
+wasm::to_js(res) // serialize the result
+```
+Any exported functions you wish to transport values to js must always return `*mut u8` in its  return signature
+
+
+<hr>
 
 
 ### serde-fressian errors
 
-
-From the echo example:
-
-```rust
-let val: Result<Value, FressError> = wasm::from_ptr(ptr, len);
-//              ^^^^^ --> the type used by wasm::from_ptr to deserialize
-
-wasm::to_js(val) // serialize the result
-```
-
-`from_ptr`  attempts to deserialize a type param T and returns a `Result<T, serde_fressian::error::Error>`.
-So here the type param is a `serde_fressian::value::Value` enum, and at compile time rust looks for a `deserialize` impl for `Value`
-
-The purpose of the `Value` enum is to accomodate any [supported][supported] fressian type, so you can expect this to reliably return `Ok(Value::TYPE(T))` where `TYPE/T` is whatever fressian value you sent from cljs. This is serde following the data exactly as it is described, so you'd have to put in some effort to break it.  A much more likely problem will occur when you try to deserialize a more specific type:
+The echo `Value` example is serde following the data exactly as it is described, so you'd have to put in some effort to break it.  A much more likely problem will occur when you try to deserialize a more specific type:
 
 ```rust
 let val: Result<Vec<String>, FressError> = wasm::from_ptr(ptr, len);
@@ -128,6 +161,8 @@ What if serializing a value fails? Then you will get a serialization-error. Seri
   :category "Ser" ;; <--serialization error
   ...}]
 ```
+
+<hr>
 
 ### dont panic
 
@@ -172,6 +207,8 @@ Rust offers a way to catch panics by calling a `panic_hook` function. When a pan
   :value "...assertion failed at..."}]
 ```
 
+<hr>
+
 ### error handling in summary:
 
 When working with fress you can expect wasm errors to fall into a few categories:
@@ -190,6 +227,8 @@ When working with fress you can expect wasm errors to fall into a few categories
      - An assertion failed, a Result/Option was mishandled, or theres a bug somewhere
 
 [serde-fressian]: https://github.com/pkpkpk/serde-fressian
+[wasm_mod]: https://github.com/pkpkpk/serde-fressian/blob/master/src/wasm/mod.rs
+[fress.wasm]: https://github.com/pkpkpk/fress/blob/master/src/main/cljs/fress/wasm.cljs
 [Result]: https://doc.rust-lang.org/std/result
 [Panic]: https://doc.rust-lang.org/std/panic
 [Runtime]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/RuntimeError

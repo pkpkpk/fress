@@ -231,6 +231,6 @@ When working with fress you can expect wasm errors to fall into a few categories
 [data-model]: https://serde.rs/data-model
 
 [supported]: TODO
-[custom_errors]: 2_serde_fressian.md
+[custom_errors]: 2_custom_errors.md
 [understanding_serde]: 3_serde_fressian.md
 [forgotten]: https://doc.rust-lang.org/std/mem/fn.forget.html

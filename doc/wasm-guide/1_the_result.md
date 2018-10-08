@@ -127,7 +127,9 @@ wasm::to_js(res) // serialize the result
 ```
 + Any exported functions you wish to transport values to js must always return `*mut u8` in its  return signature
 
-+ These bytes are [forgotten][forgotten] by rust and are effectively owned by the javascript consumer. This means that slice of memory is unreachable to the wasm allocator. If ownership is not returned to rust, this becomes a leak. Ownership can be returned by calling `wasm::fress_dealloc` with the original ptr and length. `fress.wasm/read` (and `call`) does this for you
++ These bytes are [forgotten][forgotten] by rust and are effectively owned by the javascript consumer. This means that slice of memory is unreachable to the wasm allocator. If ownership is not returned to rust, this becomes a leak. 
+
++ Once javascript is done reading the bytes, ownership can be returned to the rust allocator by calling `wasm::fress_dealloc` with the original ptr and length. `fress.wasm/read` and `fress.wasm/call` do this for you
 
 <hr>
 

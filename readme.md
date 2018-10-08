@@ -3,6 +3,22 @@
 
 [![Clojars Project](https://img.shields.io/clojars/v/fress.svg)](https://clojars.org/fress)
 
+## wasm⥪fressian⥭cljs
+When used in concert with [__serde-fressian__][serde-fressian], __fress__ can be used to convey rich values to and from WebAssembly modules. Serde-fressian is an implementation of fressian for [the Rust programming language][rustlang]. When compiled for WebAssembly, the `serde_fressian::wasm` module is designed to interface with the __`fress.wasm`__ namespace. Together they deliver a seamless transition from webassembly functions and their cljs consumers with minimal overhead. ***Fressian-wasm*** makes wasm functions feel like supercharged clojurescript functions.
+
+There is a second companion library: [cargo-cljs](https://github.com/pkpkpk/cargo-cljs), a clojurescript library for scripting the rust build tool [cargo](https://doc.rust-lang.org/cargo/index.html) via nodejs.
+
+Please refer to the [docs](/docs) folder for wasm specific documentation.
+
+The remainder of this readme below pertains to fressian for binary data unrelated to wasm usage. There are relevent details about the fressian encoding itself, but the api for reading and writing to wasm modules is completely different.
+
+
+[serde-fressian]: https://github.com/pkpkpk/serde-fressian
+[rustlang]: https://github.com/rust-lang/rust/
+
+<hr>
+(everything below this line is for binary serialization usage only)
+
 ## Quick Start
 
 ```clojure
@@ -284,3 +300,4 @@ Fress wraps clojure.data.fressian and can be used as a drop in replacement.
 [7]: https://docs.oracle.com/javase/7/docs/api/java/nio/ByteBuffer.html
 [8]: https://hacks.mozilla.org/2017/06/a-cartoon-intro-to-arraybuffers-and-sharedarraybuffers/
 [9]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays
+

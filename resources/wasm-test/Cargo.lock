@@ -88,7 +88,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "serde-fressian"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -173,7 +173,7 @@ version = "0.1.0"
 dependencies = [
  "maplit 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde-fressian 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde-fressian 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -191,7 +191,7 @@ dependencies = [
 "checksum quote 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1eca14c727ad12702eb4b6bfb5a232287dcf8385cb8ca83a3eeaf6519c44c408"
 "checksum quote 0.6.8 (registry+https://github.com/rust-lang/crates.io-index)" = "dd636425967c33af890042c483632d33fa7a18f19ad1d7ea72e8998c6ef8dea5"
 "checksum serde 1.0.77 (registry+https://github.com/rust-lang/crates.io-index)" = "c6e67977d7523ce4d9284ed58918af99392de8edb6192c44afefcf634654ab7f"
-"checksum serde-fressian 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6306dfe31d7fb3d660b032f4c2621b5da845d3e39f7f9369390055b258ad0b7a"
+"checksum serde-fressian 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a9e8db315b0a09f1c520fbefc9b51b698c0115da87440e93682397aeba5676bb"
 "checksum serde_bytes 0.10.4 (registry+https://github.com/rust-lang/crates.io-index)" = "adb6e51a6b3696b301bc221d785f898b4457c619b51d7ce195a6d20baecb37b3"
 "checksum serde_derive 1.0.77 (registry+https://github.com/rust-lang/crates.io-index)" = "5569c52faae3e21b9abae2cc5cfbb56ed008bfcac480ad62bc241b828f0b0aee"
 "checksum shrinkwraprs 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d86d9af12fe798dba2f645a57051f6a59464d57fcf70ce518de8cd61d013be26"

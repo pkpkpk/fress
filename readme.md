@@ -8,9 +8,9 @@ When used in concert with [__serde-fressian__][serde-fressian], __fress__ can be
 
 There is a second companion library: [cargo-cljs](https://github.com/pkpkpk/cargo-cljs), a clojurescript library for scripting the rust build tool [cargo](https://doc.rust-lang.org/cargo/index.html) via nodejs.
 
-Please refer to the [docs](/docs) folder for wasm specific documentation.
+Please refer to the [docs](docs) folder for wasm specific documentation.
 
-The remainder of this readme below pertains to fressian for binary data unrelated to wasm usage. There are relevent details about the fressian encoding itself, but the api for reading and writing to wasm modules is completely different.
+The remainder of this readme below pertains to fressian for binary data unrelated to wasm usage. There are relevant details about the fressian encoding itself, but the api for reading and writing to wasm modules is completely different.
 
 
 [serde-fressian]: https://github.com/pkpkpk/serde-fressian

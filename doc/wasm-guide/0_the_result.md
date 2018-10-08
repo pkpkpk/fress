@@ -1,12 +1,5 @@
 # Wasm Guide 0: The Result
-__Fressian-wasm__ is a way to easily exchange values between WebAssembly and Clojurescript. [`fress.wasm`][fress.wasm] is designed to interop with the [`serde_fressian::wasm`][wasm_mod] module. Working together, let's call them __fressian-wasm__.
-
-
-remove friction
-first class error handling
-
-
-In fressian wasm, we want to use the rust [__Result__][Result] type and use it to ***propagate all errors to javascript***.
+Some key design goals for fressian-wasm is to remove interop friction with rust and to provide pleasant development ergonomics. The way this is done is by infecting the clojurescript interface with Rust's obsession with first class error handling. In fressian-wasm, we want to take the rust [__Result__][Result] type and use it to ***propagate all errors to javascript***.
 
 ### `Result<T,E>`
 Instead of exceptions, Rust has the [`Result<T,E>`][Result] enum. Functions that expect to sometimes fail return a Result (io, serialization...). These functions return `Result::Ok(T)` if they succeed, and `Result::Err(E)` if they fail. The `Result` type is so pervasive in Rust that the std prelude includes globally the `Ok(T)` and `Err(E)` functions as shorthands for creating `Result` variants. This is how we will refer to them moving forward.

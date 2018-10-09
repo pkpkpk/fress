@@ -4,7 +4,7 @@
 [![Clojars Project](https://img.shields.io/clojars/v/fress.svg)](https://clojars.org/fress)
 
 ## wasm⥪fressian⥭cljs
-When used in concert with [__serde-fressian__][serde-fressian], __fress__ can be used to convey rich values to and from WebAssembly modules. Serde-fressian is an implementation of fressian for [the Rust programming language][rustlang]. When compiled for WebAssembly, the `serde_fressian::wasm` module is designed to interface with the __`fress.wasm`__ namespace. Together they deliver a seamless transition from webassembly functions and their cljs consumers with minimal overhead. ***Fressian-wasm*** makes wasm functions feel like supercharged clojurescript functions.
+When used in concert with [__serde-fressian__][serde-fressian], __fress__ can be used to convey rich values to and from WebAssembly modules. Serde-fressian is an implementation of fressian for [the Rust programming language][rustlang]. When compiled for WebAssembly, the [__`serde_fressian::wasm`__][sfwasm] module is designed to interface with the [__`fress.wasm`__][fress.wasm] namespace. Together they deliver a seamless transition from webassembly functions and their cljs consumers with minimal overhead. ***Fressian-wasm*** makes wasm functions feel like supercharged clojurescript functions.
 
 There is a second companion library: [cargo-cljs](https://github.com/pkpkpk/cargo-cljs), a clojurescript library for scripting the rust build tool [cargo](https://doc.rust-lang.org/cargo/index.html) via nodejs.
 
@@ -15,6 +15,8 @@ The remainder of this readme below pertains to fressian for binary data unrelate
 
 [serde-fressian]: https://github.com/pkpkpk/serde-fressian
 [rustlang]: https://github.com/rust-lang/rust/
+[fress.wasm]: https://github.com/pkpkpk/fress/blob/master/src/main/cljs/fress/wasm.cljs
+[sfwasm]: https://github.com/pkpkpk/serde-fressian/blob/master/src/wasm/mod.rs
 
 <hr>
 (everything below this line is for binary serialization usage only)

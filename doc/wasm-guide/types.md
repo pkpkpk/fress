@@ -32,6 +32,7 @@
 | BIGINT  | ???  | ???     | BigInt
 | BIGDEC  | ???  | ???     | BigDec
 | Records | ???<sup>[8][8]</sup>  | records/TaggedObjects | records/TaggedObjects
+| CHAR<sup>[9][9]</sup>    | char (utf8) | string | java char
 
 ###   Basic Rust (Serde) Types
 | Serde           | Fressian| cljs          | clj  
@@ -41,14 +42,14 @@
 | i8              |  INT    | number        | long  
 | i16             |  INT    | number        | long  
 | i32             |  INT    | number        | long  
-| i64             |  INT    | **glong?**    | long  
+| i64             |  INT    | number<sup>[7][7]</sup> | long  
 | u8              |  INT    | number        | long
 | u16             |  INT    | number        | long
 | u32             |  INT    | number        | long
 | u64<sup>[7][7]</sup> |  INT    | number   | number
 | f32             |  FLOAT  | number        | float
 | f64             |  DOUBLE | number        | double
-| char            |  "char" | **TODO**      | char
+| char<sup>[9][9]</sup> |  string | string      | char
 | string          |  STRING | string        | string
 |      \\-->      |  UTF8<sup>[1][1]</sup>  | string  | tag -> string
 | [u8]            |  BYTES  | byte-array    | byte-array
@@ -83,6 +84,7 @@
 
 
 ### Unsupported Rust Types
+| Serde           | Fressian| cljs          | clj
 |-----------------|---------|---------------|-------
 | i128            |  BIGINT | **TODO**      | bigint
 | u128            |  BIGINT | **TODO**      | bigint
@@ -98,6 +100,7 @@
 [6]: #typed-arrays
 [7]: #integer-safety
 [8]: #records
+[9]: #chars
 
 ##### serializing-bytes
 
@@ -117,6 +120,8 @@ UUID, Regex, URI
 ##### integer-safety
 
 ##### records
+
+##### chars
 
 ### Complications with Serde
 

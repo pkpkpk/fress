@@ -13,18 +13,18 @@
 | UTF8<sup>[1]</sup>      | string       | string | string
 | LIST       | Vec&lt;T&gt; | vec    | vec
 | MAP        | map          | map    | map
-| SET        | types::SET<sup>[2][2]</sup>   | set    | set
+| SET        | types::SET<sup>[0][0]</sup>   | set    | set
 | SYM        | types::SYM<sup>[3][3]</sup>   | sym   | sym
 | KEY        | types::KEY<sup>[3][3]</sup>   | kw    | kw
 | INST       | types::INST<sup>[4][4]</sup>  | #inst | #inst
 | UUID       | types::UUID<sup>[5][5]</sup>  | #UUID |#UUID
 | REGEX      | types::REGEX<sup>[5][5]</sup> | regex | regex
 | URI        | types::URI<sup>[5][5]</sup>   | goog.Uri | URL
-| INT_ARRAY     | types::IntArray(Vec&lt;i32&gt;)<sup>[6][6]</sup>      | Int32Array | int[]
-| LONG_ARRAY    | types::LongArray(Vec&lt;i64&gt;)<sup>[6][6]</sup>     | Array&lt;Number&gt;<sup>[7][7]</sup> | long[]
-| FLOAT_ARRAY   | types::FloatArray(Vec&lt;f32&gt;)<sup>[6][6]</sup>    | Float32Array          | float[]
-| DOUBLE_ARRAY  | types::DoubleArray(Vec&lt;f64&gt;)<sup>[6][6]</sup>   | Float64Array          | double[]
-| BOOLEAN_ARRAY | types::BooleanArray(Vec&lt;bool&gt;)<sup>[6][6]</sup> | Array&lt;bool&gt;  | bool[]
+| INT_ARRAY     | types::IntArray(Vec&lt;i32&gt;)<sup>[0][0]</sup>      | Int32Array | int[]
+| LONG_ARRAY    | types::LongArray(Vec&lt;i64&gt;)<sup>[0][0]</sup>     | Array&lt;Number&gt;<sup>[7][7]</sup> | long[]
+| FLOAT_ARRAY   | types::FloatArray(Vec&lt;f32&gt;)<sup>[0][0]</sup>    | Float32Array          | float[]
+| DOUBLE_ARRAY  | types::DoubleArray(Vec&lt;f64&gt;)<sup>[0][0]</sup>   | Float64Array          | double[]
+| BOOLEAN_ARRAY | types::BooleanArray(Vec&lt;bool&gt;)<sup>[0][0]</sup> | Array&lt;bool&gt;  | bool[]
 
 ### Unsupported Fressian Types (WIP)
 | Type    | rust | cljs    | clj  
@@ -91,39 +91,16 @@
 
 <hr>
 
-[0]: #serializing-bytes
+[0]: #complications
 [1]: #raw-utf8
-[2]: #serializing-sets
 [3]: #named-types
 [4]: #dates
 [5]: #optional-deps
-[6]: #typed-arrays
 [7]: #integer-safety
 [8]: #records
 [9]: #chars
 
-##### serializing-bytes
-
-##### raw-utf8
-
-##### serializing-sets
-
-##### named-types
-
-##### dates
-
-##### optional-deps
-UUID, Regex, URI
-
-##### typed-arrays
-
-##### integer-safety
-
-##### records
-
-##### chars
-
-### Complications with Serde
+### complications
 
 All standard rust types have built-in Serialize/Deserialize impls which prevent fine grain control over serialization. For example, HashSets, BTreeSets, Slices, and Vec<T> are all written as generic sequences and the nuance of each container is lost. This is a known source of friction in serde, and in the future there will be a way to override Serialization impls. Until then, the workaround solution is to create a 'newtype' struct enclosing your target type, which allows you to use custom serialize impls. You can use wrapper types directly, or use serde attributes (see below). This doesn't cost anything, it is just an annoyance.
 
@@ -181,11 +158,11 @@ let da: DoubleArray = DoubleArray::from_vec(v);
 let output = ser::to_vec(&da).unwrap(); //--> serialized as DOUBLE_ARRAY
 ```
 
-#### SYM, KEY
+#### named-types
 As you would expect, symbols and keywords do not have analogous rust types. The `serde_fressian::sym::{SYM}` and `serde_fressian::key::{KEY}` types are provided for compatibility. They are both tuple structs composed of an `Option<String>` namespace and a `String` Name. They have no other built-in functionality outside of lossless serialization.
 
 
-#### Extended Types
+#### optional-deps
 With the expectation that they will be less commonly used, the remaining types default to newtypes over primitives in the interest of keeping binaries small. You can use compiler flags to enable extra functionality provided by external crates:
 
 + `serde_fressian::regex::{REGEX}`
@@ -200,6 +177,17 @@ With the expectation that they will be less commonly used, the remaining types d
 + `serde_fressian::inst::{INST}`
   - by default is just a newtype around `i64`
   - TODO: support the [chrono crate][chrono]
+
+
+### raw-utf8
+
+### dates
+
+### integer-safety
+
+### records
+
+### chars
 
 
 #### Using Serde Attributes

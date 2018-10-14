@@ -83,7 +83,7 @@ Currently enums just serialize to the variant's value, structs serialize as maps
 
 | Serde           | Fressian  | clj(s)   | Example
 |-----------------|-----------|----------|-------------
-| unit_variant    |  string   | strin    | Foo::Bar;
+| unit_variant    |  string   | string   | Foo::Bar;
 | newtype_variant |    T      |   T      | Foo::Baz(T)
 | tuple_variant   |  LIST     |  vec     | Foo::Point(x,y,z)
 | struct_variant  |  MAP      |  map     | Foo::StructVar({"foo": T})

@@ -127,7 +127,7 @@ wasm::to_js(res) // serialize the result
 ```
 + Any exported functions you wish to transport values to js must always return `*mut u8` in its  return signature
 
-+ These bytes are [forgotten][forgotten] by rust and are effectively owned by the javascript consumer. This means that slice of memory is unreachable to the wasm allocator. If ownership is not returned to rust, this becomes a leak. 
++ These bytes are [forgotten][forgotten] by rust and are effectively owned by the javascript consumer. This means that slice of memory is unreachable to the wasm allocator. If ownership is not returned to rust, this becomes a leak.
 
 + Once javascript is done reading the bytes, ownership can be returned to the rust allocator by calling `wasm::fress_dealloc` with the original ptr and length. `fress.wasm/read` and `fress.wasm/call` do this for you
 
@@ -230,7 +230,7 @@ When working with fress you can expect wasm errors to fall into a few categories
 [Runtime]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/RuntimeError
 [data-model]: https://serde.rs/data-model
 
-[supported]: TODO
+[supported]: types.md
 [custom_errors]: 2_custom_errors.md
 [understanding_serde]: 3_serde_fressian.md
 [forgotten]: https://doc.rust-lang.org/std/mem/fn.forget.html

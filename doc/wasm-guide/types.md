@@ -14,14 +14,14 @@
 | LIST       | Vec&lt;T&gt; | vec    | vec
 | MAP        | map          | map    | map
 | SET        | types::SET<sup>[0][0]</sup>   | set    | set
-| SYM        | types::SYM<sup>[3][3]</sup>   | sym   | sym
-| KEY        | types::KEY<sup>[3][3]</sup>   | kw    | kw
-| INST       | types::INST<sup>[4][4]</sup>  | #inst | #inst
-| UUID       | types::UUID<sup>[5][5]</sup>  | #UUID |#UUID
-| REGEX      | types::REGEX<sup>[5][5]</sup> | regex | regex
-| URI        | types::URI<sup>[5][5]</sup>   | goog.Uri | URL
+| SYM        | types::SYM<sup>[2][2]</sup>   | sym   | sym
+| KEY        | types::KEY<sup>[2][2]</sup>   | kw    | kw
+| INST       | types::INST<sup>[3][3]</sup>  | #inst | #inst
+| UUID       | types::UUID<sup>[3][3]</sup>  | #UUID |#UUID
+| REGEX      | types::REGEX<sup>[3][3]</sup> | regex | regex
+| URI        | types::URI<sup>[3][3]</sup>   | goog.Uri | URL
 | INT_ARRAY     | types::IntArray(Vec&lt;i32&gt;)<sup>[0][0]</sup>      | Int32Array | int[]
-| LONG_ARRAY    | types::LongArray(Vec&lt;i64&gt;)<sup>[0][0]</sup>     | Array&lt;Number&gt;<sup>[7][7]</sup> | long[]
+| LONG_ARRAY    | types::LongArray(Vec&lt;i64&gt;)<sup>[0][0]</sup>     | Array&lt;Number&gt;<sup>[4][4]</sup> | long[]
 | FLOAT_ARRAY   | types::FloatArray(Vec&lt;f32&gt;)<sup>[0][0]</sup>    | Float32Array          | float[]
 | DOUBLE_ARRAY  | types::DoubleArray(Vec&lt;f64&gt;)<sup>[0][0]</sup>   | Float64Array          | double[]
 | BOOLEAN_ARRAY | types::BooleanArray(Vec&lt;bool&gt;)<sup>[0][0]</sup> | Array&lt;bool&gt;  | bool[]
@@ -31,8 +31,9 @@
 |---------|------|---------|------
 | BIGINT  | ???  | ???     | BigInt
 | BIGDEC  | ???  | ???     | BigDec
-| Records | ???<sup>[8][8]</sup>  | records/TaggedObjects | records/TaggedObjects
-| CHAR<sup>[9][9]</sup>    | char (utf8) | string | java char
+| Records | ???<sup>[5][5]</sup>  | records/TaggedObjects | records/TaggedObjects
+| CHAR<sup>[6][6]</sup>    | char (utf8) | string | java char
+| OBJECT_ARRAY | ??? | Obj[] | Obj[]
 
 ###   Basic Rust (Serde) Types
 | Serde           | Fressian| cljs          | clj  
@@ -42,14 +43,14 @@
 | i8              |  INT    | number        | long  
 | i16             |  INT    | number        | long  
 | i32             |  INT    | number        | long  
-| i64             |  INT    | number<sup>[7][7]</sup> | long  
+| i64             |  INT    | number<sup>[4][4]</sup> | long  
 | u8              |  INT    | number        | long
 | u16             |  INT    | number        | long
 | u32             |  INT    | number        | long
-| u64<sup>[7][7]</sup> |  INT    | number   | number
+| u64<sup>[4][4]</sup> |  INT    | number   | number
 | f32             |  FLOAT  | number        | float
 | f64             |  DOUBLE | number        | double
-| char<sup>[9][9]</sup> |  string | string      | char
+| char<sup>[6][6]</sup> |  string | string      | char
 | string          |  STRING | string        | string
 |      \\-->      |  UTF8<sup>[1][1]</sup>  | string  | tag -> string
 | [u8]            |  BYTES  | byte-array    | byte-array
@@ -64,41 +65,45 @@
 | seq             | LIST    | vec  | vec
 | map             | MAP     | map  | map
 
-###   Structs
-| Serde           | Fressian| cljs          | clj           | Serde JSON          
-|-----------------|---------|---------------|---------------|--------------
-| unit_struct     |  NULL | nil           |               |`null`
-| newtype_struct  |       |               |               |`0`
-| tuple_struct    |  rec  | record? list? |               |`[0,0]`
-| struct          |  MAP  | MAP           |               |`{"a":0,"b":0}`
+### Structs and Enums (WIP)
+It makes sense to serialize structs and enum variants as fressian `TaggedObjects` ie records or proper types. To pull this off, serde-fressian needs better support for caching. In order to better support caching, I'd like to land on a good pattern for serializing string pointers so that js interop is truly zero-copy where possible. So there are still yaks to shave.
 
-### Enums
+Currently enums just serialize to the variant's value, structs serialize as maps, tuples to seqs (LIST). [This is lossy][enum-reps], for both structs and enums because the type's name and some type information is lost. Serde offers [custom attributes][variant-attr] for altering this behavior, but right now serde-fressian mostly ignores names.
 
+##### Structs
 
-| Serde           | Fressian| cljs          | clj           | Serde JSON          
-|-----------------|---------|---------------|---------------|--------------
-| unit_variant    |  KEY    | keyword       |               |`"Z"`
-| newtype_variant |         |               |               |`{"Y":0}`
-| tuple_variant   |  rec    | record? list? |               |`{"X":[0,0]}`
-| struct_variant  |         | struct?       |               |`{"W":{"a":0,"b":0}}`
+| Serde           | Fressian| clj(s)        | Example
+|-----------------|---------|---------------|---------
+| unit_struct     |  NULL   | nil           | Foo;
+| newtype_variant |    T    |   T           | Foo(T)
+| tuple_struct    |  LIST   | vec           | Point(x,y,z)
+| struct          |  MAP    | map           | {"foo": T}
+
+##### Enums
+
+| Serde           | Fressian  | clj(s)   | Example
+|-----------------|-----------|----------|-------------
+| unit_variant    |  string   | strin    | Foo::Bar;
+| newtype_variant |    T      |   T      | Foo::Baz(T)
+| tuple_variant   |  LIST     |  vec     | Foo::Point(x,y,z)
+| struct_variant  |  MAP      |  map     | Foo::StructVar({"foo": T})
 
 
 ### Unsupported Rust Types
 | Serde           | Fressian| cljs          | clj
 |-----------------|---------|---------------|-------
-| i128            |  BIGINT | **TODO**      | bigint
-| u128            |  BIGINT | **TODO**      | bigint
+| i128            |  BIGINT | *TODO*      | bigint
+| u128            |  BIGINT | *TODO*      | bigint
 
 <hr>
 
 [0]: #complications
 [1]: #raw-utf8
-[3]: #named-types
-[4]: #dates
-[5]: #optional-deps
-[7]: #integer-safety
-[8]: #records
-[9]: #chars
+[2]: #named-types
+[3]: #optional-deps
+[4]: #integer-safety
+[5]: #records
+[6]: #chars
 
 ### complications
 
@@ -167,21 +172,19 @@ With the expectation that they will be less commonly used, the remaining types d
 
 + `serde_fressian::regex::{REGEX}`
   - by default is just a newtype around `String`
-  - compile with the `use_regex_crate` to enable the external [regex crate][reg]
+  - compile with the `use_regex_crate` feature to enable the external [regex crate][reg]
 + `serde_fressian::uri::{URI}`
   - by default is just a newtype around `String`
-  - compile with the `use_url_crate` to enable the external [url crate][url]
+  - compile with the `use_url_crate` feature to enable the external [url crate][url]
 + `serde_fressian::uuid::{UUID}`
   - by default is just a newtype around `ByteBuf`
-  - compile with the `use_uuid_crate` to enable the external [uuid crate][uuid]
+  - compile with the `use_uuid_crate` feature to enable the external [uuid crate][uuid]
 + `serde_fressian::inst::{INST}`
   - by default is just a newtype around `i64`
   - TODO: support the [chrono crate][chrono]
 
 
 ### raw-utf8
-
-### dates
 
 ### integer-safety
 
@@ -216,25 +219,16 @@ struct Packet {
     payload: Vec<u8>,
 }
 ```
+<hr>
 
+## `serde_fressian::value::Value`
 
+<hr>
 
-
-<!-- [Url][url] -->
-<!-- [Regex][reg] -->
-<!-- [Uuid][uuid] -->
-<!-- [Datetime&lt;Utc&gt;][chrono] -->
 [chrono]: https://github.com/chronotope/chrono
 [uuid]: https://github.com/uuid-rs/uuid
 [reg]: https://github.com/rust-lang/regex
 [url]: https://github.com/servo/rust-url
 [serde_bytes]: https://docs.serde.rs/serde_bytes
-
-<hr>
-
-## Value
-
-<hr>
-
 [enum-reps]: https://serde.rs/enum-representations.html
 [variant-attr]: https://serde.rs/variant-attrs.html

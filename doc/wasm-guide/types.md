@@ -27,31 +27,31 @@
 | BOOLEAN_ARRAY | types::BooleanArray(Vec&lt;bool&gt;)<sup>[6][6]</sup> | Array&lt;bool&gt;<sup>[7][7]</sup>   | bool[]
 
 
-[0]: (#BYTES)
-[1]: (#raw-utf8)
-[2]: (#Sets)
-[3]: (#Named)
-[4]: (#INST)
-[5]: (#Optional-Dependencies)
-[6]: (#Typed-Arrays)
-[7]: (#Integer-Safety)
+[0]: #serializing-bytes
+[1]: #raw-utf8
+[2]: #serializing-sets
+[3]: #named-types
+[4]: #dates
+[5]: #optional-deps
+[6]: #typed-arrays
+[7]: #integer-safety
 
-##### BYTES
+##### serializing-bytes
 
 ##### raw-utf8
 
-##### Sets
+##### serializing-sets
 
-##### Named
+##### named-types
 
-##### INST
+##### dates
 
-##### Optional-Dependencies
+##### optional-deps
 UUID, Regex, URI
 
-##### Typed-Arrays
+##### typed-arrays
 
-##### Integer-Safety
+##### integer-safety
 
 ###   Basic Rust (Serde) Types
 | Serde           | Fressian| cljs          | clj           | Serde JSON          

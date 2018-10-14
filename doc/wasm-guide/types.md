@@ -24,55 +24,33 @@
 | LONG_ARRAY    | types::LongArray(Vec&lt;i64&gt;)<sup>[6][6]</sup>     | Array&lt;Number&gt;<sup>[7][7]</sup> | long[]
 | FLOAT_ARRAY   | types::FloatArray(Vec&lt;f32&gt;)<sup>[6][6]</sup>    | Float32Array          | float[]
 | DOUBLE_ARRAY  | types::DoubleArray(Vec&lt;f64&gt;)<sup>[6][6]</sup>   | Float64Array          | double[]
-| BOOLEAN_ARRAY | types::BooleanArray(Vec&lt;bool&gt;)<sup>[6][6]</sup> | Array&lt;bool&gt;<sup>[7][7]</sup>   | bool[]
+| BOOLEAN_ARRAY | types::BooleanArray(Vec&lt;bool&gt;)<sup>[6][6]</sup> | Array&lt;bool&gt;  | bool[]
 
-
-[0]: #serializing-bytes
-[1]: #raw-utf8
-[2]: #serializing-sets
-[3]: #named-types
-[4]: #dates
-[5]: #optional-deps
-[6]: #typed-arrays
-[7]: #integer-safety
-
-##### serializing-bytes
-
-##### raw-utf8
-
-##### serializing-sets
-
-##### named-types
-
-##### dates
-
-##### optional-deps
-UUID, Regex, URI
-
-##### typed-arrays
-
-##### integer-safety
+### Unsupported Fressian Types (WIP)
+| Type    | rust | cljs    | clj  
+|---------|------|---------|------
+| BIGINT  | ???  | ???     | BigInt
+| BIGDEC  | ???  | ???     | BigDec
+| Records | ???<sup>[8][8]</sup>  | records/TaggedObjects | records/TaggedObjects
 
 ###   Basic Rust (Serde) Types
-| Serde           | Fressian| cljs          | clj           | Serde JSON          
-|-----------------|---------|---------------|---------------|--------------
+| Serde           | Fressian| cljs          | clj  
+|-----------------|---------|---------------|------
 | unit            |  NULL   | nil           | nil   
 | bool            |  T/F    | bool          | bool  
 | i8              |  INT    | number        | long  
 | i16             |  INT    | number        | long  
 | i32             |  INT    | number        | long  
 | i64             |  INT    | **glong?**    | long  
-| i128            |  BIGINT | **TODO**      | bigint
 | u8              |  INT    | number        | long
 | u16             |  INT    | number        | long
 | u32             |  INT    | number        | long
-| u64             |  INT    | unsupported   | unsupported
-| u128            |  BIGINT | **TODO**      | bigint
+| u64<sup>[7][7]</sup> |  INT    | number   | number
 | f32             |  FLOAT  | number        | float
 | f64             |  DOUBLE | number        | double
 | char            |  "char" | **TODO**      | char
 | string          |  STRING | string        | string
-|      \\-->      |  UTF8   | string        | tag -> string
+|      \\-->      |  UTF8<sup>[1][1]</sup>  | string  | tag -> string
 | [u8]            |  BYTES  | byte-array    | byte-array
 | Option<value>   |  value/NIL | value/NIL  | value/NIL
 | tuple           |  LIST      | vec        |  vec
@@ -103,7 +81,42 @@ UUID, Regex, URI
 | tuple_variant   |  rec    | record? list? |               |`{"X":[0,0]}`
 | struct_variant  |         | struct?       |               |`{"W":{"a":0,"b":0}}`
 
+
+### Unsupported Rust Types
+|-----------------|---------|---------------|-------
+| i128            |  BIGINT | **TODO**      | bigint
+| u128            |  BIGINT | **TODO**      | bigint
+
 <hr>
+
+[0]: #serializing-bytes
+[1]: #raw-utf8
+[2]: #serializing-sets
+[3]: #named-types
+[4]: #dates
+[5]: #optional-deps
+[6]: #typed-arrays
+[7]: #integer-safety
+[8]: #records
+
+##### serializing-bytes
+
+##### raw-utf8
+
+##### serializing-sets
+
+##### named-types
+
+##### dates
+
+##### optional-deps
+UUID, Regex, URI
+
+##### typed-arrays
+
+##### integer-safety
+
+##### records
 
 ### Complications with Serde
 

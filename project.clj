@@ -23,7 +23,7 @@
                    (let [deps (get-in raw-deps [:aliases alias-key :extra-deps])]
                      [alias-key {:dependencies (deps->vec deps)
                                  :cljsbuild {:builds builds}}])))]
-  (defproject fress "0.3.0"
+  (defproject fress "0.3.1"
     :description "Fressian for clojure(script) and WASM"
     :url "https://github.com/pkpkpk/fress"
     :repositories [["clojars" {:sign-releases false}]]

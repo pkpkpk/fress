@@ -47,7 +47,8 @@
 
 (extend-type ArrayList
   Object
-  (get [this i] (aget (.-arr this) i)))
+  (get [this i] (aget (.-arr this) i))
+  (set [this i o] (aset (.-arr this) i o)))
 
 (def ^:const U8_MAX_VALUE 255) ;0xff
 

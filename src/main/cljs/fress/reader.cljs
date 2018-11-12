@@ -366,6 +366,8 @@
       :else
       (throw (js/Error. (str "unmatched code: " code))))))
 
+(def UNDER_CONSTRUCTION (js/Object.))
+
 (defrecord FressianReader [in raw-in lookup priorityCache structCache]
   IFressianReader
   (readNextCode [this] (rawIn/readRawByte raw-in))
@@ -453,12 +455,16 @@
               (recur)))))))
   (readAndCacheObject- [this ^ArrayList cache]
     (let [index (.size cache)
+          _(.add cache UNDER_CONSTRUCTION)
           o (readObject this)]
-      (.add cache o)
+      (.set cache index o)
       o))
   (lookupCache [this cache index]
     (if (< index (.size cache))
-      (.get cache index)
+      (let [o (.get cache index)]
+        (if (identical? o UNDER_CONSTRUCTION)
+          (throw (js/Error. "Unable to resolve circular reference in cache"))
+          o))
       (throw (js/Error. (str "Requested object beyond end of cache at " index)))))
   (validateFooter [this]
     (let [calculatedLength (rawIn/getBytesRead raw-in)

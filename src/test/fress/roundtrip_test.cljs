@@ -346,3 +346,19 @@
               (is= name "a name!")
               (is= msg "a msg!"))))))))
 
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defrecord baz [x y]) ; 120 121
+
+(deftest circular-caching-test
+  (let [baz1 (baz. 2 3)
+        baz2 (baz. 4 5)
+        foobar [baz1 baz2]
+        buffer (fress.api/byte-stream)
+        writer (fress.api/create-writer buffer :record->name {baz "baz"})
+        _(api/write-object writer foobar)
+        reader (api/create-reader buffer :name->map-ctor {"baz" map->baz})]
+    (is= foobar (fress.api/read-object reader))))
+

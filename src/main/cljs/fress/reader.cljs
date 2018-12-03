@@ -18,20 +18,24 @@
             ch>>4 (bit-shift-right ch 4)]
         (when (< pos length)
           (cond
-            (<=  0 ch>>4 7) (do (.push buf ch) (recur (inc pos)))
-            (<= 12 ch>>4 13) (let [ch1 (aget source (inc pos))]
-                               (.push buf (bit-or
-                                           (<< (bit-and ch 0x1f) 6)
-                                           (bit-and ch1 0x3f)))
-                               (recur (+ pos 2)))
-            (= ch>>4 14) (let [ch1 (aget source (inc pos))
-                               ch2 (aget source (+ pos 2))]
-                           (.push buf (bit-or
-                                       (<< (bit-and ch 0x0f) 12)
-                                       (<< (bit-and ch1 0x03f) 6)
-                                       (bit-and ch2 0x3f)))
-                           (recur (+ pos 3)))
-            :default (throw (str "Invalid UTF-8: " ch))))))
+            (<=  0 ch>>4 7)
+            (do
+              (.push buf ch)
+              (recur (inc pos)))
+
+            (<= 12 ch>>4 13)
+            (let [ch1 (aget source (inc pos))]
+              (.push buf (bit-or (<< (bit-and ch 0x1f) 6) (bit-and ch1 0x3f)))
+              (recur (+ pos 2)))
+
+            (== ch>>4 14)
+            (let [ch1 (aget source (inc pos))
+                  ch2 (aget source (+ pos 2))]
+              (.push buf (bit-or (<< (bit-and ch 0x0f) 12) (<< (bit-and ch1 0x03f) 6) (bit-and ch2 0x3f)))
+              (recur (+ pos 3)))
+
+            :default
+            (throw (str "Invalid UTF-8: " ch))))))
     (.apply (.-fromCharCode js/String) nil buf)))
 
 (defprotocol IFressianReader
@@ -200,7 +204,7 @@
 
       ;;need char!
 
-      (== code codes/UTF8) ;; first just because its a core use case
+      (== code codes/UTF8)
       (readUTF8 rdr)
 
       (== code codes/ERROR)

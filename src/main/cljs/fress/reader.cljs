@@ -79,50 +79,48 @@
         o
         (expected rdr "double" code o)))))
 
-(defn ^number internalReadInt
-  ([rdr](internalReadInt rdr (readNextCode rdr) ))
-  ([rdr code]
-   (cond
-     (== code 0xFF) -1
+(defn ^number internalReadInt [rdr code]
+  (cond
+    (== code 0xFF) -1
 
-     (<= 0x00 code 0x3F)
-     (bit-and code 0xFF)
+    (<= 0x00 code 0x3F)
+    (bit-and code 0xFF)
 
-     (<= 0x40 code 0x5F)
-     (bit-or (<< (- code codes/INT_PACKED_2_ZERO) 8) (rawIn/readRawInt8 (.-raw-in rdr)))
+    (<= 0x40 code 0x5F)
+    (bit-or (<< (- code codes/INT_PACKED_2_ZERO) 8) (rawIn/readRawInt8 (.-raw-in rdr)))
 
-     (<= 0x60 code 0x6F)
-     (bit-or (<< (- code codes/INT_PACKED_3_ZERO) 16) (rawIn/readRawInt16 (.-raw-in rdr)))
+    (<= 0x60 code 0x6F)
+    (bit-or (<< (- code codes/INT_PACKED_3_ZERO) 16) (rawIn/readRawInt16 (.-raw-in rdr)))
 
-     (<= 0x70 code 0x73)
-     (bit-or (<< (- code codes/INT_PACKED_4_ZERO) 24) (rawIn/readRawInt24 (.-raw-in rdr)))
+    (<= 0x70 code 0x73)
+    (bit-or (<< (- code codes/INT_PACKED_4_ZERO) 24) (rawIn/readRawInt24 (.-raw-in rdr)))
 
-     (<= 0x74 code 0x77)
-     (let [packing (Long.fromNumber (- code codes/INT_PACKED_5_ZERO))
-           i32 (Long.fromNumber (rawIn/readRawInt32 (.-raw-in rdr)))]
-       (.toNumber (.or (.shiftLeft packing 32) i32)))
+    (<= 0x74 code 0x77)
+    (let [packing (Long.fromNumber (- code codes/INT_PACKED_5_ZERO))
+          i32 (Long.fromNumber (rawIn/readRawInt32 (.-raw-in rdr)))]
+      (.toNumber (.or (.shiftLeft packing 32) i32)))
 
-     (<= 0x78 code 0x7B)
-     (let [packing (Long.fromNumber (- code codes/INT_PACKED_6_ZERO))
-           i40 (rawIn/readRawInt40L (.-raw-in rdr))]
-       (.toNumber (.or (.shiftLeft packing 40) i40)))
+    (<= 0x78 code 0x7B)
+    (let [packing (Long.fromNumber (- code codes/INT_PACKED_6_ZERO))
+          i40 (rawIn/readRawInt40L (.-raw-in rdr))]
+      (.toNumber (.or (.shiftLeft packing 40) i40)))
 
-     (<= 0x7C code 0x7F)
-     (let [packing (Long.fromNumber (- code codes/INT_PACKED_7_ZERO))
-           i48 (Long.fromNumber (rawIn/readRawInt48 (.-raw-in rdr)))]
-       (.toNumber (.or (.shiftLeft packing 48) i48)))
+    (<= 0x7C code 0x7F)
+    (let [packing (Long.fromNumber (- code codes/INT_PACKED_7_ZERO))
+          i48 (Long.fromNumber (rawIn/readRawInt48 (.-raw-in rdr)))]
+      (.toNumber (.or (.shiftLeft packing 48) i48)))
 
-     (== code codes/INT)
-     (rawIn/readRawInt64 (.-raw-in rdr))
+    (== code codes/INT)
+    (rawIn/readRawInt64 (.-raw-in rdr))
 
-     :default
-     (let [o (read- rdr code)]
-       (if (number? o) o
-         (expected rdr "i64" code o))))))
+    :default
+    (let [o (read- rdr code)]
+      (if (number? o) o
+        (expected rdr "i64" code o)))))
 
 (defn internalReadList [rdr length]
-  (let [handler (getHandler- rdr "list")]
-    (handler (readObjects- rdr length))))
+  ;   ((getHandler- rdr "list") (readObjects- rdr length))
+  (vec (readObjects- rdr length)))
 
 (defn ^bytes internalReadBytes
   "called on codes/BYTES"
@@ -370,7 +368,7 @@
 (defrecord FressianReader [in raw-in lookup priorityCache structCache]
   IFressianReader
   (readNextCode [this] (rawIn/readRawByte raw-in))
-  (readInt ^number [this] (internalReadInt this))
+  (readInt ^number [this] (internalReadInt this (readNextCode this)))
   (readInt32 ^number [this]
     (let [i (readInt this)]
       (if (or (< i util/I32_MIN_VALUE)  (< util/I32_MAX_VALUE i))

@@ -6,7 +6,6 @@
             [fress.util :as util :refer [expected byte-array log]])
   (:import [goog.math Long]))
 
-(def ^:dynamic *EOF-after-footer?* true) ;goog define?
 (def ^:dynamic *keywordize-keys* false) ;; this can be lossy!
 
 (defrecord StructType [tag fields])
@@ -478,8 +477,6 @@
           (throw (js/Error. (str "Invalid footer length, expected " calculatedLength " got " lengthFromStream)))
           (do
             (rawIn/validateChecksum raw-in)
-            (when ^boolean *EOF-after-footer?* ; provoke EOF even when room
-              (rawIn/close (.-raw-in this)))
             (resetCaches this)))))))
 
 (defn readSet [rdr _ _]

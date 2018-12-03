@@ -4,8 +4,7 @@
 (defprotocol IBuffer
   (getByte [this index])
   (getBytes [this off length])
-  (reset [this])
-  (close [this]))
+  (reset [this]))
 
 (defprotocol IBufferReader
   ; (close [this] "throw EOF on any further reads, even if room")
@@ -27,61 +26,50 @@
 
 (defprotocol IStreamingWriter
   (toByteArray [this] "get byte-array of current buffer contents. does not close.")
-  (flushTo [this out] [this out offset]
-    "write bytes to externally provided arraybuffer source at the given offset")
-  (wrap [this out] [this out offset]
-    "The new buffer will be backed by the given byte array; that is,
-     modifications to the buffer will cause the array to be modified and vice versa."))
+  (flushTo [this out]
+           [this out offset]
+    "write bytes to externally provided arraybuffer source at the given offset"))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; wasm users need to trigger EOF using footer or agree on single object
+;; wasm users must write single object
 ;; add arity to readBytes for array to  copy into?
 (deftype BufferReader
-  [backing ^number backing-offset ^number bytesRead ^boolean open?]
+  [backing ^number backing-offset ^number bytesRead] ;make back an unsigned view
   IBuffer
   (reset [this]
     (do
       (set! (.-bytesRead this) 0)
       (set! (.-open? this) true)))
-  (close [this] (set! (.-open? this) false))
   IBufferReader
   (getBytesRead ^number [this] bytesRead)
-  (notifyBytesRead [this ^number n]
-    (assert (and (int? bytesRead) (<= 0 bytesRead)))
-    (set! (.-bytesRead this) (+ bytesRead n)))
+  (notifyBytesRead [this ^number n] (set! (.-bytesRead this) (+ bytesRead n)))
   (readUnsignedByte ^number [this]
-    (if ^boolean open?
-      (let [byteview (js/Uint8Array. (.-buffer backing))
-            byte (aget byteview (+ backing-offset bytesRead))]
-        (when (or (neg? byte) (nil? byte)) (throw (js/Error. "EOF")))
-        (notifyBytesRead this 1)
-        byte)
-      (throw (js/Error. "EOF"))))
+    (let [byteview (js/Uint8Array. (.-buffer backing))
+          byte (aget byteview (+ backing-offset bytesRead))]
+      (if (nil? byte)
+        (throw (js/Error. "EOF"))
+        (do
+          (notifyBytesRead this 1)
+          byte))))
   (readSignedByte ^number [this]
-    (if ^boolean open?
-      (let [byteview (js/Int8Array. (.-buffer backing))
-            byte (aget byteview (+ backing-offset bytesRead))]
-        (when (nil? byte) (throw (js/Error. "EOF")))
-        (notifyBytesRead this 1)
-        byte)
-      (throw (js/Error. "EOF"))))
+    (let [byteview (js/Int8Array. (.-buffer backing))
+          byte (aget byteview (+ backing-offset bytesRead))]
+      (if (nil? byte)
+        (throw (js/Error. "EOF"))
+        (do
+          (notifyBytesRead this 1)
+          byte))))
   (readSignedBytes [this length]
-    (if ^boolean open?
-      (do
-        (assert (<= 0 (+ bytesRead length) (.. backing -buffer -byteLength)))
-        (let [bytes (js/Int8Array. (.-buffer backing) (+  backing-offset bytesRead) length)]
-          (notifyBytesRead this length)
-          bytes))
-      (throw (js/Error. "EOF"))))
+  ; (assert (<= 0 (+ bytesRead length) (.. backing -buffer -byteLength)))
+    (let [bytes (js/Int8Array. (.-buffer backing) (+  backing-offset bytesRead) length)]
+      (notifyBytesRead this length)
+      bytes))
   (readUnsignedBytes [this  length]
-    (if ^boolean open?
-      (do
-        (assert (<= 0 (+ bytesRead length) (.. backing -buffer -byteLength)))
-        (let [bytes (js/Uint8Array. (.-buffer backing) (+ backing-offset bytesRead) length)]
-          (notifyBytesRead this length)
-          bytes))
-      (throw (js/Error. "EOF")))))
+    (let [bytes (js/Uint8Array. (.-buffer backing) (+ backing-offset bytesRead) length)]
+      (notifyBytesRead this length)
+      bytes)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Writable stream
@@ -181,7 +169,7 @@
   ([backing backing-offset]
    (cond
      (some? (.-buffer backing))
-     (BufferReader. backing (or backing-offset 0) 0 true)
+     (BufferReader. backing (or backing-offset 0) 0)
 
      (instance? js/ArrayBuffer backing)
      (readable-buffer (js/Int8Array. backing) backing-offset)

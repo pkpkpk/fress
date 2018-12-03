@@ -127,14 +127,14 @@
   (readRawFloat ^number [this]
     (let [bytes (js/Int8Array. 4)]
       (dotimes [i 4]
-        (let [i (if isBigEndian i (- 3 i))]
+        (let [i (if ^boolean isBigEndian i (- 3 i))]
           (aset bytes i (readRawByte this))))
       (aget (js/Float32Array. (.-buffer bytes)) 0)))
 
   (readRawDouble ^number [this]
     (let [bytes (js/Int8Array. 8)]
       (dotimes [i 8]
-        (let [i (if isBigEndian i (- 7 i))]
+        (let [i (if ^boolean isBigEndian i (- 7 i))]
           (aset bytes i (readRawByte this))))
       (aget (js/Float64Array. (.-buffer bytes)) 0)))
 

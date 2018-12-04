@@ -11,33 +11,6 @@
 (defrecord StructType [tag fields])
 (defrecord TaggedObject [tag value]) ;meta
 
-(defn read-utf8-chars [source offset length]
-  (let [buf (js/Array.)]
-    (loop [pos 0]
-      (let [ch (bit-and (aget source pos) 0xff)
-            ch>>4 (bit-shift-right ch 4)]
-        (when (< pos length)
-          (cond
-            (<=  0 ch>>4 7)
-            (do
-              (.push buf ch)
-              (recur (inc pos)))
-
-            (<= 12 ch>>4 13)
-            (let [ch1 (aget source (inc pos))]
-              (.push buf (bit-or (<< (bit-and ch 0x1f) 6) (bit-and ch1 0x3f)))
-              (recur (+ pos 2)))
-
-            (== ch>>4 14)
-            (let [ch1 (aget source (inc pos))
-                  ch2 (aget source (+ pos 2))]
-              (.push buf (bit-or (<< (bit-and ch 0x0f) 12) (<< (bit-and ch1 0x03f) 6) (bit-and ch2 0x3f)))
-              (recur (+ pos 3)))
-
-            :default
-            (throw (str "Invalid UTF-8: " ch))))))
-    (.apply (.-fromCharCode js/String) nil buf)))
-
 (defprotocol IFressianReader
   (read- [this code])
   (readNextCode [this])
@@ -60,6 +33,33 @@
   (getStructCache- [this])
   (resetCaches [this]))
 
+(defn ^string internalReadString [rdr length]
+  (let [bytes  (rawIn/readFully (.-raw-in rdr) length)
+        buf (js/Array.)]
+    (loop [pos 0]
+      (if (== pos length)
+        (.apply (.-fromCharCode js/String) nil buf) ;; faster than sb?
+        (let [ch (bit-and (aget bytes pos) 0xff)
+              ch>>4 (bit-shift-right ch 4)]
+          (cond
+            (<=  0 ch>>4 7)
+            (do
+              (.push buf ch)
+              (recur (inc pos)))
+
+            (<= 12 ch>>4 13)
+            (let [ch1 (aget bytes (inc pos))]
+              (.push buf (bit-or (<< (bit-and ch 0x1f) 6) (bit-and ch1 0x3f)))
+              (recur (+ pos 2)))
+
+            (== ch>>4 14)
+            (let [ch1 (aget bytes (inc pos))
+                  ch2 (aget bytes (+ pos 2))]
+              (.push buf (bit-or (<< (bit-and ch 0x0f) 12) (<< (bit-and ch1 0x03f) 6) (bit-and ch2 0x3f)))
+              (recur (+ pos 3)))
+
+            :default
+            (throw (str "Invalid UTF-8: " ch))))))))
 
 (defn readUTF8
   "this uses TextDecoder on raw utf8 bytes instead of using js on compressed
@@ -159,10 +159,6 @@
                 (.set result chunk pos))
               (recur (+ pos (.-length (.get chunks i))) (inc i))))
       result)))
-
-(defn ^string internalReadString [rdr length]
-  (let [bytes  (rawIn/readFully (.-raw-in rdr) length)]
-    (read-utf8-chars bytes 0 length)))
 
 (defn ^string internalReadChunkedString [rdr length]
   (let [stringbuf (goog.string.StringBuffer. (internalReadString rdr length))]

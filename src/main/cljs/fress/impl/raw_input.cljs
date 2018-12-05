@@ -100,7 +100,6 @@
     (buf/reset in)
     (when checksum (adler/reset checksum)))
 
-  (close [this] (buf/close in))
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
   (readRawInt8 ^number [this] (readRawByte this))

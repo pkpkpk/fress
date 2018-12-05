@@ -38,7 +38,7 @@
         buf (js/Array.)]
     (loop [pos 0]
       (if (== pos length)
-        (.apply (.-fromCharCode js/String) nil buf) ;; faster than sb?
+        (.apply (.-fromCharCode js/String) nil buf)
         (let [ch (bit-and (aget bytes pos) 0xff)
               ch>>4 (bit-shift-right ch 4)]
           (cond

@@ -35,7 +35,7 @@
 ;; wasm users must write single object
 ;; add arity to readBytes for array to  copy into?
 (deftype BufferReader
-  [backing ^number backing-offset ^number bytesRead] ;make back an unsigned view
+  [u8arr ^number backing-offset ^number bytesRead] ;make back an unsigned view
   IBuffer
   (reset [this]
     (do
@@ -45,28 +45,27 @@
   (getBytesRead ^number [this] bytesRead)
   (notifyBytesRead [this ^number n] (set! (.-bytesRead this) (+ bytesRead n)))
   (readUnsignedByte ^number [this]
-    (let [byteview (js/Uint8Array. (.-buffer backing))
-          byte (aget byteview (+ backing-offset bytesRead))]
-      (if (nil? byte)
+    (let [byte (aget u8arr (+ backing-offset bytesRead))]
+      (if (undefined? byte)
         (throw (js/Error. "EOF"))
         (do
           (notifyBytesRead this 1)
           byte))))
   (readSignedByte ^number [this]
-    (let [byteview (js/Int8Array. (.-buffer backing))
+    (let [byteview (js/Int8Array. (.-buffer u8arr))
           byte (aget byteview (+ backing-offset bytesRead))]
-      (if (nil? byte)
+      (if (undefined? byte)
         (throw (js/Error. "EOF"))
         (do
           (notifyBytesRead this 1)
           byte))))
   (readSignedBytes [this length]
   ; (assert (<= 0 (+ bytesRead length) (.. backing -buffer -byteLength)))
-    (let [bytes (js/Int8Array. (.-buffer backing) (+  backing-offset bytesRead) length)]
+    (let [bytes (js/Int8Array. (.-buffer u8arr) (+  backing-offset bytesRead) length)]
       (notifyBytesRead this length)
       bytes))
   (readUnsignedBytes [this  length]
-    (let [bytes (js/Uint8Array. (.-buffer backing) (+ backing-offset bytesRead) length)]
+    (let [bytes (js/Uint8Array. (.-buffer u8arr) (+ backing-offset bytesRead) length)]
       (notifyBytesRead this length)
       bytes)))
 
@@ -97,8 +96,8 @@
       (.set buf bytes ptr)))
   (toByteArray [this]
     (if (== bytesWritten (alength arr))
-      (js/Int8Array. arr)
-      (js/Int8Array. (.slice arr 0 bytesWritten))))
+      (js/Uint8Array. arr)
+      (js/Uint8Array. (.slice arr 0 bytesWritten))))
   IBufferWriter
   (room? ^boolean [this _] true)
   (getBytesWritten ^number [this] bytesWritten)
@@ -133,9 +132,9 @@
   (reset [this] (set! (.-bytesWritten this) 0))
   (getByte [this index]
     (assert (and (int? index) (<= 0 index)))
-    (aget (js/Int8Array. (.. backing -buffer)) (+ backing-offset index)))
+    (aget (js/Uint8Array. (.. backing -buffer)) (+ backing-offset index)))
   (getBytes [this offset length]
-    (js/Int8Array. (.-buffer backing) (+ offset backing-offset) length))
+    (js/Uint8Array. (.-buffer backing) (+ offset backing-offset) length))
   IBufferWriter
   (getFreeCapacity ^number [this] (- (.. backing -buffer -byteLength) backing-offset bytesWritten))
   (room? ^boolean [this length]
@@ -172,18 +171,19 @@
      (BufferReader. backing (or backing-offset 0) 0)
 
      (instance? js/ArrayBuffer backing)
-     (readable-buffer (js/Int8Array. backing) backing-offset)
+     (readable-buffer (js/Uint8Array. backing) backing-offset)
 
      (implements? IBufferReader backing)
      backing
 
      (vector? backing)
-     (readable-buffer (js/Int8Array. (into-array backing)) backing-offset)
+     (readable-buffer (js/Uint8Array. (into-array backing)) backing-offset)
 
      (array? backing)
-     (readable-buffer (js/Int8Array. backing) backing-offset)
+     (readable-buffer (js/Uint8Array. backing) backing-offset)
 
      (instance? BytesOutputStream backing)
+     ; (readable-buffer (toByteArray backing) backing-offset)
      (readable-buffer (toByteArray backing) backing-offset)
 
      (instance? BufferWriter backing)

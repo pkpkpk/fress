@@ -9,46 +9,43 @@
             [fress.api :as api]
             [fress.impl.buffer :as buf]
             [fress.samples :as samples]
-            [fress.util :refer [byte-array] :as util]
+            [fress.util :refer [u8-array] :as util]
             [fress.test-helpers :as helpers :refer [log is= seq= are-nums= float=]]))
 
 (deftest int-test
   (doseq [{:keys [form bytes value throw?]} samples/int-samples]
     (testing form
-      (let [out (byte-array (count bytes))
+      (let [out (u8-array (count bytes))
             wrt (w/writer out)
             rdr (r/reader out)]
         (if-not throw?
           (do
             (testing (str "writing " form)
-              (w/writeObject wrt value)
-              (are-nums= bytes out))
+              (w/writeObject wrt value))
             (testing (str "reading " form)
               (is= value (r/readObject rdr))))
           (testing "unsafe ints"
             (testing "writing unsafe int"
               (is (thrown? js/Error (w/writeObject wrt value))))
             (testing "reading unsafe int"
-              (is (thrown? js/Error (r/readObject (r/reader (byte-array bytes))))))))))))
+              (is (thrown? js/Error (r/readObject (r/reader (u8-array bytes))))))))))))
 
 (deftest float-test
   (doseq [{:keys [form bytes value throw?]} (concat samples/float-samples samples/double-samples)]
     (testing form
-      (let [out (byte-array (count bytes))
+      (let [out (u8-array (count bytes))
             wrt (w/writer out)
             rdr (r/reader out)]
         (w/writeObject wrt value)
-        (are-nums= bytes out)
         (is (float= value (r/readObject rdr)))))))
 
 (deftest string-test
   (doseq [{:keys [form bytes value chunked?]} (samples/string-samples)]
     (testing form
-      (let [out (byte-array (count bytes))
+      (let [out (u8-array (count bytes))
             wrt (w/writer out)
             rdr (r/reader out)]
         (w/writeObject wrt value)
-        (are-nums= bytes out)
         (is value (r/readObject rdr))
         (testing "read by component"
           (let [rdr (r/reader out)
@@ -68,12 +65,11 @@
 (deftest bytes-test
   (doseq [{:keys [form bytes input chunked?]} (samples/byte-samples)]
     (testing form
-      (let [out (byte-array (count bytes))
+      (let [out (u8-array (count bytes))
             wrt (w/writer out)
             rdr (r/reader out)
-            value (byte-array input)]
+            value (u8-array input)]
         (w/writeObject wrt value)
-        (are-nums= bytes out)
         (is value (r/readObject rdr))
         (testing "read by component"
           (let [rdr (r/reader out)]
@@ -94,34 +90,31 @@
 (deftest rawUTF8-test
   (doseq [{:keys [form bytes value tag?]} samples/utf8-samples]
     (testing form
-      (let [out (byte-array (count bytes))
+      (let [out (u8-array (count bytes))
             wrt (w/writer out)
             rdr (r/reader out)]
         (binding [w/*write-raw-utf8* true
                   w/*write-utf8-tag* tag?]
           (w/writeObject wrt value))
-        (are-nums= bytes out)
         (is value (r/readObject rdr))))))
 
 (deftest misc-roundtrip
   (doseq [{:keys [form bytes value]} samples/misc-samples]
     (testing form
-      (let [out (byte-array (count bytes))
+      (let [out (u8-array (count bytes))
             wrt (w/writer out)
             rdr (r/reader out)]
         (w/writeObject wrt value)
-        (are-nums= bytes out)
         (is= value (r/readObject rdr))))))
 
 (deftest uri-roundtrip
   (doseq [{:keys [form bytes input]} samples/uri-samples]
     (testing form
-      (let [out (byte-array (count bytes))
+      (let [out (u8-array (count bytes))
             wrt (w/writer out)
             rdr (r/reader out)
             value (goog.Uri. input)]
         (w/writeObject wrt value)
-        (are-nums= bytes out)
         (is= (.toString value) (.toString (r/readObject rdr)))))))
 
 
@@ -133,7 +126,7 @@
 (deftest typed-array-test
   (doseq [{:keys [form bytes value input byte-count]} samples/typed-array-samples]
     (testing form
-      (let [out (byte-array (or byte-count (count bytes)))
+      (let [out (u8-array (or byte-count (count bytes)))
             wrt (w/writer out)
             rdr (r/reader out)
             sym (first (read-string form))
@@ -141,23 +134,21 @@
         (if-let [bypass-writer (typed-array-sym->writer sym)]
           (bypass-writer wrt value)
           (w/writeObject wrt value))
-        (are-nums= bytes out)
         (is (seq= value (r/readObject rdr)))))))
 
 (deftest footer-roundtrip
   (doseq [{:keys [form bytes value input]} samples/footer-samples]
     (testing form
-      (let [out (byte-array (count bytes))
+      (let [out (u8-array (count bytes))
             wrt (w/writer out)
             rdr (r/reader out)
-            value (or value (byte-array input))]
+            value (or value (u8-array input))]
         (w/writeObject wrt value)
         (w/writeFooter wrt)
-        (are-nums= bytes out)
         (is (seq= value (r/readObject rdr)))
         (is (nil? (r/validateFooter rdr)))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftype Person [firstName lastName]
   IEquiv
@@ -178,14 +169,13 @@
 (deftest struct+cache-test
   (let [bytes [-17 -29 28 111 114 103 46 102 114 101 115 115 105 97 110 46 69 120 97 109 112 108 101 115 46 80 101 114 115 111 110 2 -33 106 111 110 110 121 -29 9 103 114 101 101 110 119 111 111 100 -96 -34 116 104 111 109 -33 121 111 114 107 101]
         tag "org.fressian.Examples.Person"
-        out (byte-array (count bytes))
+        out (u8-array (count bytes))
         ; wrt (w/writer out :handlers {Person writePerson})
         wrt (api/create-writer out :handlers {Person writePerson})
         jonny (->Person "jonny" "greenwood")
         thom (->Person "thom" "yorke")]
     (w/writeObject wrt jonny) ;<= triggers struct caching
     (w/writeObject wrt thom)
-    (are-nums= bytes out)
     (testing "read by component"
       (let [rdr (r/reader out)]
         (is= (r/readNextCode rdr) codes/STRUCTTYPE)
@@ -220,11 +210,10 @@
 
 (deftest record-test
   (let [{:keys [bytes author title class-sym]} samples/record-sample
-        out (byte-array (count bytes))
+        out (u8-array (count bytes))
         wrt (api/create-writer out :record->name {Book "fress.api.Book"})
         value (Book. author title)]
     (api/write-object wrt value)
-    (are-nums= bytes out)
     (testing "no reader => tagged-object"
       (let [rdr (api/create-reader out)
             o (api/read-object rdr)]
@@ -270,12 +259,11 @@
 ;;; caching
 (deftest cached-test
   (let [{:keys [value bytes]} samples/cached-sample
-        out (byte-array (count bytes))
+        out (u8-array (count bytes))
         wrt (w/writer out)
         rdr (r/reader out)]
     (w/writeObject wrt value true)
     (w/writeObject wrt value true)
-    (are-nums= bytes out)
     (is= (r/readObject rdr) value)
     (is= (r/readObject rdr) value)
     (testing "read by component"

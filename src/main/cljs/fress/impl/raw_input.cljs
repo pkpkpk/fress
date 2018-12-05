@@ -91,7 +91,6 @@
       byte))
 
   (readFully [this length] ;=> signed-byte-array
-    ;; need to clamp somehow so we dont read past end of written
     ;; need arity to provides byte-array destination
     (let [bytes (buf/readSignedBytes in length)]
       (when checksum (adler/update! checksum bytes 0 length))

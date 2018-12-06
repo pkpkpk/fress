@@ -27,6 +27,13 @@
     [Mod any opts]
     "write an object into memory, returning a FatPtr")
   (read-opts [Mod] "used internally by call")
+  (reader-lookup [Mod] "used internally")
+  (reader-priority-cache [Mod] "used internally")
+  (reader-struct-cache [Mod] "used internally")
+  (reset-reader-caches
+     [Mod]
+     [Mod priorityCache structCache]
+     "manully reset or overwrite reader cache instances")
   (write-opts [Mod] "used internally by call")
   (call
     [Mod export-name]
@@ -47,7 +54,12 @@
   (let [memory (get-memory Mod)
         _(assert (some? memory))
         view (get-view Mod)
-        rdr (r/reader view :offset ptr :handlers handlers)
+        ; rdr (r/reader view :offset ptr :handlers handlers)
+        rdr (r/FressianReader. view
+                               (rawIn/RawInput. (buf/BufferReader. view ptr 0) false)
+                               (reader-lookup Mod)
+                               (reader-priority-cache Mod)
+                               (reader-struct-cache Mod))
         ret (if (== codes/ERROR (aget view ptr))
               [(r/readObject rdr)]
               [nil (r/readObject rdr)])
@@ -143,9 +155,26 @@
         (throw (js/Error. (str "missing exported fn '" export-name "'"))))))))
 
 (defn attach-protocol! [Mod {:keys [read-opts write-opts]}]
-  (let []
+  (let [{:keys [handlers name->map-ctor]} read-opts
+        reader-lookup (if (or handlers name->map-ctor)
+                        (r/build-lookup (merge r/default-read-handlers handlers) name->map-ctor)
+                        (fn [rdr tag] (get r/default-read-handlers tag)))
+        rdr-pcache (atom (get read-opts :priority-cache))
+        rdr-scache (atom (get read-opts :struct-cache))]
     (specify! Mod
       IFressWasmModule
+      (reader-lookup [_] reader-lookup)
+      (reader-priority-cache [_] @rdr-pcache)
+      (reader-struct-cache [_] @rdr-scache)
+      (reset-reader-caches
+       ([this]
+        (do
+          (some-> (reader-priority-cache this) (.clear))
+          (some-> (reader-struct-cache this) (.clear))))
+       ([this priorityCache structCache]
+        (do
+          (reset! rdr-pcache priorityCache)
+          (reset! rdr-scache structCache))))
       (get-exports [_] (.-exports Mod))
       (get-memory [_]
         (or (.. Mod -exports -memory) (.. Mod -imports -env -memory)))
@@ -190,6 +219,12 @@
 
 (defn- panic-hook [ptr] (reset! _panic_ptr ptr))
 
+(defn reader-cache
+  "Use to prime reader caches with values AOT.
+   Coll should reduced in cache order: the index becomes the cache lookup code."
+  [coll]
+  (ArrayList. (into-array coll)))
+
 (defn instantiate
   "Instantiate a wasm module and add the IFressWasmModule protocol.
     + opts
@@ -199,9 +234,14 @@
           - don't forget that wasm can only call functions with scalar values
       :read-opts
         - passed to read calls internal to IFressWasmModule/call
+        - if provided, reader cache instances will persist across module calls
+        - {
+           :handlers  {'string'  fn<rdr, tag, field-count>}
+           :reader-priority-cache ?ArrayList
+           :reader-struct-cache   ?ArrayList
+          }
       :write-opts
         - passed to write calls internal to IFressWasmModule/call
-
    => native Promise"
   ([array-buffer] (instantiate array-buffer nil)) ; {"fn-name" -> fn}
   ([array-buffer opts]

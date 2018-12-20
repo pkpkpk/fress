@@ -88,7 +88,7 @@
   (flushTo [this buf] (flushTo this buf 0))
   (flushTo [this buf ptr]
     (assert (some? (.-buffer buf)) "flushTo requires an arraybuffer backed typed-array")
-    (assert (util/valid-pointer? ptr))
+    (assert (util/valid-pointer? ptr) (str "buffer/flushTo given invalid pointer:" (pr-str ptr)))
     (let [bytes (if (== (alength arr) bytesWritten)
                   arr
                   (.slice arr 0 bytesWritten))]

@@ -657,7 +657,7 @@
   (when name->map-ctor
     (assert (valid-name->map-ctor? name->map-ctor)))
   (when offset ;; doesn't check in memory range or size
-    (assert (util/valid-pointer? offset)))
+    (assert (util/valid-pointer? offset) "fress.reader/reader given invalid pointer as offset"))
   (let [offset (or offset 0)
         lookup (build-lookup (merge default-read-handlers handlers) name->map-ctor)
         raw-in (rawIn/raw-input in offset checksum?)]

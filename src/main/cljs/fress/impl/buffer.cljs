@@ -7,7 +7,6 @@
   (reset [this]))
 
 (defprotocol IBufferReader
-  ; (close [this] "throw EOF on any further reads, even if room")
   (getBytesRead [this])
   (notifyBytesRead [this ^int count])
   (readUnsignedByte [this])
@@ -19,7 +18,6 @@
   (getFreeCapacity [this] "remaining free bytes to write")
   (room? [this length])
   (getBytesWritten [this])
-  (-writeByte [this byte])
   (writeByte [this byte])
   (writeBytes [this bytes] [this bytes offset length])
   (notifyBytesWritten [this ^int count]))
@@ -30,12 +28,11 @@
            [this out offset]
     "write bytes to externally provided arraybuffer source at the given offset"))
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wasm users must write single object
-;; add arity to readBytes for array to  copy into?
-(deftype BufferReader
-  [u8arr ^number backing-offset ^number bytesRead] ;make back an unsigned view
+(deftype
+  ^{:doc "An interface for reading bytes from a Uint8Array"}
+  BufferReader
+  [u8arr ^number backing-offset ^number bytesRead]
   IBuffer
   (reset [this]
     (do
@@ -60,7 +57,6 @@
           (notifyBytesRead this 1)
           byte))))
   (readSignedBytes [this length]
-  ; (assert (<= 0 (+ bytesRead length) (.. backing -buffer -byteLength)))
     (let [bytes (js/Int8Array. (.-buffer u8arr) (+  backing-offset bytesRead) length)]
       (notifyBytesRead this length)
       bytes))
@@ -68,10 +64,6 @@
     (let [bytes (js/Uint8Array. (.-buffer u8arr) (+ backing-offset bytesRead) length)]
       (notifyBytesRead this length)
       bytes)))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Writable stream
 
 (deftype
   ^{:doc
@@ -125,9 +117,9 @@
 
 (defn with-capacity [n] (BytesOutputStream. (make-array n) 0))
 
-(deftype
-  ^{:doc "used on fixed size buffers"}
-  BufferWriter [backing ^number backing-offset ^number bytesWritten]
+(deftype ^{:doc "used on fixed size buffers"}
+  BufferWriter
+  [backing ^number backing-offset ^number bytesWritten]
   IBuffer
   (reset [this] (set! (.-bytesWritten this) 0))
   (getByte [this index]
@@ -161,9 +153,8 @@
         this)
       (throw (js/Error. "BufferWriter out of room")))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (defn readable-buffer
+  "Build a BufferReader over a collection of bytes."
   ([backing](readable-buffer backing 0))
   ([backing backing-offset]
    (cond
@@ -183,7 +174,6 @@
      (readable-buffer (js/Uint8Array. backing) backing-offset)
 
      (instance? BytesOutputStream backing)
-     ; (readable-buffer (toByteArray backing) backing-offset)
      (readable-buffer (toByteArray backing) backing-offset)
 
      (instance? BufferWriter backing)
@@ -196,6 +186,7 @@
              "Input must be a typed array, array-buffer, or IBufferWriter instance"))))))
 
 (defn writable-buffer
+  "Build a BufferWriter over a typed-array. If nil, returns a BytesOutputStream."
   ([](writable-buffer nil nil))
   ([backing](writable-buffer backing 0))
   ([backing backing-offset]

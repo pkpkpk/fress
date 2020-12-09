@@ -467,6 +467,7 @@
    cljs.core/PersistentHashMap writeMap
    cljs.core/PersistentArrayMap writeMap
    cljs.core/ObjMap writeMap
+   cljs.core/MapEntry writeList
    cljs.core/PersistentVector writeList
    cljs.core/EmptyList writeList
    cljs.core/List writeList

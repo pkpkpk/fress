@@ -12,3 +12,4 @@ pom.xml
 *.asc
 resources/public/js*
 resources/wasm-test/target/*
+.clj-kondo

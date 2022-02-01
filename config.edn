@@ -39,4 +39,4 @@
                        :target :nodejs
                        :parallel-build true
                        :optimizations :advanced
-                       :elide-asserts true}}]}}}
+                       :elide-asserts false}}]}}}

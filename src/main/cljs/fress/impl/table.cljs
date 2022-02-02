@@ -4,9 +4,6 @@
    #js[k_n, v_n, k_n+1, v_n+1, ...]"}
   fress.impl.table)
 
-;; TODO look for perf gains with unchecked-math, unchecked-arrays etc
-;; suppress checkRegExp in writer
-
 (deftype HandlerTable [a])
 
 (defn- ?get
@@ -38,19 +35,20 @@
   [^HandlerTable table]
   ;;seq of items at even indexes from 0 to len-2
   (let [len (alength (.-a table))
-        acc #js[]] ; (make-array (/ len 2))
+        acc #js[]]
     (loop [i 0]
       (when (<= i (- len 2))
         (.push acc (aget (.-a table) i))
         (recur (+ i 2))))
     acc))
 
-(extend-type Table
+(extend-type HandlerTable
   Object
-  (set [this k v] (_set this k v))
   (?get [this item] (?get this item))
+  (set [this k v] (_set this k v))
+  (keys [this] (_keys this))
   (add-handlers [this handlers] (reduce add-handler this handlers)))
 
 (defn ^HandlerTable from-array [arr] (HandlerTable. arr))
 
-(defn ^HandlerTable from-table [^HandlerTable t] (HandlerTable. (.slice (.-arr t) 0)))
+(defn ^HandlerTable from-table [^HandlerTable t] (HandlerTable. (.slice (.-a t) 0)))

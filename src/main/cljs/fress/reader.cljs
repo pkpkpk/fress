@@ -3,6 +3,7 @@
   (:require [fress.impl.raw-input :as rawIn]
             [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
+            [fress.impl.table :as table]
             [fress.util :as util :refer [expected byte-array log]])
   (:import [goog.math Long]))
 
@@ -58,7 +59,7 @@
               (.push buf (bit-or (<< (bit-and ch 0x0f) 12) (<< (bit-and ch1 0x03f) 6) (bit-and ch2 0x3f)))
               (recur (+ pos 3)))
 
-            :default
+            true
             (throw (str "Invalid UTF-8: " ch))))))))
 
 (defn readUTF8
@@ -77,7 +78,7 @@
     0.0
     (== code codes/DOUBLE_1)
     1.0
-    :else
+    true
     (let [o (read- rdr code)]
       (if (number? o)
         o
@@ -117,7 +118,7 @@
     (== code codes/INT)
     (rawIn/readRawInt64 (.-raw-in rdr))
 
-    :default
+    true
     (let [o (read- rdr code)]
       (if (number? o) o
         (expected rdr "i64" code o)))))
@@ -184,7 +185,7 @@
             (.append stringbuf (internalReadString rdr (readCount- rdr)))
             (recur))
 
-          :else
+          true
           (expected rdr "chunked string" code))))
     (.toString stringbuf)))
 
@@ -600,44 +601,42 @@
       (TaggedObject. "record" #js[rname rmap]))))
 
 (def default-read-handlers
-  {"list" (fn [objectArray] (vec objectArray)) ;;diff sig, called by internalReadList
-   "utf8" #(readUTF8 %1) ;<= for tagged use, but default is still code
-   "set" readSet
-   "map" readMap
-   "int[]" readIntArray
-   "short[]" readShortArray
-   "long[]" readLongArray
-   "float[]" readFloatArray
-   "double[]" readDoubleArray
-   "boolean[]" readBooleanArray
-   "Object[]" readObjectArray
-   "uuid" readUUID
-   "regex" readRegex
-   "uri" readUri
-   "inst" readInst
-   "key" readKeyword
-   "sym" readSymbol})
+  (table/from-array #js [
+    "list" (fn [objectArray] (vec objectArray)) ;;diff sig, called by internalReadList
+    "utf8" #(readUTF8 %1) ;<= for tagged use, but default is still code
+    "set" readSet
+    "map" readMap
+    "int[]" readIntArray
+    "short[]" readShortArray
+    "long[]" readLongArray
+    "float[]" readFloatArray
+    "double[]" readDoubleArray
+    "boolean[]" readBooleanArray
+    "Object[]" readObjectArray
+    "uuid" readUUID
+    "regex" readRegex
+    "uri" readUri
+    "inst" readInst
+    "key" readKeyword
+    "sym" readSymbol]))
 
-(defn add-handler [acc [tag handler]]
-  (if (coll? tag)
-    (reduce (fn [acc k] (assoc acc k handler)) acc tag)
-    (assoc acc tag handler)))
+(defn build-lookup
+  [user-handlers name->map-ctor]
+  (let [handlers (if (empty? user-handlers)
+                   default-read-handlers
+                   (.add-handlers (table/from-table default-read-handlers) user-handlers))]
+    (fn lookup [rdr tag]
+      (if (= "record" tag)
+        (or (.?get handlers "record")
+            (fn [rdr tag field-count]
+              (readRecord rdr tag field-count name->map-ctor)))
+        (.?get handlers tag)))))
 
 (defn ^boolean valid-handler-key?
   [k]
   (if (coll? k)
     (every? string? k)
     (string? k)))
-
-(defn build-lookup
-  [user-handlers name->map-ctor]
-  (let [handlers (reduce add-handler default-read-handlers user-handlers)]
-    (fn lookup [rdr tag]
-      (if (= "record" tag)
-        (get user-handlers "record"
-             (fn [rdr tag field-count]
-               (readRecord rdr tag field-count name->map-ctor)))
-        (get handlers tag)))))
 
 (defn valid-user-handlers? [uh]
   (and (map? uh)
@@ -659,6 +658,6 @@
   (when offset ;; doesn't check in memory range or size
     (assert (util/valid-pointer? offset) "fress.reader/reader given invalid pointer as offset"))
   (let [offset (or offset 0)
-        lookup (build-lookup (merge default-read-handlers handlers) name->map-ctor)
+        lookup (build-lookup handlers name->map-ctor)
         raw-in (rawIn/raw-input in offset checksum?)]
     (FressianReader. in raw-in lookup nil nil)))

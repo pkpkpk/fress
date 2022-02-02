@@ -5,6 +5,7 @@
             [fress.impl.ranges :as ranges]
             [fress.impl.raw-output :as rawOut]
             [fress.impl.hopmap :as hop]
+            [fress.impl.table :as table]
             [fress.util :as util :refer [log dbg]]))
 
 (def ^:dynamic *write-raw-utf8* false)
@@ -88,7 +89,7 @@
         (writeCode wtr codes/INT)
         (rawOut/writeRawInt64 raw n))
 
-      :else
+      true
       (throw (js/Error. (str "cannot write unsafe integer: " (pr-str n)))))))
 
 (defn internalWriteFooter [wrt ^number length]
@@ -329,7 +330,7 @@
           (< index ranges/STRUCT_CACHE_PACKED_END)
           (writeCode this (+ codes/STRUCT_CACHE_PACKED_START index))
 
-          :default
+          true
           (do
             (writeCode this codes/STRUCT) ;<= when cache length exceeds packing
             (writeInt this index)))))
@@ -449,36 +450,6 @@
     (writeInt wtr length)
     (doseq [o arr] (writeObject wtr o))))
 
-(def default-write-handlers
-  {js/Number writeNumber
-   js/String writeString
-   js/Boolean writeBoolean
-   js/Array writeList
-   js/Date writeInst
-   js/RegExp writeRegex
-   js/Int8Array writeByteArray
-   js/Uint8Array writeByteArray
-   js/Int32Array writeIntArray
-   js/Float32Array writeFloatArray
-   js/Float64Array writeDoubleArray
-   goog.Uri writeUri
-   nil writeNull
-   cljs.core/UUID writeUUID
-   cljs.core/PersistentHashMap writeMap
-   cljs.core/PersistentArrayMap writeMap
-   cljs.core/ObjMap writeMap
-   cljs.core/MapEntry writeList
-   cljs.core/PersistentVector writeList
-   cljs.core/EmptyList writeList
-   cljs.core/List writeList
-   cljs.core/ChunkedSeq writeList
-   cljs.core/PersistentHashSet writeSet
-   cljs.core/Keyword #(writeNamed "key" %1 %2)
-   cljs.core/Symbol #(writeNamed "sym" %1 %2)
-   "boolean[]" writeBooleanArray
-   "long[]" writeLongArray
-   "Object[]" writeObjectArray})
-
 (defn class-sym
   "Record types need a string so the name can survive munging. Is converted to
    symbol before serializing."
@@ -498,39 +469,67 @@
     (writeObject w value))
   (endList w))
 
+(def ^{:doc "@suppress {checkRegExp}"}
+  default-write-handlers
+  (table/from-array #js[
+    js/Number writeNumber
+    js/String writeString
+    js/Boolean writeBoolean
+    js/Array writeList
+    js/Date writeInst
+    js/RegExp writeRegex
+    js/Int8Array writeByteArray
+    js/Uint8Array writeByteArray
+    js/Int32Array writeIntArray
+    js/Float32Array writeFloatArray
+    js/Float64Array writeDoubleArray
+    goog.Uri writeUri
+    nil writeNull
+    cljs.core/UUID writeUUID
+    cljs.core/PersistentHashMap writeMap
+    cljs.core/PersistentArrayMap writeMap
+    cljs.core/ObjMap writeMap
+    cljs.core/MapEntry writeList
+    cljs.core/PersistentVector writeList
+    cljs.core/EmptyList writeList
+    cljs.core/List writeList
+    cljs.core/ChunkedSeq writeList
+    cljs.core/PersistentHashSet writeSet
+    cljs.core/Keyword #(writeNamed "key" %1 %2)
+    cljs.core/Symbol #(writeNamed "sym" %1 %2)
+    "boolean[]" writeBooleanArray
+    "long[]" writeLongArray
+    "Object[]" writeObjectArray]))
 
 (defn build-inheritance-lookup [handlers]
-  (let [fns (filter fn? (keys handlers))]
+  (let [fns (filter fn? (.keys handlers))]
     (fn [o]
       (loop [fns fns]
         (when (seq fns)
           (let [f (first fns)]
             (if (instance? f o)
-              (get handlers f)
+              (.?get handlers f)
               (recur (rest fns)))))))))
-
-(defn add-handler [acc [k handler]]
-  (if (coll? k)
-    (reduce (fn [acc k] (assoc acc k handler)) acc k)
-    (assoc acc k handler)))
 
 (defn build-handler-lookup
   [user-handlers rec->tag]
-  (let [handlers (reduce add-handler default-write-handlers user-handlers)
-        inh-lookup (build-inheritance-lookup handlers)]
+  (let [handlers (if (empty? user-handlers) ; TODO table check to allow user supplied subset
+                   default-write-handlers
+                   (.add-handlers (table/from-table default-write-handlers) user-handlers))
+        inh-lookup (build-inheritance-lookup handlers)] ;;TODO delay / build this lazily/if needed,
     (fn [tag obj]
-      (if tag
-        (get handlers tag)
+      (if (some? tag)
+        (.?get handlers tag) ;; all we need in 99% of cases
         (if (record? obj)
-          (if-let [custom-writer (get handlers "record")]
+          (if-let [custom-writer (.?get handlers "record")]
             (fn [wrt rec]
               (custom-writer wrt rec rec->tag))
             (fn [wrt rec]
               (writeRecord wrt rec rec->tag)))
           (if (object? obj)
             (fn [wrt obj]
-              (writeMap wrt (js->clj obj)))
-            (or (get handlers (type obj))
+              (writeMap wrt (js->clj obj))) ;; TODO warn
+            (or (.?get handlers (type obj))
                 (inh-lookup obj))))))))
 
 (defn ^boolean valid-handler-key?

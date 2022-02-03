@@ -1,0 +1,6 @@
+{:main fress.wasm-runner
+ :output-to "target/wasm_test/wasm_test.js"
+ :output-dir "target/wasm_test"
+ :target :nodejs
+ :parallel-build true
+ :elide-asserts true}

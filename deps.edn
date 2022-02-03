@@ -1,13 +1,15 @@
 {:paths ["src/main/cljs"
-         "src/main/clj"]
+         "src/main/clj"
+         "src/test"
+         "src/test_common"]
  :deps {org.clojure/clojure {:mvn/version "1.10.3"}
         org.clojure/clojurescript {:mvn/version  "1.11.4"}
-        ; org.clojure/test.check {:mvn/version  "0.10.0-alpha2"}
         org.clojure/data.fressian {:mvn/version "1.0.0"}}
- :aliases {:bench {:extra-paths ["src/bench"]
-                   :extra-deps {com.cognitect/transit-cljs {:mvn/version "0.8.269"}}}
-           :test {:extra-paths ["src/test_common" "src/test"]
-                  :extra-deps {org.clojure/tools.reader {:mvn/version "1.3.6"}}}
-           :wasm-test {:extra-paths ["src/test_common" "src/wasm_test"]
-                       :extra-deps {org.clojure/core.async {:mvn/version  "1.5.648"}
-                                    cargo-cljs/cargo-cljs {:mvn/version "0.1.0"}}}}}
+ :aliases {:node-test {:main-opts ["-m" "cljs.main" "-co" "config/node.edn" "-c"]}
+           :browser-test {:main-opts ["-m" "cljs.main" "-co" "config/browser.edn" "-c"]}
+           :bench {:extra-paths ["src/bench"]
+                   :extra-deps {com.cognitect/transit-cljs {:mvn/version "0.8.269"}}
+                   :main-opts ["-m" "cljs.main" "-co" "config/bench.edn" "-c"]}}}
+; :wasm-test {:extra-paths ["src/wasm_test"]
+;             :extra-deps {org.clojure/core.async {:mvn/version "1.5.648"}
+;                          cargo-cljs/cargo-cljs {:mvn/version "0.1.0"}}}

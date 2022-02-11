@@ -5,5 +5,5 @@
      :implements [clojure.lang.IDeref]
      :extends org.fressian.impl.BytesOutputStream))
 
-(defn -deref [this]
+(defn -deref [^BytesOutputStream this]
   (ByteBuffer/wrap (.internalBuffer this) 0 (.length this)))

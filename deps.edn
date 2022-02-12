@@ -1,12 +1,19 @@
 {:paths ["src/main/cljs"
          "src/main/clj"
          "src/test"
-         "src/test_common"]
+         "src/test_common"
+         "target/classes"]
  :deps {org.clojure/clojure {:mvn/version "1.10.3"}
         org.clojure/clojurescript {:mvn/version  "1.11.4"}
         org.clojure/data.fressian {:mvn/version "1.0.0"}}
  :aliases {:node-test {:main-opts ["-m" "cljs.main" "-co" "config/node.edn" "-c"]}
            :browser-test {:main-opts ["-m" "cljs.main" "-co" "config/browser.edn" "-c"]}
+           :jvm-test {:extra-deps {io.github.cognitect-labs/test-runner
+                                   {:git/sha "cc75980b43011773162b485f46f939dc5fba91e4"}}
+                      :main-opts ["-m" "cognitect.test-runner"]
+                      :exec-args {:nses [fress.jvm-tests]
+                                  :dirs ["src/test"]}
+                      :exec-fn cognitect.test-runner.api/test}
            :bench {:extra-paths ["src/bench"]
                    :extra-deps {com.cognitect/transit-cljs {:mvn/version "0.8.269"}}
                    :main-opts ["-m" "cljs.main" "-co" "config/bench.edn" "-c"]}}}

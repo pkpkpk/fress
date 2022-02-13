@@ -4,6 +4,7 @@
             [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
             [fress.impl.table :as table]
+            [fress.impl.bigint :as bn]
             [fress.util :as util :refer [expected byte-array log]])
   (:import [goog.math Long]))
 
@@ -372,7 +373,7 @@
   (readInt ^number [this] (internalReadInt this (readNextCode this)))
   (readInt32 ^number [this]
     (let [i (readInt this)]
-      (if (or (< i util/I32_MIN_VALUE)  (< util/I32_MAX_VALUE i))
+      (if (or (< i util/i32_MIN_VALUE)  (< util/i32_MAX_VALUE i))
         (throw (js/Error. (str  "value " i " out of range for i32"))))
       i))
   (readCount- [this](readInt32 this))
@@ -600,6 +601,10 @@
       (rcons rmap)
       (TaggedObject. "record" #js[rname rmap]))))
 
+(defn readBigInt
+  [^FressianReader rdr _ _]
+  (bn/bytes->bigint (readObject rdr)))
+
 (def default-read-handlers
   (table/from-array #js [
     "list" (fn [objectArray] (vec objectArray)) ;;diff sig, called by internalReadList
@@ -618,7 +623,8 @@
     "uri" readUri
     "inst" readInst
     "key" readKeyword
-    "sym" readSymbol]))
+    "sym" readSymbol
+    "bigint" readBigInt]))
 
 (defn build-lookup
   [user-handlers name->map-ctor]

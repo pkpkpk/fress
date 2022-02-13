@@ -154,10 +154,10 @@
          d (js/Math.abs (- a b))]
      (if (== a b)
        true
-       (if (or (zero? a) (zero? b) (< d util/F32_MIN_NORMAL))
+       (if (or (zero? a) (zero? b) (< d util/f32_MIN_NORMAL))
          ;;;extremely close, relative error less meaningful
-         (< d (* eps util/F32_MIN_NORMAL))
-         (< (/ d (js/Math.min (+ absA absB) util/F32_MAX_VALUE)) eps))))))
+         (< d (* eps util/f32_MIN_NORMAL))
+         (< (/ d (js/Math.min (+ absA absB) util/f32_MAX_VALUE)) eps))))))
 
 (defn precision=
   ([a b](precision= a b 8))
@@ -170,4 +170,3 @@
   (or (roughly= a b)
       (nearly= a b)
       (precision= a b)))
-

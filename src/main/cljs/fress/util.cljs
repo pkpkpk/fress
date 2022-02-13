@@ -1,6 +1,7 @@
 (ns fress.util
   (:require-macros [fress.macros :as mac])
-  (:require [goog.crypt :as gcrypt]))
+  (:require  [fress.impl.bigint :as bn]
+             [goog.crypt :as gcrypt]))
 
 (defn log [& args] (.apply js/console.log js/console (into-array args)))
 
@@ -50,19 +51,30 @@
   (get [this i] (aget (.-arr this) i))
   (set [this i o] (aset (.-arr this) i o)))
 
-(def ^:const U8_MAX_VALUE 255) ;0xff
+(def ^:const u8_MAX_VALUE 255) ;0xff
 
-(def ^:const U16_MAX_VALUE 65535)
-(def ^:const I16_MIN_VALUE -32767)
-(def ^:const I16_MAX_VALUE 32767)
+(def ^:const i16_MIN_VALUE -32767)
+(def ^:const i16_MAX_VALUE 32767)
+(def ^:const u16_MAX_VALUE 65535)
 
-(def ^:const U32_MAX_VALUE 4294967295) ;0xffffffff
-(def ^:const I32_MAX_VALUE 2147483647)
-(def ^:const I32_MIN_VALUE -2147483648)
+(def ^:const i32_MIN_VALUE -2147483648)
+(def ^:const i32_MAX_VALUE 2147483647)
+(def ^:const u32_MAX_VALUE 0xffffffff)
 
-(def ^:const F32_MIN_NORMAL 1.17549435E-38)
-(def ^:const F32_MIN_VALUE 1.4E-45)
-(def ^:const F32_MAX_VALUE 3.4028235E38)
+(def ^:const f32_MIN_VALUE 1.4E-45)
+(def ^:const f32_MIN_NORMAL 1.17549435E-38)
+(def ^:const f32_MAX_VALUE 3.4028235E38)
+
+(def i64_MIN_VALUE (bn/hex->signed-bigint "8000000000000000"))
+(def i64_MAX_VALUE (bn/hex->signed-bigint "7fffffffffffffff"))
+
+(def i128_MIN_VALUE (bn/hex->signed-bigint "80000000000000000000000000000000"))
+(def i128_MAX_VALUE (bn/hex->signed-bigint "7fffffffffffffffffffffffffffffff"))
+
+(def u64_MAX_VALUE (js/BigInt "0xffffffffffffffff"))
+(def u128_MAX_VALUE (js/BigInt "0xffffffffffffffffffffffffffffffff"))
+
+(def ^:const MAX_SAFE_INTEGER 0x1fffffffffffff)
 
 (defonce isBigEndian
   (-> (.-buffer (js/Uint32Array. #js[0x12345678]))
@@ -139,3 +151,6 @@
       (aset bytea 0 u8)
       (aget bytea 0))))
 
+(def bigint? bn/bigint?)
+
+(def bigint bn/bigint)

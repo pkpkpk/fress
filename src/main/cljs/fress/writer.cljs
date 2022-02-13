@@ -6,6 +6,7 @@
             [fress.impl.raw-output :as rawOut]
             [fress.impl.hopmap :as hop]
             [fress.impl.table :as table]
+            [fress.impl.bigint :as bn]
             [fress.util :as util :refer [log dbg]]))
 
 (def ^:dynamic *write-raw-utf8* false)
@@ -346,7 +347,7 @@
 (defn writeNumber [this ^number n]
   (if (int? n)
     (writeInt this n)
-    (if (<= util/F32_MIN_VALUE n util/F32_MAX_VALUE)
+    (if (<= util/f32_MIN_VALUE n util/f32_MAX_VALUE)
       (writeFloat this n)
       (writeDouble this n)))
   this)
@@ -469,6 +470,11 @@
     (writeObject w value))
   (endList w))
 
+(defn write-bigint
+  [^FressianWriter wrt n]
+  (writeTag wrt "bigint" 1)
+  (writeBytes wrt (bn/bigint->bytes n)))
+
 (def ^{:doc "@suppress {checkRegExp}"}
   default-write-handlers
   (table/from-array #js[
@@ -483,6 +489,7 @@
     js/Int32Array writeIntArray
     js/Float32Array writeFloatArray
     js/Float64Array writeDoubleArray
+    js/BigInt write-bigint
     goog.Uri writeUri
     nil writeNull
     cljs.core/UUID writeUUID

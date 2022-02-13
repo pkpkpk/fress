@@ -1,6 +1,7 @@
 (ns fress.samples
   (:require-macros [fress.test-macros :as mac])
-  (:require [cljs.tools.reader :refer [read-string]]))
+  (:require [cljs.tools.reader :refer [read-string]]
+            [fress.util :as util]))
 
 (def int-samples
   [{:form "Short/MIN_VALUE", :value -32768, :bytes [103 -128 0], :rawbytes [103 128 0]}
@@ -181,3 +182,16 @@
    :author "Borges"
    :title "El jardín de senderos que se bifurcan"
    :class-sym 'fress.api.Book})
+
+(def bigint-samples
+  [{:form "(bigint 0)",  :bytes [-58 -47  0]  :value (js/BigInt 0)}
+   {:form "(bigint 1)",  :bytes [-58 -47  1]  :value (js/BigInt 1)}
+   {:form "(bigint Integer/MAX_VALUE)" :bytes  [-58 -44 127 -1 -1 -1] :value (util/bigint util/i32_MAX_VALUE)}
+   {:form "(bigint Long/MAX_VALUE)", :bytes [-58 -39 8 127 -1 -1 -1 -1 -1 -1 -1], :value util/i64_MAX_VALUE}
+   {:form "(bigint (java.math.BigInteger. \"ffffffffffffffff\" 16))", :bytes [-58 -39 9 0 -1 -1 -1 -1 -1 -1 -1 -1] :value util/u64_MAX_VALUE}
+   {:form "(bigint (java.math.BigInteger. \"7fffffffffffffffffffffffffffffff\" 16))", :bytes [-58 -39 16 127 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1], :value util/i128_MAX_VALUE}
+   {:form "(bigint (java.math.BigInteger. \"ffffffffffffffffffffffffffffffff\" 16))", :bytes [-58 -39 17 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1], :value util/u128_MAX_VALUE}
+   {:form "(bigint -1)"  :bytes [-58 -47 -1]  :value (js/BigInt -1)}
+   {:form "(bigint Integer/MIN_VALUE)", :bytes [-58 -44 -128 0 0 0] :value (util/bigint util/i32_MIN_VALUE)}
+   {:form "(bigint Long/MIN_VALUE)", :bytes [-58 -39 8 -128 0 0 0 0 0 0 0] :value util/i64_MIN_VALUE}
+   {:form "-170141183460469231731687303715884105728N", :bytes [-58 -39 16 -128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0], :value util/i128_MIN_VALUE}])

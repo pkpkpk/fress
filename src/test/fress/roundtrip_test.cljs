@@ -54,7 +54,7 @@
               chunked?
               (do
                 (is= (r/readNextCode rdr) codes/STRING_CHUNK)
-                (is= (r/readCount- rdr) (inc util/U16_MAX_VALUE)))
+                (is= (r/readCount- rdr) (inc util/u16_MAX_VALUE)))
 
               (< (alength out) 8)
               (is= (r/readNextCode rdr) (+ codes/STRING_PACKED_LENGTH_START bytelength))
@@ -350,3 +350,14 @@
         reader (api/create-reader buffer :name->map-ctor {"baz" map->baz})]
     (is= foobar (fress.api/read-object reader))))
 
+;;==============================================================================
+
+(deftest bigint-test
+  (doseq [{:keys [form bytes value]} samples/bigint-samples]
+    (testing form
+      (let [out (u8-array (count bytes))
+            wrt (w/writer out)
+            rdr (r/reader out)]
+        (w/writeObject wrt value)
+        (is (seq= bytes (util/byte-array out)))
+        (is (== value (r/readObject rdr)))))))

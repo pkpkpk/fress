@@ -25,8 +25,8 @@
 
 (def ^:dynamic *throw-on-unsafe?* true)
 
-(def L_U8_MAX_VALUE (Long.fromNumber util/U8_MAX_VALUE))
-(def L_U32_MAX_VALUE (Long.fromNumber util/U32_MAX_VALUE))
+(def L_U8_MAX_VALUE (Long.fromNumber util/u8_MAX_VALUE))
+(def L_U32_MAX_VALUE (Long.fromNumber util/u32_MAX_VALUE))
 
 (defn ^Long readRawInt32L [this]
   (let [a (.and (Long.fromNumber (readRawByte this)) L_U8_MAX_VALUE)

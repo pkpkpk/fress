@@ -195,3 +195,15 @@
    {:form "(bigint Integer/MIN_VALUE)", :bytes [-58 -44 -128 0 0 0] :value (util/bigint util/i32_MIN_VALUE)}
    {:form "(bigint Long/MIN_VALUE)", :bytes [-58 -39 8 -128 0 0 0 0 0 0 0] :value util/i64_MIN_VALUE}
    {:form "-170141183460469231731687303715884105728N", :bytes [-58 -39 16 -128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0], :value util/i128_MIN_VALUE}])
+
+(def char-samples
+  [{:form "\\0", :bytes [-17 -34 99 104 97 114 1 48], :value \0}
+   {:form "\\1", :bytes [-17 -34 99 104 97 114 1 49], :value \1}
+   {:form "\\a", :bytes [-17 -34 99 104 97 114 1 80 97], :value \a}
+   {:form "\\\\", :bytes [-17 -34 99 104 97 114 1 80 92], :value \\}
+   {:form "\\newline", :bytes [-17 -34 99 104 97 114 1 10], :value \newline}
+   {:form "\\o377", :bytes [-17 -34 99 104 97 114 1 80 -1], :value \ÿ}
+   {:form "\\u6f22", :bytes [-17 -34 99 104 97 114 1 104 111 34], :value \漢}
+   {:form "\\u5b57", :bytes [-17 -34 99 104 97 114 1 104 91 87], :value \字}
+   {:form "\\uD777", :bytes [-17 -34 99 104 97 114 1 104 -41 119], :value \흷}
+   {:form "\\ue000", :bytes [-17 -34 99 104 97 114 1 104 -32 0], :value \}])

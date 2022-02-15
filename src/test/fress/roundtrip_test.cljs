@@ -361,3 +361,13 @@
         (w/writeObject wrt value)
         (is (seq= bytes (util/byte-array out)))
         (is (== value (r/readObject rdr)))))))
+
+(deftest char-test
+  (doseq [{:keys [form bytes value]} samples/char-samples]
+    (testing form
+      (let [out (u8-array (count bytes))
+            wrt (w/writer out)
+            rdr (r/reader out)]
+        (w/writeAs wrt "char" value)
+        (is (seq= bytes (util/byte-array out)))
+        (is (== value (r/readObject rdr)))))))

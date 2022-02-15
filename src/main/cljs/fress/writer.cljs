@@ -475,6 +475,13 @@
   (writeTag wrt "bigint" 1)
   (writeBytes wrt (bn/bigint->bytes n)))
 
+(defn writeChar
+  [^FressianWriter wrt s]
+  (assert (string? s))
+  (assert (== 1 (alength s)))
+  (writeTag wrt "char" 1)
+  (writeInt wrt (.charCodeAt s 0)))
+
 (def ^{:doc "@suppress {checkRegExp}"}
   default-write-handlers
   (table/from-array #js[
@@ -506,7 +513,8 @@
     cljs.core/Symbol #(writeNamed "sym" %1 %2)
     "boolean[]" writeBooleanArray
     "long[]" writeLongArray
-    "Object[]" writeObjectArray]))
+    "Object[]" writeObjectArray
+    "char" writeChar]))
 
 (defn build-inheritance-lookup [handlers]
   (let [fns (filter fn? (.keys handlers))]

@@ -200,8 +200,6 @@
       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       ;; primitives
 
-      ;;need char!
-
       (== code codes/UTF8)
       (readUTF8 rdr)
 
@@ -605,6 +603,10 @@
   [^FressianReader rdr _ _]
   (bn/bytes->bigint (readObject rdr)))
 
+(defn ^string readChar
+  [^FressianReader rdr _ _]
+  (js/String.fromCharCode (readObject rdr)))
+
 (def default-read-handlers
   (table/from-array #js [
     "list" (fn [objectArray] (vec objectArray)) ;;diff sig, called by internalReadList
@@ -624,6 +626,7 @@
     "inst" readInst
     "key" readKeyword
     "sym" readSymbol
+    "char" readChar
     "bigint" readBigInt]))
 
 (defn build-lookup

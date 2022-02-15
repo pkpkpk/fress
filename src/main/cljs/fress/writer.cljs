@@ -7,7 +7,8 @@
             [fress.impl.hopmap :as hop]
             [fress.impl.table :as table]
             [fress.impl.bigint :as bn]
-            [fress.util :as util :refer [log dbg]]))
+            [fress.util :as util]
+            [goog.object]))
 
 (def ^:dynamic *write-raw-utf8* false)
 (def ^:dynamic *write-utf8-tag* false)
@@ -315,7 +316,7 @@
     this)
 
   (writeTag [this tag ^number component-count]
-    (if-let [shortcut-code (codes/tag->code tag)]
+    (if-let [shortcut-code (goog.object/get codes/tag->code tag)]
       (writeCode this shortcut-code)
       (let [index (hop/oldIndex (getStructCache this) tag)]
         (cond

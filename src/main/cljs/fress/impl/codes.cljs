@@ -79,8 +79,7 @@
 (def ^:const INT_PACKED_7_END 0x80)
 
 
-(def tag->code
-  {
+(def tag->code #js{
    ; "utf8"     UTF8
     "map"      MAP
     "set"      SET

@@ -4,7 +4,7 @@
             [fress.impl.codes :as codes]
             [fress.impl.ranges :as ranges]
             [fress.impl.table :as table]
-            [fress.impl.bigint :as bn]
+            [fress.impl.bigint :as bn :refer [bigint]]
             [fress.util :as util :refer [expected byte-array log]])
   (:import [goog.math Long]))
 
@@ -85,7 +85,11 @@
         o
         (expected rdr "double" code o)))))
 
-(defn ^number internalReadInt [rdr code]
+(def ^:dynamic *throw-on-unsafe?* true)
+
+(defn internalReadInt
+  "when *throw-on-unsafe?* is false, will return a goog.Long for unsafe numbers"
+  [rdr code]
   (cond
     (== code 0xFF) -1
 
@@ -102,8 +106,8 @@
     (bit-or (<< (- code codes/INT_PACKED_4_ZERO) 24) (rawIn/readRawInt24 (.-raw-in rdr)))
 
     (<= 0x74 code 0x77)
-    (let [packing (Long.fromNumber (- code codes/INT_PACKED_5_ZERO))
-          i32 (Long.fromNumber (rawIn/readRawInt32 (.-raw-in rdr)))]
+    (let [packing (Long.fromNumber (- code codes/INT_PACKED_5_ZERO)) ;; hoist out
+          i32 (rawIn/readRawInt32L (.-raw-in rdr))]
       (.toNumber (.or (.shiftLeft packing 32) i32)))
 
     (<= 0x78 code 0x7B)
@@ -113,11 +117,16 @@
 
     (<= 0x7C code 0x7F)
     (let [packing (Long.fromNumber (- code codes/INT_PACKED_7_ZERO))
-          i48 (Long.fromNumber (rawIn/readRawInt48 (.-raw-in rdr)))]
+          i48 (rawIn/readRawInt48L (.-raw-in rdr))]
       (.toNumber (.or (.shiftLeft packing 48) i48)))
 
     (== code codes/INT)
-    (rawIn/readRawInt64 (.-raw-in rdr))
+    (let [nL (rawIn/readRawInt64L (.-raw-in rdr))]
+      (if ^boolean (.isSafeInteger nL)
+        (.toNumber nL)
+        (if (false? *throw-on-unsafe?*)
+          nL
+          (throw (js/Error. (str "read unsafe i64")))))) ; under or over?
 
     true
     (let [o (read- rdr code)]
@@ -502,22 +511,15 @@
         (recur (inc i))))
     arr))
 
-(defn readShortArray [rdr _ _]
+(defn readLongArray [rdr _ _]
   (let [length (readInt rdr)
-        arr (js/Int16Array. length)]
-    (loop [i 0]
-      (when (< i length)
-        (aset arr i (readInt rdr))
-        (recur (inc i))))
-    arr))
-
-(defn ^array readLongArray [rdr _ _] ;=> regular Array<Number>
-  (let [length (readInt rdr)
-        arr (make-array length)]
-    (loop [i 0]
-      (when (< i length)
-        (aset arr i (readInt rdr))
-        (recur (inc i))))
+        arr (js/BigInt64Array. length)]
+    (binding [*throw-on-unsafe?* false]
+      (loop [i 0]
+        (when (< i length)
+          (let [n (readInt rdr)]
+            (aset arr i (bigint (if (instance? Long n) (.toString n) n))))
+          (recur (inc i)))))
     arr))
 
 (defn readFloatArray [rdr _ _]
@@ -614,7 +616,6 @@
     "set" readSet
     "map" readMap
     "int[]" readIntArray
-    "short[]" readShortArray
     "long[]" readLongArray
     "float[]" readFloatArray
     "double[]" readDoubleArray

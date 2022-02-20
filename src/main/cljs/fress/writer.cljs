@@ -6,7 +6,7 @@
             [fress.impl.raw-output :as rawOut]
             [fress.impl.hopmap :as hop]
             [fress.impl.table :as table]
-            [fress.impl.bigint :as bn]
+            [fress.impl.bigint :as bn :refer [bigint]]
             [fress.util :as util]
             [goog.object]))
 
@@ -44,7 +44,7 @@
 (defn ^number bit-switch
   "@return {number} bits not needed to represent this number"
   [l]
-  (- 64 (.-length (.toString (.abs js/Math l) 2))))
+  (- 64 (.-length (.toString (Math/abs l) 2))))
 
 (defn internalWriteInt [wtr ^number n]
   (let [s (bit-switch n)
@@ -182,7 +182,7 @@
     (if (nil? i)
       (writeNull this)
       (do
-        (assert (int? i))
+        (assert (integer? i))
         (internalWriteInt this i)))
     this)
 
@@ -346,7 +346,7 @@
 
 
 (defn writeNumber [this ^number n]
-  (if (int? n)
+  (if (integer? n)
     (writeInt this n)
     (if (<= util/f32_MIN_VALUE n util/f32_MAX_VALUE)
       (writeFloat this n)
@@ -407,7 +407,7 @@
   (writeBytes wrt bytes))
 
 (defn writeIntArray [wtr a]
-  (writeTag wtr "int[]" 1)
+  (writeTag wtr "int[]" 2)
   (let [length (alength a)]
     (writeInt wtr length)
     (loop [i 0]
@@ -416,7 +416,7 @@
         (recur (inc i))))))
 
 (defn writeFloatArray [wtr a]
-  (writeTag wtr "float[]" 1)
+  (writeTag wtr "float[]" 2)
   (let [length (alength a)]
     (writeInt wtr length)
     (loop [i 0]
@@ -425,7 +425,7 @@
         (recur (inc i))))))
 
 (defn writeDoubleArray [wtr a]
-  (writeTag wtr "double[]" 1)
+  (writeTag wtr "double[]" 2)
   (let [length (alength a)]
     (writeInt wtr length)
     (loop [i 0]
@@ -441,7 +441,7 @@
       (writeBoolean wtr b))))
 
 (defn writeLongArray [wtr arr]
-  (let [length (count arr)]
+  (let [length (alength arr)]
     (writeTag wtr "long[]" 2)
     (writeInt wtr length)
     (doseq [l arr] (writeInt wtr l))))
@@ -476,6 +476,30 @@
   (writeTag wrt "bigint" 1)
   (writeBytes wrt (bn/bigint->bytes n)))
 
+(defn writeBigInt64
+  [w ^js/BigInt n]
+  (assert (bn/bigint? n))
+  (if (<= js/Number.MIN_SAFE_INTEGER n js/Number.MAX_SAFE_INTEGER)
+    (internalWriteInt w (js/Number n))
+    (let [s (bn/bit-switch n)
+          raw (.-raw-out w)]
+      (writeCode w codes/INT)
+      (rawOut/writeRawByte raw (js/Number (bit-and (bn/>> n (js* "56n")) (js* "0xFFn"))))
+      (rawOut/writeRawByte raw (js/Number (bit-and (bn/>> n (js* "48n")) (js* "0xFFn"))))
+      (rawOut/writeRawByte raw (js/Number (bit-and (bn/>> n (js* "40n")) (js* "0xFFn"))))
+      (rawOut/writeRawByte raw (js/Number (bit-and (bn/>> n (js* "32n")) (js* "0xFFn"))))
+      (rawOut/writeRawByte raw (js/Number (bit-and (bn/>> n (js* "24n")) (js* "0xFFn"))))
+      (rawOut/writeRawByte raw (js/Number (bit-and (bn/>> n (js* "16n")) (js* "0xFFn"))))
+      (rawOut/writeRawByte raw (js/Number (bit-and (bn/>> n (js*  "8n")) (js* "0xFFn"))))
+      (rawOut/writeRawByte raw (js/Number (bit-and n (js* "0xFFn")))))))
+
+(defn writeBigInt64Array [w arr]
+  (assert (instance? js/BigInt64Array arr))
+  (writeTag w "long[]" 2)
+  (writeInt w (alength arr))
+  (doseq [bn arr]
+    (writeBigInt64 w bn)))
+
 (defn writeChar
   [^FressianWriter wrt s]
   (assert (string? s))
@@ -497,6 +521,7 @@
     js/Int32Array writeIntArray
     js/Float32Array writeFloatArray
     js/Float64Array writeDoubleArray
+    js/BigInt64Array writeBigInt64Array
     js/BigInt write-bigint
     goog.Uri writeUri
     nil writeNull

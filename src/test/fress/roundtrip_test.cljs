@@ -20,10 +20,9 @@
             rdr (r/reader out)]
         (if-not throw?
           (do
-            (testing (str "writing " form)
-              (w/writeObject wrt value))
-            (testing (str "reading " form)
-              (is= value (r/readObject rdr))))
+            (w/writeObject wrt value)
+            (and (is (seq= out bytes))
+                 (is (= value (r/readObject rdr)))))
           (testing "unsafe ints"
             (testing "writing unsafe int"
               (is (thrown? js/Error (w/writeObject wrt value))))
@@ -371,3 +370,14 @@
         (w/writeAs wrt "char" value)
         (is (seq= bytes (util/byte-array out)))
         (is (== value (r/readObject rdr)))))))
+
+(deftest long-array-test
+  (doseq [{:keys [form bytes value]} samples/long-array-samples]
+    (testing form
+      (let [out (u8-array (count bytes))
+            wrt (w/writer out)
+            rdr (r/reader out)]
+        (w/writeObject wrt value)
+        (and
+         (is (seq= bytes out))
+         (is (seq= value (r/readObject rdr))))))))

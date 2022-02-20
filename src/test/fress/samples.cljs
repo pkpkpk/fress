@@ -4,28 +4,20 @@
             [fress.util :as util]))
 
 (def int-samples
-  [{:form "Short/MIN_VALUE", :value -32768, :bytes [103 -128 0], :rawbytes [103 128 0]}
-   {:form "Short/MAX_VALUE", :value 32767, :bytes [104 127 -1], :rawbytes [104 127 255]}
-   {:form "Integer/MIN_VALUE", :value -2147483648, :bytes [117 -128 0 0 0], :rawbytes [117 128 0 0 0]}
-   {:form "Integer/MAX_VALUE", :value 2147483647, :bytes [118 127 -1 -1 -1], :rawbytes [118 127 255 255 255]}
-   ;;;;min int40
-   {:form "(long -549755813887)", :value -549755813887, :bytes [121 -128 0 0 0 1], :rawbytes [121 128 0 0 0 1]}
-   ;;; max int40
-   {:form "(long 549755813888)", :value 549755813888, :bytes [122 -128 0 0 0 0], :rawbytes [122 128 0 0 0 0]}
-   ;;;; max int48
-   {:form "(long 1.4073749E14)", :value 140737490000000, :bytes [126 -128 0 0 25 24 -128], :rawbytes [126 128 0 0 25 24 128]}
-   ; ;MAX_SAFE_INT                                                                                                         a    b  c   d   e   f   g   h
-   {:form "(long  9007199254740991)", :value  9007199254740991, :bytes [-8  0  31 -1 -1 -1 -1 -1 -1],      :rawbytes [248   0  31 255 255 255 255 255 255]}
-   ; MAX_SAFE_INT++
-   {:form "(long 9007199254740992)", :value 9007199254740992, :bytes [-8 0 32 0 0 0 0 0 0], :rawbytes [248  0  32 0 0 0 0 0 0] :throw? true}
-   ;;;;MIN_SAFE_INTEGER
-   {:form "(long -9007199254740991)", :value -9007199254740991,       :bytes [-8 -1 -32 0 0 0 0 0 1],  :rawbytes [248 255 224 0 0 0 0 0 1] :throw? false}
-   ;;;; MIN_SAFE_INTEGER--
-   {:form "(long -9007199254740992)", :value -9007199254740992,       :bytes [-8 -1 -32 0 0 0 0 0 0],  :rawbytes [248 255 224 0 0 0 0 0 0] :throw? true}
-   ;;;; MIN_SAFE_INTEGER - 2
-   {:form "(long -9007199254740993)", :value -9007199254740993, :bytes [-8 -1 -33 -1 -1 -1 -1 -1 -1],  :rawbytes [248 255 223 255 255 255 255 255 255] :throw? true}
-   {:form "Long/MAX_VALUE", :value 9223372036854775807,  :bytes [-8 127 -1 -1 -1 -1 -1 -1 -1], :rawbytes [248 127 255 255 255 255 255 255 255] :throw? true}
-   {:form "Long/MIN_VALUE", :value -9223372036854775808, :bytes [-8 -128 0 0 0 0 0 0 0],  :rawbytes [248 128   0 0 0 0 0 0 0] :throw? true}])
+  [{:form "Short/MIN_VALUE", :value -32768, :bytes [103 128 0]}
+   {:form "Short/MAX_VALUE", :value 32767, :bytes [104 127 255]}
+   {:form "Integer/MIN_VALUE", :value -2147483648, :bytes [117 128 0 0 0]}
+   {:form "Integer/MAX_VALUE", :value 2147483647, :bytes [118 127 255 255 255]}
+   {:form "(long -549755813887)", :value -549755813887, :bytes [121 128 0 0 0 1]}
+   {:form "(long 549755813888)", :value 549755813888, :bytes [122 128 0 0 0 0]} ; max int40
+   {:form "(long 1.4073749E14)", :value 140737490000000, :bytes [126 128 0 0 25 24 128]} ; max int48
+   {:form "(long  9007199254740991)", :value  9007199254740991, :bytes [248   0  31 255 255 255 255 255 255]} ; ;MAX_SAFE_INT
+   {:form "(long 9007199254740992)", :value 9007199254740992, :bytes [248  0  32 0 0 0 0 0 0] :throw? true} ; MAX_SAFE_INT++
+   {:form "(long -9007199254740991)", :value -9007199254740991 :bytes [248 255 224 0 0 0 0 0 1] :throw? false} ;MIN_SAFE_INTEGER
+   {:form "(long -9007199254740992)", :value -9007199254740992 :bytes [248 255 224 0 0 0 0 0 0] :throw? true} ; MIN_SAFE_INTEGER--
+   {:form "(long -9007199254740993)", :value -9007199254740993, :bytes [248 255 223 255 255 255 255 255 255] :throw? true} ; MIN_SAFE_INTEGER - 2
+   {:form "Long/MAX_VALUE", :value 9223372036854775807,  :bytes [248 127 255 255 255 255 255 255 255] :throw? true}
+   {:form "Long/MIN_VALUE", :value -9223372036854775808, :bytes [248 128 0 0 0 0 0 0 0] :throw? true}])
 
 (def float-samples
   [{:form "Float/MIN_VALUE", :value 1.4E-45, :bytes [-7 0 0 0 1], :rawbytes [249 0 0 0 1]}
@@ -157,7 +149,6 @@
    {:form "(int-array [7 11 13 17])", :bytes [-77 4 7 11 13 17], :rawbytes [179 4 7 11 13 17], :input [7 11 13 17]}
    {:form "(float-array [7 11 13 17])", :bytes [-76 4 -7 64 -32 0 0 -7 65 48 0 0 -7 65 80 0 0 -7 65 -120 0 0], :rawbytes [180 4 249 64 224 0 0 249 65 48 0 0 249 65 80 0 0 249 65 136 0 0], :input [7 11 13 17]}
    {:form "(double-array [7 11 13 17])", :bytes [-79 4 -6 64 28 0 0 0 0 0 0 -6 64 38 0 0 0 0 0 0 -6 64 42 0 0 0 0 0 0 -6 64 49 0 0 0 0 0 0], :rawbytes [177 4 250 64 28 0 0 0 0 0 0 250 64 38 0 0 0 0 0 0 250 64 42 0 0 0 0 0 0 250 64 49 0 0 0 0 0 0], :input [7 11 13 17]}
-   {:form "(long-array [7 11 13 17])", :bytes [-80 4 7 11 13 17], :rawbytes [176 4 7 11 13 17], :input [7 11 13 17]}
    {:form "(object-array [7 11 13 17])", :bytes [-75 4 7 11 13 17], :rawbytes [181 4 7 11 13 17], :input [7 11 13 17]}
    {:form "(boolean-array [true false true false])", :bytes [-78 4 -11 -10 -11 -10], :byte-count 6, :footer false, :rawbytes [178 4 245 246 245 246], :raw-byte-count 6, :input [true false true false]}])
 
@@ -207,3 +198,20 @@
    {:form "\\u5b57", :bytes [-17 -34 99 104 97 114 1 104 91 87], :value \字}
    {:form "\\uD777", :bytes [-17 -34 99 104 97 114 1 104 -41 119], :value \흷}
    {:form "\\ue000", :bytes [-17 -34 99 104 97 114 1 104 -32 0], :value \}])
+
+(def long-array-samples
+  [{:form "(long-array [Long/MIN_VALUE])", :bytes [176 1 248 128 0 0 0 0 0 0 0], :value (js/BigInt64Array.from #js[util/i64_MIN_VALUE])}
+   {:form "(long-array [(- (Math/pow 2 8))])", :bytes [176 1 79 0], :value (js/BigInt64Array.from #js[(js/BigInt -256)])}
+   {:form "(long-array [-64])", :bytes [176 1 79 192], :value (js/BigInt64Array.from #js[(js/BigInt -64)])}
+   {:form "(long-array [-32])", :bytes [176 1 79 224], :value (js/BigInt64Array.from #js[(js/BigInt -32)])}
+   {:form "(long-array [-2])",  :bytes [176 1 79 254], :value (js/BigInt64Array.from #js[(js/BigInt -2)])}
+   {:form "(long-array [-1])", :bytes [176 1 255], :value (js/BigInt64Array.from #js[(js/BigInt -1)])}
+   {:form "(long-array  [0])", :bytes [176 1 0], :value (js/BigInt64Array.from #js[(js/BigInt 0)])}
+   {:form "(long-array [64])", :bytes [176 1 80 64], :value (js/BigInt64Array.from #js[(js/BigInt 64)])}
+   {:form "(long-array [4096])", :bytes [176 1 104 16 0], :value (js/BigInt64Array.from #js[(js/BigInt 4096)])}
+   {:form "(long-array [16777216])", :bytes [176 1 115 0 0 0],  :value (js/BigInt64Array.from #js[(js/BigInt 16777216)])}
+   {:form "(long-array [(Math/pow 2 32)])", :bytes [176 1 119 0 0 0 0], :value (js/BigInt64Array.from #js[(js/BigInt (Math/pow 2 32))])}
+   {:form "(long-array [(Math/pow 2 40)])", :bytes [176 1 123 0 0 0 0 0], :value (js/BigInt64Array.from #js[(js/BigInt (Math/pow 2 40))])}
+   {:form "(long-array [(Math/pow 2 48)])", :bytes [176 1 127 0 0 0 0 0 0], :value (js/BigInt64Array.from #js[(js/BigInt (Math/pow 2 48))])}
+   {:form "(long-array [(Math/pow 2 56)])", :bytes [176 1 248 1 0 0 0 0 0 0 0], :value (js/BigInt64Array.from #js[(js/BigInt (Math/pow 2 56))])}
+   {:form "(long-array [Long/MAX_VALUE])", :bytes [176 1 248 127 255 255 255 255 255 255 255], :value (js/BigInt64Array.from #js[util/i64_MAX_VALUE])}])

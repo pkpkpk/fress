@@ -3,11 +3,43 @@
 
 (defn bigint?
   [n]
-  (= js/BigInt (type n)))
+  (identical? js/BigInt (type n)))
 
 (defn bigint
   [n]
   (js/BigInt n))
+
+(defn abs
+  [bn]
+  (if (< bn 0)
+    (- bn)
+    bn))
+
+(defn pow
+  [base exponent]
+  (js* "~{} ** BigInt(~{})" base exponent))
+
+(defn >>
+  [a b]
+  (js* "~{} >> BigInt(~{})" a b))
+
+(defn <<
+  [a b]
+  (js* "~{} << BigInt(~{})" a b))
+
+(defn ^number bit-switch
+  "@return {number} bits not needed to represent this number"
+  [bn]
+  (if (js* "~{} === 0n" bn)
+    64
+    (let [bn bn]
+      (if (< bn 0)
+        (do
+          (js* "~{} = BigInt(~{}) + BigInt(1)" bn bn)
+          (js* "~{} = -~{}" bn bn)))
+      (- 64 (.-length (.toString bn 2))))))
+
+;;==============================================================================
 
 (defn ^string flip-bin-string [^string bin]
   (.join (.map (.split bin "") (fn [i] (if (identical? "0" i) "1" "0"))) ""))
@@ -23,10 +55,8 @@
         bn (js/BigInt (str "0x" hex))]
     ;; if negative number, flip bits & add 1 (because js operators are for unsigned only)
     (if (bit-and 0x80 high-byte)
-      (let [bin  (str "0b" (flip-bin-string (.toString bn 2)))
-            bn' (js* "BigInt(~{}) + BigInt(1)" bin)]
-        ;; adding sign w assignment does not change bytes
-        (js* "~{} = -~{};" bn bn')))
+      (let [bin  (str "0b" (flip-bin-string (.toString bn 2)))]
+        (js* "~{} = -( BigInt(~{}) + 1n)" bn bin)))
     (set! *unchecked-if* false)
     bn))
 

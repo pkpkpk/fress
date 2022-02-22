@@ -1,5 +1,5 @@
-# `[fress "0.3.1"]`
-## `fress {:mvn/version  "0.3.1"}`
+# `[fress "0.4.0"]`
+## `fress {:mvn/version  "0.4.0"}`
 
 [![Clojars Project](https://img.shields.io/clojars/v/fress.svg)](https://clojars.org/fress)
 
@@ -291,6 +291,38 @@ Fress wraps clojure.data.fressian and can be used as a drop in replacement.
 
 <hr>
 
+## Type Support
+
+fressian type | cljs-read | cljs-write | note
+--------------|-----------|------------|-------
+int           | :white_check_mark:  |  :white_check_mark: | `fress.reader/*throw-on-unsafe?*` defaults to `true`
+bool          | :white_check_mark:  |  :white_check_mark:
+bytes         | :white_check_mark:  |  :white_check_mark: | Int8Array
+float         | :white_check_mark:  |  :white_check_mark:
+double        | :white_check_mark:  |  :white_check_mark:
+string        | :white_check_mark:  |  :white_check_mark:
+null          | :white_check_mark:  |  :white_check_mark:
+list          | :white_check_mark:  |  :white_check_mark:
+boolean[]     | :white_check_mark:  |  :white_check_mark: | use `(write-as wrt "boolean[]" val)`
+int[]         | :white_check_mark:  |  :white_check_mark: | Int32Array
+long[]        | :white_check_mark:  |  :white_check_mark: | BigInt64Array or `(write-as wrt "long[]" val)`
+float[]       | :white_check_mark:  |  :white_check_mark: | Float32Array
+double[]      | :white_check_mark:  |  :white_check_mark: | Float64Array
+Object[]      | :white_check_mark:  |  :white_check_mark: | use `(write-as wrt "Object[]" val)`
+map           | :white_check_mark:  |  :white_check_mark:
+set           | :white_check_mark:  |  :white_check_mark:
+uuid          | :white_check_mark:  |  :white_check_mark:
+regex         | :white_check_mark:  |  :white_check_mark:
+inst          | :white_check_mark:  |  :white_check_mark:
+uri           | :white_check_mark:  |  :white_check_mark: | [goog.Uri](https://google.github.io/closure-library/api/goog.Uri.html)
+records       | :white_check_mark:  |  :white_check_mark: | see usage details in README
+bigint        | :white_check_mark:  |  :white_check_mark:
+sym           | :white_check_mark:  |  :white_check_mark:
+key           | :white_check_mark:  |  :white_check_mark:
+char          | :white_check_mark:  |  :white_check_mark: | use `(write-as wrt "char" \a)`
+ratio         | :x:  |  :x: | TODO
+bigdec        | :x:  |  :x: | TODO
+
 ### Further Reading
 + https://github.com/clojure/data.fressian/wiki
 + https://github.com/Datomic/fressian/wiki
@@ -307,4 +339,3 @@ Fress wraps clojure.data.fressian and can be used as a drop in replacement.
 [7]: https://docs.oracle.com/javase/7/docs/api/java/nio/ByteBuffer.html
 [8]: https://hacks.mozilla.org/2017/06/a-cartoon-intro-to-arraybuffers-and-sharedarraybuffers/
 [9]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays
-

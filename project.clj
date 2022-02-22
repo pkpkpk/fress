@@ -1,4 +1,4 @@
-(defproject fress "0.3.3"
+(defproject fress "0.4.0"
   :description "Fressian for clojure(script) and WASM"
   :url "https://github.com/pkpkpk/fress"
   :repositories [["clojars" {:sign-releases false}]]

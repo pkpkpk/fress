@@ -1,5 +1,5 @@
 (ns fress.impl.bigint
-  (:refer-clojure :exclude [bit-not]))
+  (:refer-clojure :exclude [bit-not abs]))
 
 (defn bigint?
   [n]

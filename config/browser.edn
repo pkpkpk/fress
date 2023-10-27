@@ -1,5 +1,0 @@
-{:main fress.browser-runner
- :output-to "resources/public/js/fress.js"
- :parallel-build true
- :optimizations :advanced
- :elide-asserts true}

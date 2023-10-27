@@ -1,0 +1,1 @@
+{:externs ["fress/externs.js"]}

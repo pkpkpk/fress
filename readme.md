@@ -286,8 +286,7 @@ Fress wraps clojure.data.fressian and can be used as a drop in replacement.
 + if you are already reifying fressian read+writeHandlers, they will be passed through as is
 
 #### Differences from clojure.data.fressian
-  + CLJS has no support for BigInteger, BigDecimal, chars, ratios at this time
-  + Integer safety
+  + CLJS has no support for BigDecimal & Ratios at this time
 
 <hr>
 

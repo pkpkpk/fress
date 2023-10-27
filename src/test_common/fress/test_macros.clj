@@ -25,7 +25,9 @@
 (defmacro target [] (get-in @env/*compiler* [:options :target]))
 
 (defmacro inline-edn [filename]
-  (let [file (io/file (.getParent (io/file ana/*cljs-file*)) filename)
+  (let [resource (io/resource filename)
+        _(assert (some? resource))
+        file (io/file resource)
         _ (assert (.exists file))
         data (edn/read-string (slurp file))]
     data))

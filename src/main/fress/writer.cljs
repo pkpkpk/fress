@@ -343,8 +343,6 @@
     (clearCaches this)
     this))
 
-
-
 (defn writeNumber [this ^number n]
   (if (integer? n)
     (writeInt this n)
@@ -477,6 +475,7 @@
   (writeBytes wrt (bn/bigint->bytes n)))
 
 (defn writeBigInt64
+  "written as normal ints where unsafe numbers would be read back as longs"
   [w ^js/BigInt n]
   (assert (bn/bigint? n))
   (if (<= js/Number.MIN_SAFE_INTEGER n js/Number.MAX_SAFE_INTEGER)
@@ -524,6 +523,7 @@
     js/BigInt64Array writeBigInt64Array
     js/BigInt write-bigint
     goog.Uri writeUri
+    ;; TODO goog.math.Long
     nil writeNull
     cljs.core/UUID writeUUID
     cljs.core/PersistentHashMap writeMap

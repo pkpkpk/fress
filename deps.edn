@@ -1,22 +1,38 @@
-{:paths ["src/main/cljs"
-         "src/main/clj"
-         "src/test"
-         "src/test_common"
-         "target/classes"]
- :deps {org.clojure/clojure {:mvn/version "1.10.3"}
-        org.clojure/clojurescript {:mvn/version  "1.11.4"}
+{:paths ["src/main"]
+ :deps {org.clojure/clojure {:mvn/version "1.11.1"}
+        org.clojure/clojurescript {:mvn/version  "1.11.60"}
         org.clojure/data.fressian {:mvn/version "1.0.0"}}
- :aliases {:node-test {:main-opts ["-m" "cljs.main" "-co" "config/node.edn" "-c"]}
-           :browser-test {:main-opts ["-m" "cljs.main" "-co" "config/browser.edn" "-c"]}
+ :aliases {:node-test {:extra-paths ["test-resources" "src/test" "src/test_common" "target/classes"]
+                       :main-opts ["-m" "cljs.main"
+                                   "-co" "{:language-in :ecmascript-next}"
+                                   "-o" "target/node-runner.min.js"
+                                   "-O" "advanced"
+                                   "-t" "node"
+                                   "-c" "fress.runner"]}
+
+           :browser-test {:extra-paths ["test-resources" "src/test" "src/test_common" "target/classes"]
+                          :main-opts ["-m" "cljs.main"
+                                      "-co" "{:language-in :ecmascript-next}"
+                                      "-o" "resources/public/js/fress.js"
+                                      "-O" "advanced"
+                                      "-t" "node"
+                                      "-c" "fress.browser-runner"]}
+
+           :bench {:extra-paths ["src/bench" "src/bench"]
+                   :extra-deps {com.cognitect/transit-cljs {:mvn/version "0.8.280"}}
+                   :main-opts ["-m" "cljs.main"
+                               "-co" "{:language-in :ecmascript-next}"
+                               "-o" "target/bench.min.js"
+                               "-O" "advanced"
+                               "-t" "node"
+                               "-c" "fress.bench"]}
+
            :jvm-test {:extra-deps {io.github.cognitect-labs/test-runner
                                    {:git/sha "cc75980b43011773162b485f46f939dc5fba91e4"}}
                       :main-opts ["-m" "cognitect.test-runner"]
                       :exec-args {:nses [fress.jvm-tests]
                                   :dirs ["src/test"]}
-                      :exec-fn cognitect.test-runner.api/test}
-           :bench {:extra-paths ["src/bench"]
-                   :extra-deps {com.cognitect/transit-cljs {:mvn/version "0.8.269"}}
-                   :main-opts ["-m" "cljs.main" "-co" "config/bench.edn" "-c"]}}}
+                      :exec-fn cognitect.test-runner.api/test}}}
 ; :wasm-test {:extra-paths ["src/wasm_test"]
 ;             :extra-deps {org.clojure/core.async {:mvn/version "1.5.648"}
 ;                          cargo-cljs/cargo-cljs {:mvn/version "0.1.0"}}}

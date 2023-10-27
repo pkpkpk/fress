@@ -1,7 +1,0 @@
-{:main fress.bench
- :output-to "target/bench/bench.js"
- :output-dir "target/bench"
- :target :nodejs
- :parallel-build true
- :optimizations :advanced
- :elide-asserts false}

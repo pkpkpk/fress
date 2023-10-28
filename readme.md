@@ -1,7 +1,5 @@
 ```clojure
-
 com.github.pkpkpk/fress {:mvn/version "0.4.307"}
-
 ```
 ```clojure
 [com.github.pkpkpk/fress "0.4.307"]

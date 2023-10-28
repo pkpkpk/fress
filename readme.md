@@ -1,7 +1,7 @@
-# `[fress "0.4.0"]`
-## `fress {:mvn/version  "0.4.0"}`
+# `com.github.pkpkpk/fress {:mvn/version "0.4.307"}`
+## `[com.github.pkpkpk/fress "0.4.307"]`
 
-[![Clojars Project](https://img.shields.io/clojars/v/fress.svg)](https://clojars.org/fress)
+[![Clojars Project](https://img.shields.io/clojars/v/com.github.pkpkpk/fress.svg)](https://clojars.org/com.github.pkpkpk/fress)
 
 ## wasm⥪fressian⥭cljs
 

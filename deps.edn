@@ -32,7 +32,13 @@
                       :main-opts ["-m" "cognitect.test-runner"]
                       :exec-args {:nses [fress.jvm-tests]
                                   :dirs ["src/test"]}
-                      :exec-fn cognitect.test-runner.api/test}}}
+                      :exec-fn cognitect.test-runner.api/test}
+
+           :build  {:extra-paths ["src/dev"]
+                    :ns-default fress.build
+                    :extra-deps {io.github.clojure/tools.build {:mvn/version "0.9.6"}
+                                 slipset/deps-deploy {:mvn/version "0.2.1"}}}}}
+
 ; :wasm-test {:extra-paths ["src/wasm_test"]
 ;             :extra-deps {org.clojure/core.async {:mvn/version "1.5.648"}
 ;                          cargo-cljs/cargo-cljs {:mvn/version "0.1.0"}}}

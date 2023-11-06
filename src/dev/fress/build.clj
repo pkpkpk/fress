@@ -20,8 +20,6 @@
   (let []
     (b/copy-dir {:src-dirs ["src/main"]
                  :target-dir class-dir})
-    (io/make-parents (io/file "target/deps/deps.cljs"))
-    (spit (io/file "target/deps/deps.cljs") (slurp (io/file "src" "deps.cljs")))
     (b/write-pom {:class-dir class-dir
                   :lib lib
                   :version version
@@ -30,13 +28,15 @@
     (b/compile-clj {:basis basis
                     :ns-compile '[fress.impl.bytestream]
                     :class-dir class-dir})
+    (io/make-parents (io/file "target/deps/deps.cljs"))
+    (spit (io/file "target/classes/deps.cljs") (slurp (io/file "src" "deps.cljs")))
     (b/jar {:class-dir class-dir
             :src-pom "./template/pom.xml"
             :lib lib
             :version version
             :basis basis
             :jar-file jar-file
-            :src-dirs ["src/main" "target/deps"]})))
+            :src-dirs ["src/main"]})))
 
 (defn install []
   (b/install

@@ -1,8 +1,8 @@
 ```clojure
-com.github.pkpkpk/fress {:mvn/version "0.4.307"}
+com.github.pkpkpk/fress {:mvn/version "0.4.312"}
 ```
 ```clojure
-[com.github.pkpkpk/fress "0.4.307"]
+[com.github.pkpkpk/fress "0.4.312"]
 ```
 
 [![Clojars Project](https://img.shields.io/clojars/v/com.github.pkpkpk/fress.svg)](https://clojars.org/com.github.pkpkpk/fress)
@@ -108,8 +108,7 @@ By default, footers in cljs readers will automatically trigger an EOF throw, pre
 2. define a *write-handler*, a `fn<writer, object>`
   + use `(fress/write-tag writer tag field-count)`
   + call `fress/write-object` on each component of your type
-3. create a writer and pass a `:handler` map of `{type writeHandler}`
-  - [`:handlers` passed to JVM writers have a different shape](#on-the-server)
+3. create a writer and pass a `:handler` map of `type->handler` or `type->tag->server`
 
 Example: lets write a handler for javascript errors
 

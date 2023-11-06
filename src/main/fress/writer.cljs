@@ -523,7 +523,6 @@
     js/BigInt64Array writeBigInt64Array
     js/BigInt write-bigint
     goog.Uri writeUri
-    ;; TODO goog.math.Long
     nil writeNull
     cljs.core/UUID writeUUID
     cljs.core/PersistentHashMap writeMap
@@ -560,16 +559,19 @@
         inh-lookup (build-inheritance-lookup handlers)] ;;TODO delay / build this lazily/if needed,
     (fn [tag obj]
       (if (some? tag)
-        (.?get handlers tag) ;; all we need in 99% of cases
+        (.?get handlers tag)
         (if (record? obj)
-          (if-let [custom-writer (.?get handlers "record")]
-            (fn [wrt rec]
-              (custom-writer wrt rec rec->tag))
-            (fn [wrt rec]
-              (writeRecord wrt rec rec->tag)))
+          (or (.?get handlers (type obj))
+              (if-let [custom-writer (.?get handlers "record")]
+                (fn [wrt rec]
+                  (custom-writer wrt rec rec->tag))
+                (fn [wrt rec]
+                  (writeRecord wrt rec rec->tag))))
           (if (object? obj)
             (fn [wrt obj]
-              (writeMap wrt (js->clj obj))) ;; TODO warn
+              (when goog.DEBUG
+                (js/console.warn "js->clj used to write javascript object into fressian!"))
+              (writeMap wrt (js->clj obj)))
             (or (.?get handlers (type obj))
                 (inh-lookup obj))))))))
 
@@ -593,15 +595,26 @@
        (every? fn? (keys m))
        (every? string? (vals m))))
 
+(defn normalize-handlers
+  "Normalize type->tag->writer (a la data.fressian) to flat type->writer"
+  [user-handlers]
+  (reduce-kv (fn [acc type tag-writer-map]
+               (if (map? tag-writer-map)
+                 (assoc acc type (val (first tag-writer-map)))
+                 (assoc acc type tag-writer-map)))
+             {}
+             user-handlers))
+
 (defn writer
   "Create a writer that combines userHandlers with the normal type handlers
    built into Fressian."
   [out & {:keys [handlers record->name checksum? offset] :as opts}]
-  (when handlers (assert (valid-user-handlers? handlers)))
-  (when record->name (assert (valid-record->name? record->name)))
-  (let [lookup-fn (build-handler-lookup handlers record->name)
-        checksum? (if (some? checksum?) checksum? true)
-        raw-out (rawOut/raw-output out {:offset (or offset 0) :checksum? checksum?})
-        priorityCache nil ;added when needed
-        structCache nil]
-    (FressianWriter. out raw-out priorityCache structCache lookup-fn)))
+  (let [handlers (some-> handlers normalize-handlers)]
+    (when handlers (assert (valid-user-handlers? handlers) "invalid write handler shape"))
+    (when record->name (assert (valid-record->name? record->name)))
+    (let [lookup-fn (build-handler-lookup handlers record->name)
+          checksum? (if (some? checksum?) checksum? true)
+          raw-out (rawOut/raw-output out {:offset (or offset 0) :checksum? checksum?})
+          priorityCache nil ;added when needed
+          structCache nil]
+      (FressianWriter. out raw-out priorityCache structCache lookup-fn))))

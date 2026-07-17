@@ -1,6 +1,7 @@
 (ns fress.samples
   (:require-macros [fress.test-macros :as mac])
   (:require [cljs.tools.reader :refer [read-string]]
+            [fress.impl.bigdec :as bd]
             [fress.util :as util]))
 
 (def int-samples
@@ -186,6 +187,17 @@
    {:form "(bigint Integer/MIN_VALUE)", :bytes [-58 -44 -128 0 0 0] :value (util/bigint util/i32_MIN_VALUE)}
    {:form "(bigint Long/MIN_VALUE)", :bytes [-58 -39 8 -128 0 0 0 0 0 0 0] :value util/i64_MIN_VALUE}
    {:form "-170141183460469231731687303715884105728N", :bytes [-58 -39 16 -128 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0], :value util/i128_MIN_VALUE}])
+
+;; BIGDEC = unscaled (bigint bytes) + integer scale; value = unscaled x 10^-scale.
+;; Bytes are the canonical JVM Fressian encoding (clojure.data.fressian writeObject).
+(def bigdec-samples
+  [{:form "0M",      :bytes [-57 -47 0 0],     :value (bd/bigdec (js/BigInt 0) 0)}
+   {:form "1M",      :bytes [-57 -47 1 0],     :value (bd/bigdec (js/BigInt 1) 0)}
+   {:form "123.45M", :bytes [-57 -46 48 57 2], :value (bd/bigdec (js/BigInt 12345) 2)}
+   {:form "-0.5M",   :bytes [-57 -47 -5 1],    :value (bd/bigdec (js/BigInt -5) 1)}
+   {:form "12345678901234567890.12345M"
+    :bytes [-57 -39 11 1 5 110 15 54 -90 68 61 -30 -33 121 5]
+    :value (bd/bigdec (js/BigInt "1234567890123456789012345") 5)}])
 
 (def char-samples
   [{:form "\\0", :bytes [-17 -34 99 104 97 114 1 48], :value \0}

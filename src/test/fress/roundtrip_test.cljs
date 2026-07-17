@@ -361,6 +361,16 @@
         (is (seq= bytes (util/byte-array out)))
         (is (== value (r/readObject rdr)))))))
 
+(deftest bigdec-test
+  (doseq [{:keys [form bytes value]} samples/bigdec-samples]
+    (testing form
+      (let [out (u8-array (count bytes))
+            wrt (w/writer out)
+            rdr (r/reader out)]
+        (w/writeObject wrt value)
+        (is (seq= bytes (util/byte-array out)))
+        (is (= value (r/readObject rdr)))))))  ;; Bigdec uses value = (not ==)
+
 (deftest char-test
   (doseq [{:keys [form bytes value]} samples/char-samples]
     (testing form

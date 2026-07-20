@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# bin/test-all: Deep clean, compile, and run ALL test suites (JVM and CLJS).
+
+echo "🚀 Starting full test suite execution..."
+echo "------------------------------------------------"
+
+# Clean
+./bin/clean
+
+# JVM Build
+echo ""
+./bin/compile-jvm
+
+# JVM Test
+echo ""
+./bin/test-jvm
+
+# CLJS Test
+echo ""
+./bin/test-cljs both
+
+echo "------------------------------------------------"
+echo "🌟 ALL TEST SUITES PASSED SUCCESSFULY! 🌟"

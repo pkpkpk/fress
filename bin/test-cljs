@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# bin/test-cljs: Run ClojureScript test suite.
+# Usage:
+#   bin/test-cljs [none|advanced|both]
+
+MODE="${1:-both}"
+
+run_none() {
+    echo "🚀 Compiling and running UNOPTIMIZED cljs tests (:none)..."
+    clojure -M:node-test-none
+    node target/node-runner.js
+    echo "🎉 Unoptimized cljs tests passed!"
+}
+
+run_advanced() {
+    echo "🚀 Compiling and running OPTIMIZED cljs tests (:advanced)..."
+    clojure -M:node-test-advanced
+    node target/node-runner.min.js
+    echo "🎉 Optimized cljs tests passed!"
+}
+
+if [ "$MODE" = "none" ]; then
+    run_none
+elif [ "$MODE" = "advanced" ]; then
+    run_advanced
+else
+    run_none
+    echo ""
+    run_advanced
+fi

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# bin/test-jvm: Compile and run JVM test suite.
+
+# Ensure AOT-compiled classes exist on classpath, otherwise compile them.
+if [ ! -f "target/classes/fress/impl/bytestream.class" ]; then
+    echo "⚠️  AOT compiled class bytestream.class not found. Compiling first..."
+    ./bin/compile-jvm
+fi
+
+echo "🚀 Running JVM Clojure tests..."
+clojure -Sdeps '{:paths ["src/main" "src/test" "target/classes"]}' -X:jvm-test
+echo "🎉 JVM Clojure tests passed!"

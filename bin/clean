@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# bin/clean: Deep clean compiler caches and build outputs.
+
+echo "🧹 Cleaning workspace caches and build outputs..."
+rm -rf target .cache .cljs_node_repl
+echo "✨ Clean complete."

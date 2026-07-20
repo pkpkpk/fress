@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# bin/compile-jvm: Compile JVM Clojure sources/AOT classes.
+
+echo "⚙️  AOT compiling JVM/Java portions..."
+clojure -M:build -e "(require 'fress.build) (fress.build/jar)"
+echo "✅ Compilation complete."

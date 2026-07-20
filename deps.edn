@@ -1,14 +1,22 @@
 {:paths ["src/main"]
  :deps {org.clojure/clojure {:mvn/version "1.11.1"}
-        org.clojure/clojurescript {:mvn/version  "1.11.60"}
+        org.clojure/clojurescript {:mvn/version "1.12.145"}
         org.clojure/data.fressian {:mvn/version "1.0.0"}}
- :aliases {:node-test {:extra-paths ["test-resources" "src/test" "src/test_common" "target/classes"]
-                       :main-opts ["-m" "cljs.main"
-                                   "-co" "{:language-in :ecmascript-next}"
-                                   "-o" "target/node-runner.min.js"
-                                   "-O" "advanced"
-                                   "-t" "node"
-                                   "-c" "fress.runner"]}
+ :aliases {:node-test-advanced {:extra-paths ["test-resources" "src/test" "src/test_common" "target/classes"]
+                                :main-opts ["-m" "cljs.main"
+                                            "-co" "{:language-in :ecmascript-next}"
+                                            "-o" "target/node-runner.min.js"
+                                            "-O" "advanced"
+                                            "-t" "node"
+                                            "-c" "fress.runner"]}
+
+           :node-test-none {:extra-paths ["test-resources" "src/test" "src/test_common" "target/classes"]
+                            :main-opts ["-m" "cljs.main"
+                                        "-co" "{:language-in :ecmascript-next}"
+                                        "-o" "target/node-runner.js"
+                                        "-O" "none"
+                                        "-t" "node"
+                                        "-c" "fress.runner"]}
 
            :browser-test {:extra-paths ["test-resources" "src/test" "src/test_common" "target/classes"]
                           :main-opts ["-m" "cljs.main"

@@ -7,6 +7,7 @@
             [fress.impl.hopmap :as hop]
             [fress.impl.table :as table]
             [fress.impl.bigint :as bn :refer [bigint]]
+            [fress.impl.bigdec :as bd]
             [fress.util :as util]
             [goog.object]))
 
@@ -474,6 +475,14 @@
   (writeTag wrt "bigint" 1)
   (writeBytes wrt (bn/bigint->bytes n)))
 
+(defn write-bigdecimal
+  "BIGDEC = unscaled (bigint, as bytes) + integer scale. Mirrors JVM Fressian's
+   default BigDecimal write; JVM-readable back to a java.math.BigDecimal."
+  [^FressianWriter wrt x]
+  (writeTag wrt "bigdec" 2)
+  (writeBytes wrt (bn/bigint->bytes (bd/->unscaled x)))
+  (writeInt wrt (bd/->scale x)))
+
 (defn writeBigInt64
   "written as normal ints where unsafe numbers would be read back as longs"
   [w ^js/BigInt n]
@@ -522,6 +531,7 @@
     js/Float64Array writeDoubleArray
     js/BigInt64Array writeBigInt64Array
     js/BigInt write-bigint
+    bd/Bigdec write-bigdecimal
     goog.Uri writeUri
     nil writeNull
     cljs.core/UUID writeUUID

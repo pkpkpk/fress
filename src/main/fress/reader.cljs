@@ -5,6 +5,7 @@
             [fress.impl.ranges :as ranges]
             [fress.impl.table :as table]
             [fress.impl.bigint :as bn :refer [bigint]]
+            [fress.impl.bigdec :as bd]
             [fress.util :as util :refer [expected byte-array log]])
   (:import [goog.math Long]))
 
@@ -605,6 +606,15 @@
   [^FressianReader rdr _ _]
   (bn/bytes->bigint (readObject rdr)))
 
+(defn readBigDecimal
+  "BIGDEC (0xC7) carries two fields: the unscaled value as bytes (a bigint) and
+   an integer scale. Value = unscaled x 10^-scale. Mirrors JVM Fressian's default
+   BigDecimal read; returns a fress.impl.bigdec/Bigdec."
+  [^FressianReader rdr _ _]
+  (let [unscaled (bn/bytes->bigint (readObject rdr))
+        scale    (readObject rdr)]
+    (bd/->Bigdec unscaled scale)))
+
 (defn ^string readChar
   [^FressianReader rdr _ _]
   (js/String.fromCharCode (readObject rdr)))
@@ -628,7 +638,8 @@
     "key" readKeyword
     "sym" readSymbol
     "char" readChar
-    "bigint" readBigInt]))
+    "bigint" readBigInt
+    "bigdec" readBigDecimal]))
 
 (defn build-lookup
   [user-handlers name->map-ctor]

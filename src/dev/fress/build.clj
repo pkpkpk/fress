@@ -13,42 +13,53 @@
 (def jar-file (format "target/%s-%s.jar" (name lib) version))
 
 (defn clean
-  ([] (b/delete {:path "target"}))
-  ([_] (b/delete {:path "target"})))
+  "Clean target directory."
+  ([] (clean {}))
+  ([_opts] (b/delete {:path "target"})))
 
-(defn jar []
-  (let []
-    (b/copy-dir {:src-dirs ["src/main"]
-                 :target-dir class-dir})
-    (b/write-pom {:class-dir class-dir
-                  :lib lib
-                  :version version
-                  :basis basis
-                  :src-dirs ["src/main"]})
-    (b/compile-clj {:basis basis
-                    :ns-compile '[fress.impl.bytestream]
-                    :class-dir class-dir})
-    (io/make-parents (io/file "target/deps/deps.cljs"))
-    (spit (io/file "target/classes/deps.cljs") (slurp (io/file "src" "deps.cljs")))
-    (b/jar {:class-dir class-dir
-            :src-pom "./template/pom.xml"
-            :lib lib
-            :version version
-            :basis basis
-            :jar-file jar-file
-            :src-dirs ["src/main"]})))
+(defn jar
+  "Build the library JAR."
+  ([] (jar {}))
+  ([_opts]
+   (b/copy-dir {:src-dirs ["src/main"]
+                :target-dir class-dir})
+   (b/write-pom {:class-dir class-dir
+                 :lib lib
+                 :version version
+                 :basis basis
+                 :src-dirs ["src/main"]
+                 :pom-data [[:licenses
+                             [:license
+                              [:name "Eclipse Public License"]
+                              [:url "http://www.eclipse.org/legal/epl-v10.html"]]]]})
+   (b/compile-clj {:basis basis
+                   :ns-compile '[fress.impl.bytestream]
+                   :class-dir class-dir})
+   (io/make-parents (io/file "target/deps/deps.cljs"))
+   (spit (io/file "target/classes/deps.cljs") (slurp (io/file "src" "deps.cljs")))
+   (b/jar {:class-dir class-dir
+           :lib lib
+           :version version
+           :basis basis
+           :jar-file jar-file
+           :src-dirs ["src/main"]})))
 
-(defn install []
-  (b/install
-   {:class-dir class-dir
-    :lib lib
-    :version version
-    :basis basis
-    :jar-file jar-file}))
+(defn install
+  "Install JAR locally."
+  ([] (install {}))
+  ([_opts]
+   (b/install
+    {:class-dir class-dir
+     :lib lib
+     :version version
+     :basis basis
+     :jar-file jar-file})))
 
-(defn deploy "Deploy the JAR to Clojars." []
-  (dd/deploy
-   {:artifact (b/resolve-path jar-file)
-    :installer :remote
-    :pom-file (b/pom-path {:lib lib :class-dir class-dir})}))
-
+(defn deploy
+  "Deploy the JAR to Clojars."
+  ([] (deploy {}))
+  ([_opts]
+   (dd/deploy
+    {:artifact (b/resolve-path jar-file)
+     :installer :remote
+     :pom-file (b/pom-path {:lib lib :class-dir class-dir})})))

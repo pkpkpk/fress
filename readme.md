@@ -1,8 +1,8 @@
 ```clojure
-com.github.pkpkpk/fress {:mvn/version "0.4.312"}
+com.github.pkpkpk/fress {:mvn/version "0.4.317"}
 ```
 ```clojure
-[com.github.pkpkpk/fress "0.4.312"]
+[com.github.pkpkpk/fress "0.4.317"]
 ```
 
 [![Clojars Project](https://img.shields.io/clojars/v/com.github.pkpkpk/fress.svg)](https://clojars.org/com.github.pkpkpk/fress)

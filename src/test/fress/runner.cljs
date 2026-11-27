@@ -2,6 +2,7 @@
   (:require [cljs.test :refer-macros [run-tests]]
             [cljs.nodejs :as nodejs]
             [fress.roundtrip-test]
+            [fress.impl.bigint-test]
             [fress.impl.hopmap-test]
             [fress.impl.raw-test]))
 
@@ -10,6 +11,7 @@
 (defn -main []
   (run-tests
    'fress.roundtrip-test
+   'fress.impl.bigint-test
    'fress.impl.hopmap-test
    'fress.impl.raw-test))
 

@@ -1,8 +1,7 @@
 (ns fress.impl.bigint-test
   (:require [cljs.test :refer-macros [deftest is are testing async]]
             [fress.impl.bigint :as bn :refer [bigint]]
-            [fress.util :refer [u8-array] :as util]
-            [fress.test-helpers :as helpers :refer [log is= seq= are-nums= float=]]))
+            [fress.util :as util]))
 
 (deftest bn64-bit-switch-test
   (are [a b] (== a b)
@@ -39,3 +38,14 @@
   (is (= 1 (bit-shift-right 2 1) (js/Number (bn/>> (bigint 2) 1))))
   (is (= 2 (bit-shift-right 4 1) (js/Number (bn/>> (bigint 4) 1))))
   (is (= -2 (bit-shift-right -4 1) (js/Number (bn/>> (bigint -4) 1)))))
+
+(deftest signed-byte-boundaries
+  (doseq [[decimal hex] [["0" "00"] ["127" "7f"] ["128" "0080"]
+                         ["-1" "ff"] ["-128" "80"] ["-129" "ff7f"]
+                         ["-256" "ff00"] ["-32768" "8000"]
+                         ["9223372036854775808" "008000000000000000"]
+                         ["-9223372036854775809" "ff7fffffffffffffff"]]]
+    (let [n (bigint decimal)]
+      (is (= hex (bn/bigint->hex n)))
+      (is (= n (bn/hex->signed-bigint hex)))
+      (is (= n (bn/bytes->bigint (bn/bigint->bytes n)))))))
